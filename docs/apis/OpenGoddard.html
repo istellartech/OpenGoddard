@@ -1,0 +1,926 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>OpenGoddard package &#8212; OpenGoddard 1.0.0 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '1.0.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">OpenGoddard 1.0.0 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">OpenGoddard package</a><ul>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-OpenGoddard.optimize">OpenGoddard.optimize module</a></li>
+<li><a class="reference internal" href="#module-OpenGoddard">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/apis/OpenGoddard.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="opengoddard-package">
+<h1>OpenGoddard package<a class="headerlink" href="#opengoddard-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-OpenGoddard.optimize">
+<span id="opengoddard-optimize-module"></span><h2>OpenGoddard.optimize module<a class="headerlink" href="#module-OpenGoddard.optimize" title="Permalink to this headline">¶</a></h2>
+<p>OpenGoddard.optimize - Optimal Trajectories module with PseudoSpectral Method</p>
+<dl class="class">
+<dt id="OpenGoddard.optimize.Condition">
+<em class="property">class </em><code class="descclassname">OpenGoddard.optimize.</code><code class="descname">Condition</code><span class="sig-paren">(</span><em>length=0</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Condition" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>OpenGoddard.optimize Condition class
+thin wrappper of numpy zeros and hstack</p>
+<dl class="method">
+<dt id="OpenGoddard.optimize.Condition.add">
+<code class="descname">add</code><span class="sig-paren">(</span><em>arg</em>, <em>unit=1.0</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Condition.add" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="OpenGoddard.optimize.Condition.change_value">
+<code class="descname">change_value</code><span class="sig-paren">(</span><em>index</em>, <em>value</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Condition.change_value" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="OpenGoddard.optimize.Dynamics">
+<em class="property">class </em><code class="descclassname">OpenGoddard.optimize.</code><code class="descname">Dynamics</code><span class="sig-paren">(</span><em>prob</em>, <em>section=0</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Dynamics" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>OpenGoddard.optimize Condition class
+thin wrapper for dynamics function
+Behave like a dictionary type</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="OpenGoddard.optimize.Guess">
+<em class="property">class </em><code class="descclassname">OpenGoddard.optimize.</code><code class="descname">Guess</code><a class="headerlink" href="#OpenGoddard.optimize.Guess" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Class for initial value guess for optimization
+Collection of class methods</p>
+<dl class="classmethod">
+<dt id="OpenGoddard.optimize.Guess.constant">
+<em class="property">classmethod </em><code class="descname">constant</code><span class="sig-paren">(</span><em>time</em>, <em>const</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Guess.constant" title="Permalink to this definition">¶</a></dt>
+<dd><p>return constant values that array size is same as time length</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>time</strong> (<em>array_like</em>) &#8211; </li>
+<li><strong>const</strong> (<em>float</em>) &#8211; set value</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">(N, ) ndarray</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="OpenGoddard.optimize.Guess.cubic">
+<em class="property">classmethod </em><code class="descname">cubic</code><span class="sig-paren">(</span><em>time</em>, <em>y0</em>, <em>yprime0</em>, <em>yf</em>, <em>yprimef</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Guess.cubic" title="Permalink to this definition">¶</a></dt>
+<dd><p>return cubic function values that array size is same as time length</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>time</strong> (<em>array_like</em>) &#8211; time</li>
+<li><strong>y0</strong> (<em>float</em>) &#8211; initial value</li>
+<li><strong>yprime0</strong> (<em>float</em>) &#8211; slope of initial value</li>
+<li><strong>yf</strong> (<em>float</em>) &#8211; final value</li>
+<li><strong>yprimef</strong> (<em>float</em>) &#8211; slope of final value</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">(N, ) ndarray</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="OpenGoddard.optimize.Guess.linear">
+<em class="property">classmethod </em><code class="descname">linear</code><span class="sig-paren">(</span><em>time</em>, <em>y0</em>, <em>yf</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Guess.linear" title="Permalink to this definition">¶</a></dt>
+<dd><p>return linear function values that array size is same as time length</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>time</strong> (<em>array_like</em>) &#8211; time</li>
+<li><strong>y0</strong> (<em>float</em>) &#8211; initial value</li>
+<li><strong>yf</strong> (<em>float</em>) &#8211; final value</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">(N, ) ndarray</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="OpenGoddard.optimize.Guess.plot">
+<em class="property">classmethod </em><code class="descname">plot</code><span class="sig-paren">(</span><em>x</em>, <em>y</em>, <em>title=''</em>, <em>xlabel=''</em>, <em>ylabel=''</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Guess.plot" title="Permalink to this definition">¶</a></dt>
+<dd><p>plot wrappper</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>x</strong> (<em>array_like</em>) &#8211; array on the horizontal axis of the plot</li>
+<li><strong>y</strong> (<em>array_like</em>) &#8211; array on the vertical axis of the plot</li>
+<li><strong>title</strong> (<em>str</em><em>, </em><em>optional</em>) &#8211; title</li>
+<li><strong>xlabel</strong> (<em>str</em><em>, </em><em>optional</em>) &#8211; xlabel</li>
+<li><strong>ylabel</strong> (<em>str</em><em>, </em><em>optional</em>) &#8211; ylabel</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="OpenGoddard.optimize.Guess.zeros">
+<em class="property">classmethod </em><code class="descname">zeros</code><span class="sig-paren">(</span><em>time</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Guess.zeros" title="Permalink to this definition">¶</a></dt>
+<dd><p>return zeros that array size is same as time length</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>time</strong> (<em>array_like</em>) &#8211; </td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">(N, ) ndarray</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="OpenGoddard.optimize.Problem">
+<em class="property">class </em><code class="descclassname">OpenGoddard.optimize.</code><code class="descname">Problem</code><span class="sig-paren">(</span><em>time_init</em>, <em>nodes</em>, <em>number_of_states</em>, <em>number_of_controls</em>, <em>maxIterator=100</em>, <em>method='LGL'</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Problem" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>OpenGoddard Problem class.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>time_init</strong> (<em>list of float</em>) &#8211; [time_start, time_section0, time_section0, , , time_final]</li>
+<li><strong>nodes</strong> (<em>int</em>) &#8211; number of nodes</li>
+<li><strong>number_of_states</strong> (<em>list</em>) &#8211; number of states</li>
+<li><strong>number_of_controls</strong> (<em>list</em>) &#8211; number of controls</li>
+<li><strong>maxIterator</strong> (<em>int</em>) &#8211; iteration max</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="attribute">
+<dt id="OpenGoddard.optimize.Problem.nodes">
+<code class="descname">nodes</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.nodes" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>int</em> &#8211; time nodes.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="OpenGoddard.optimize.Problem.number_of_states">
+<code class="descname">number_of_states</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.number_of_states" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>int</em> &#8211; number of states.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="OpenGoddard.optimize.Problem.number_of_controls">
+<code class="descname">number_of_controls</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.number_of_controls" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>int</em> &#8211; number of controls</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="OpenGoddard.optimize.Problem.number_of_section">
+<code class="descname">number_of_section</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.number_of_section" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>int</em> &#8211; number of section</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="OpenGoddard.optimize.Problem.number_of_param">
+<code class="descname">number_of_param</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.number_of_param" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>int</em> &#8211; number of inner variables</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="OpenGoddard.optimize.Problem.div">
+<code class="descname">div</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.div" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>list</em> &#8211; division point of inner variables</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="OpenGoddard.optimize.Problem.tau">
+<code class="descname">tau</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.tau" title="Permalink to this definition">¶</a></dt>
+<dd><p>time</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="OpenGoddard.optimize.Problem.w">
+<code class="descname">w</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.w" title="Permalink to this definition">¶</a></dt>
+<dd><p>weights</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="OpenGoddard.optimize.Problem.D">
+<code class="descname">D</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.D" title="Permalink to this definition">¶</a></dt>
+<dd><p>matrix</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="OpenGoddard.optimize.Problem.time">
+<code class="descname">time</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.time" title="Permalink to this definition">¶</a></dt>
+<dd><p>time</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="OpenGoddard.optimize.Problem.maxIterator">
+<code class="descname">maxIterator</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.maxIterator" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>int</em> &#8211; max iterator</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="OpenGoddard.optimize.Problem.time_all_section">
+<code class="descname">time_all_section</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.time_all_section" title="Permalink to this definition">¶</a></dt>
+<dd><p>all section time</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="OpenGoddard.optimize.Problem.unit_states">
+<code class="descname">unit_states</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.unit_states" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>list of float</em> &#8211; canonical unit of states</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="OpenGoddard.optimize.Problem.unit_controls">
+<code class="descname">unit_controls</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.unit_controls" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>list of float</em> &#8211; canonical unit of controls</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="OpenGoddard.optimize.Problem.unit_time">
+<code class="descname">unit_time</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.unit_time" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>float</em> &#8211; canonical unit of time</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="OpenGoddard.optimize.Problem.p">
+<code class="descname">p</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.p" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>(N,) ndarray</em> &#8211; inner variables for optimization</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="OpenGoddard.optimize.Problem.dynamics">
+<code class="descname">dynamics</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.dynamics" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>function</em> &#8211; function list, list of function of dynamics</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="OpenGoddard.optimize.Problem.knot_states_smooth">
+<code class="descname">knot_states_smooth</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.knot_states_smooth" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>list of True/False</em> &#8211; list of states are smooth on phase knots</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="OpenGoddard.optimize.Problem.cost">
+<code class="descname">cost</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.cost" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>function</em> &#8211; cost function</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="OpenGoddard.optimize.Problem.running_cost">
+<code class="descname">running_cost</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.running_cost" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>function, optional</em> &#8211; (default = None)</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="OpenGoddard.optimize.Problem.cost_derivative">
+<code class="descname">cost_derivative</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.cost_derivative" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>function, optional</em> &#8211; (default = None)</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="OpenGoddard.optimize.Problem.equality">
+<code class="descname">equality</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.equality" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>function</em> &#8211; (default = None)</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="OpenGoddard.optimize.Problem.inequality">
+<code class="descname">inequality</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.inequality" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>function</em> &#8211; (default = None)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="OpenGoddard.optimize.Problem.controls">
+<code class="descname">controls</code><span class="sig-paren">(</span><em>control</em>, <em>section</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Problem.controls" title="Permalink to this definition">¶</a></dt>
+<dd><p>getter specify section controls array</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>control</strong> (<em>int</em>) &#8211; control number</li>
+<li><strong>section</strong> (<em>int</em>) &#8211; section number</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">1-D array of controls</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last"><a class="reference internal" href="#OpenGoddard.optimize.Problem.controls" title="OpenGoddard.optimize.Problem.controls">controls</a> (ndarray)</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="OpenGoddard.optimize.Problem.controls_all_section">
+<code class="descname">controls_all_section</code><span class="sig-paren">(</span><em>control</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Problem.controls_all_section" title="Permalink to this definition">¶</a></dt>
+<dd><p>get controls array</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>control</strong> (<em>int</em>) &#8211; control number</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">1-D array of all section control</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference internal" href="#OpenGoddard.optimize.Problem.controls_all_section" title="OpenGoddard.optimize.Problem.controls_all_section">controls_all_section</a> ((N, ) ndarray)</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="OpenGoddard.optimize.Problem.index_controls">
+<code class="descname">index_controls</code><span class="sig-paren">(</span><em>control</em>, <em>section</em>, <em>index=None</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Problem.index_controls" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="OpenGoddard.optimize.Problem.index_states">
+<code class="descname">index_states</code><span class="sig-paren">(</span><em>state</em>, <em>section</em>, <em>index=None</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Problem.index_states" title="Permalink to this definition">¶</a></dt>
+<dd><p>get index of state at specific section</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>state</strong> (<em>int</em>) &#8211; state</li>
+<li><strong>section</strong> (<em>int</em>) &#8211; section</li>
+<li><strong>index</strong> (<em>int</em><em>, </em><em>optional</em>) &#8211; index</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">index of states</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last"><a class="reference internal" href="#OpenGoddard.optimize.Problem.index_states" title="OpenGoddard.optimize.Problem.index_states">index_states</a> (int)</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="OpenGoddard.optimize.Problem.index_time_final">
+<code class="descname">index_time_final</code><span class="sig-paren">(</span><em>section</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Problem.index_time_final" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="OpenGoddard.optimize.Problem.method_LG">
+<code class="descname">method_LG</code><span class="sig-paren">(</span><em>n</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Problem.method_LG" title="Permalink to this definition">¶</a></dt>
+<dd><p>Legendre-Gauss Pseudospectral method
+Gauss nodes are roots of <span class="math">\(P_n(x)\)</span>.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>n</strong> (<em>int</em>) &#8211; number of nodes</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">nodes, weight, differentiation_matrix</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">ndarray, ndarray, ndarray</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="OpenGoddard.optimize.Problem.method_LGL">
+<code class="descname">method_LGL</code><span class="sig-paren">(</span><em>n</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Problem.method_LGL" title="Permalink to this definition">¶</a></dt>
+<dd><p>Legendre-Gauss-Lobatto Pseudospectral method
+Gauss-Lobatto nodes are roots of <span class="math">\(P'_{n-1}(x)\)</span> and -1, 1.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>n</strong> (<em>int</em>) &#8211; number of nodes</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">nodes, weight, differentiation_matrix</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">ndarray, ndarray, ndarray</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">References</p>
+<p>Fariba Fahroo and I. Michael Ross. &#8220;Advances in Pseudospectral Methods
+for Optimal Control&#8221;, AIAA Guidance, Navigation and Control Conference
+and Exhibit, Guidance, Navigation, and Control and Co-located Conferences
+<a class="reference external" href="http://dx.doi.org/10.2514/6.2008-7309">http://dx.doi.org/10.2514/6.2008-7309</a></p>
+</dd></dl>
+
+<dl class="method">
+<dt id="OpenGoddard.optimize.Problem.method_LGR">
+<code class="descname">method_LGR</code><span class="sig-paren">(</span><em>n</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Problem.method_LGR" title="Permalink to this definition">¶</a></dt>
+<dd><p>Legendre-Gauss-Radau Pseudospectral method
+Gauss-Radau nodes are roots of <span class="math">\(P_n(x) + P_{n-1}(x)\)</span>.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>n</strong> (<em>int</em>) &#8211; number of nodes</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">nodes, weight, differentiation_matrix</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">ndarray, ndarray, ndarray</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="OpenGoddard.optimize.Problem.plot">
+<code class="descname">plot</code><span class="sig-paren">(</span><em>title_comment=''</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Problem.plot" title="Permalink to this definition">¶</a></dt>
+<dd><p>plot inner variables</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>title_comment</strong> (<em>str</em>) &#8211; string for title</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="OpenGoddard.optimize.Problem.set_controls">
+<code class="descname">set_controls</code><span class="sig-paren">(</span><em>control</em>, <em>section</em>, <em>value</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Problem.set_controls" title="Permalink to this definition">¶</a></dt>
+<dd><p>set value to control at all section</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>control</strong> (<em>int</em>) &#8211; control</li>
+<li><strong>section</strong> (<em>int</em>) &#8211; section</li>
+<li><strong>value</strong> (<em>int</em>) &#8211; value</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="OpenGoddard.optimize.Problem.set_controls_all_section">
+<code class="descname">set_controls_all_section</code><span class="sig-paren">(</span><em>control</em>, <em>value_all_section</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Problem.set_controls_all_section" title="Permalink to this definition">¶</a></dt>
+<dd><p>set value to control at all section</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>control</strong> (<em>int</em>) &#8211; control</li>
+<li><strong>value_all_section</strong> (<em>int</em>) &#8211; value</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="OpenGoddard.optimize.Problem.set_states">
+<code class="descname">set_states</code><span class="sig-paren">(</span><em>state</em>, <em>section</em>, <em>value</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Problem.set_states" title="Permalink to this definition">¶</a></dt>
+<dd><p>set value to state at specific section</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>state</strong> (<em>int</em>) &#8211; state</li>
+<li><strong>section</strong> (<em>int</em>) &#8211; section</li>
+<li><strong>value</strong> (<em>int</em>) &#8211; value</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="OpenGoddard.optimize.Problem.set_states_all_section">
+<code class="descname">set_states_all_section</code><span class="sig-paren">(</span><em>state</em>, <em>value_all_section</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Problem.set_states_all_section" title="Permalink to this definition">¶</a></dt>
+<dd><p>set value to state at all section</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>state</strong> (<em>int</em>) &#8211; state</li>
+<li><strong>value_all_section</strong> (<em>int</em>) &#8211; value</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="OpenGoddard.optimize.Problem.set_time_final">
+<code class="descname">set_time_final</code><span class="sig-paren">(</span><em>section</em>, <em>value</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Problem.set_time_final" title="Permalink to this definition">¶</a></dt>
+<dd><p>set value to final time at specific section</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>section</strong> (<em>int</em>) &#8211; seciton</li>
+<li><strong>value</strong> (<em>float</em>) &#8211; value</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="OpenGoddard.optimize.Problem.set_unit_controls">
+<code class="descname">set_unit_controls</code><span class="sig-paren">(</span><em>control</em>, <em>section</em>, <em>value</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Problem.set_unit_controls" title="Permalink to this definition">¶</a></dt>
+<dd><p>set a canonical unit value to the control at a specific section</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>control</strong> (<em>int</em>) &#8211; control</li>
+<li><strong>section</strong> (<em>int</em>) &#8211; section</li>
+<li><strong>value</strong> (<em>float</em>) &#8211; value</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="OpenGoddard.optimize.Problem.set_unit_controls_all_section">
+<code class="descname">set_unit_controls_all_section</code><span class="sig-paren">(</span><em>control</em>, <em>value</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Problem.set_unit_controls_all_section" title="Permalink to this definition">¶</a></dt>
+<dd><p>set a canonical unit value to the control at all sections</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>control</strong> (<em>int</em>) &#8211; control</li>
+<li><strong>value</strong> (<em>float</em>) &#8211; value</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="OpenGoddard.optimize.Problem.set_unit_states">
+<code class="descname">set_unit_states</code><span class="sig-paren">(</span><em>state</em>, <em>section</em>, <em>value</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Problem.set_unit_states" title="Permalink to this definition">¶</a></dt>
+<dd><p>set a canonical unit value to the state at a specific section</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>state</strong> (<em>int</em>) &#8211; state</li>
+<li><strong>section</strong> (<em>int</em>) &#8211; section</li>
+<li><strong>value</strong> (<em>float</em>) &#8211; value</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="OpenGoddard.optimize.Problem.set_unit_states_all_section">
+<code class="descname">set_unit_states_all_section</code><span class="sig-paren">(</span><em>state</em>, <em>value</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Problem.set_unit_states_all_section" title="Permalink to this definition">¶</a></dt>
+<dd><p>set a canonical unit value to the state at all sections</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>state</strong> (<em>int</em>) &#8211; state</li>
+<li><strong>value</strong> (<em>float</em>) &#8211; value</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="OpenGoddard.optimize.Problem.set_unit_time">
+<code class="descname">set_unit_time</code><span class="sig-paren">(</span><em>value</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Problem.set_unit_time" title="Permalink to this definition">¶</a></dt>
+<dd><p>set a canonical unit value to the time</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>value</strong> (<em>float</em>) &#8211; value</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="OpenGoddard.optimize.Problem.solve">
+<code class="descname">solve</code><span class="sig-paren">(</span><em>obj</em>, <em>display_func=&lt;function Problem._dummy_func&gt;</em>, <em>**options</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Problem.solve" title="Permalink to this definition">¶</a></dt>
+<dd><p>solve NLP</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>obj</strong> (<em>object instance</em>) &#8211; instance</li>
+<li><strong>display_func</strong> (<em>function</em>) &#8211; function to display intermediate values</li>
+<li><strong>ftol</strong> (<em>float</em><em>, </em><em>optional</em>) &#8211; Precision goal for the value of f in the
+stopping criterion, (default: 1e-6)</li>
+<li><strong>maxiter</strong> (<em>int</em><em>, </em><em>optional</em>) &#8211; Maximum number of iterations., (default : 25)</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="OpenGoddard.optimize.Problem.states">
+<code class="descname">states</code><span class="sig-paren">(</span><em>state</em>, <em>section</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Problem.states" title="Permalink to this definition">¶</a></dt>
+<dd><p>getter specify section states array</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>state</strong> (<em>int</em>) &#8211; state number</li>
+<li><strong>section</strong> (<em>int</em>) &#8211; section number</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first">1-D array of state</p>
+</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><p class="first last"><a class="reference internal" href="#OpenGoddard.optimize.Problem.states" title="OpenGoddard.optimize.Problem.states">states</a> ((N,) ndarray)</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="OpenGoddard.optimize.Problem.states_all_section">
+<code class="descname">states_all_section</code><span class="sig-paren">(</span><em>state</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Problem.states_all_section" title="Permalink to this definition">¶</a></dt>
+<dd><p>get states array</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>state</strong> (<em>int</em>) &#8211; state number</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">1-D array of all section state</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference internal" href="#OpenGoddard.optimize.Problem.states_all_section" title="OpenGoddard.optimize.Problem.states_all_section">states_all_section</a> ((N,) ndarray)</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="OpenGoddard.optimize.Problem.time_final">
+<code class="descname">time_final</code><span class="sig-paren">(</span><em>section</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Problem.time_final" title="Permalink to this definition">¶</a></dt>
+<dd><p>get time at section &#8220;end&#8221;</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>section</strong> (<em>int</em>) &#8211; section</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">time at section end</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference internal" href="#OpenGoddard.optimize.Problem.time_final" title="OpenGoddard.optimize.Problem.time_final">time_final</a> (int)</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="OpenGoddard.optimize.Problem.time_final_all_section">
+<code class="descname">time_final_all_section</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Problem.time_final_all_section" title="Permalink to this definition">¶</a></dt>
+<dd><p>get time at &#8220;end&#8221;</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>section</strong> (<em>int</em>) &#8211; section</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">time at end</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference internal" href="#OpenGoddard.optimize.Problem.time_final_all_section" title="OpenGoddard.optimize.Problem.time_final_all_section">time_final_all_section</a> (int)</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="OpenGoddard.optimize.Problem.time_knots">
+<code class="descname">time_knots</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Problem.time_knots" title="Permalink to this definition">¶</a></dt>
+<dd><p>get time at knot point</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">time at knot point</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference internal" href="#OpenGoddard.optimize.Problem.time_knots" title="OpenGoddard.optimize.Problem.time_knots">time_knots</a> (list)</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="OpenGoddard.optimize.Problem.time_start">
+<code class="descname">time_start</code><span class="sig-paren">(</span><em>section</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Problem.time_start" title="Permalink to this definition">¶</a></dt>
+<dd><p>get time at section &#8220;start&#8221;</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>section</strong> (<em>int</em>) &#8211; section</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">time at section start</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference internal" href="#OpenGoddard.optimize.Problem.time_start" title="OpenGoddard.optimize.Problem.time_start">time_start</a> (int)</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="OpenGoddard.optimize.Problem.time_to_tau">
+<code class="descname">time_to_tau</code><span class="sig-paren">(</span><em>time</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Problem.time_to_tau" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="OpenGoddard.optimize.Problem.time_update">
+<code class="descname">time_update</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Problem.time_update" title="Permalink to this definition">¶</a></dt>
+<dd><p>get time array after optimization</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body"><dl class="docutils">
+<dt>(N,) ndarray</dt>
+<dd>time array</dd>
+</dl>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference internal" href="#OpenGoddard.optimize.Problem.time_update" title="OpenGoddard.optimize.Problem.time_update">time_update</a></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="OpenGoddard.optimize.Problem.to_csv">
+<code class="descname">to_csv</code><span class="sig-paren">(</span><em>filename='OpenGoddard_output.csv'</em>, <em>delimiter='</em>, <em>'</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Problem.to_csv" title="Permalink to this definition">¶</a></dt>
+<dd><p>output states, controls and time to csv file</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>filename</strong> (<em>str</em><em>, </em><em>optional</em>) &#8211; csv filename</li>
+<li><strong>delimiter</strong> &#8211; (str, optional) : default &#8221;,&#8221;</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-OpenGoddard">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-OpenGoddard" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">OpenGoddard 1.0.0 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2017, Interstellar Technologies Inc..
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.1.
+    </div>
+  </body>
+</html>
