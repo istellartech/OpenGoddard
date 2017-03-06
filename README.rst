@@ -19,11 +19,13 @@ Examples
 4. Low thrust spacecraft trajectory transition problem
 
 .. image:: docs/_images/BrachistochroneProblem_with_wall.png
-  :height: 200px
+  :height: 100px
+
 .. image:: docs/_images/Goddard_Rocket.png
-  :height: 200px
+  :height: 100px
+
 .. image:: docs/_images/LowThrustOrbitTransfer.png
-  :height: 200px
+  :height: 100px
 
 Features
 ========
@@ -88,11 +90,13 @@ OpenGoddardはオープンソースな連続時間の非線形最適制御問題
 4. 低推力軌道遷移問題
 
 .. image:: docs/_images/BrachistochroneProblem_with_wall.png
-  :height: 200px
+  :height: 100px
+
 .. image:: docs/_images/Goddard_Rocket.png
-  :height: 200px
+  :height: 100px
+
 .. image:: docs/_images/LowThrustOrbitTransfer.png
-  :height: 200px
+  :height: 100px
 
 
 特徴
