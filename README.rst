@@ -18,6 +18,13 @@ Examples
 3. Launch vehicle trajectory optimization
 4. Low thrust spacecraft trajectory transition problem
 
+.. image:: docs/_images/BrachistochroneProblem_with_wall.png
+  :height: 200px
+.. image:: docs/_images/Goddard_Rocket.png
+  :height: 200px
+.. image:: docs/_images/LowThrustOrbitTransfer.png
+  :height: 200px
+
 Features
 ========
 * Easy to install
@@ -79,6 +86,14 @@ OpenGoddardはオープンソースな連続時間の非線形最適制御問題
 2. ゴダード問題（ロケットの最適上昇制御問題）
 3. ロケットの最適軌道生成
 4. 低推力軌道遷移問題
+
+.. image:: docs/_images/BrachistochroneProblem_with_wall.png
+  :height: 200px
+.. image:: docs/_images/Goddard_Rocket.png
+  :height: 200px
+.. image:: docs/_images/LowThrustOrbitTransfer.png
+  :height: 200px
+
 
 特徴
 ====
