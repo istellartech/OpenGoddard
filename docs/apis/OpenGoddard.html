@@ -92,15 +92,105 @@
 <dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
 <p>OpenGoddard.optimize Condition class
 thin wrappper of numpy zeros and hstack</p>
+<p class="rubric">Examples</p>
+<p>for examples in equality function.
+Initial condtion : x[0] = 0.0
+Termination Condition : x[-1] = 100
+&gt;&gt;&gt; result = Condition()
+&gt;&gt;&gt; result.equal(x[0], 0.0)
+&gt;&gt;&gt; return result()</p>
+<p>for examples in inequality function
+Inequation condtion : 0.0 &lt;= x &lt;= 100
+&gt;&gt;&gt; result = Condition()
+&gt;&gt;&gt; result.lower_bound(x, 0.0)
+&gt;&gt;&gt; result.upper_bound(x, 100)
+&gt;&gt;&gt; return result()</p>
 <dl class="method">
 <dt id="OpenGoddard.optimize.Condition.add">
 <code class="descname">add</code><span class="sig-paren">(</span><em>arg</em>, <em>unit=1.0</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Condition.add" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<dd><p>add condition</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>arg</strong> (<em>array_like</em>) &#8211; condition</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
 
 <dl class="method">
 <dt id="OpenGoddard.optimize.Condition.change_value">
 <code class="descname">change_value</code><span class="sig-paren">(</span><em>index</em>, <em>value</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Condition.change_value" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
+
+<dl class="method">
+<dt id="OpenGoddard.optimize.Condition.equal">
+<code class="descname">equal</code><span class="sig-paren">(</span><em>arg1</em>, <em>arg2</em>, <em>unit=1.0</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Condition.equal" title="Permalink to this definition">¶</a></dt>
+<dd><p>add equation constraint condition in Problem equality function
+arg1 = arg2</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>arg1</strong> (<em>float</em><em> or </em><em>array_like</em>) &#8211; right side of the equation</li>
+<li><strong>arg2</strong> (<em>float</em><em> or </em><em>array_like</em>) &#8211; left side of the equation</li>
+<li><strong>unit</strong> (<em>float</em><em>, </em><em>optional</em>) &#8211; argX / unit (default : 1.0)</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Notes</p>
+<p>It must be used in equality function.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="OpenGoddard.optimize.Condition.lower_bound">
+<code class="descname">lower_bound</code><span class="sig-paren">(</span><em>arg1</em>, <em>arg2</em>, <em>unit=1.0</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Condition.lower_bound" title="Permalink to this definition">¶</a></dt>
+<dd><p>add inequation constraint condition in Problem inequality function
+arg1 &gt;= arg2
+arg1 - arg2 &gt;= 0</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>arg1</strong> (<em>array like</em>) &#8211; arg1 is greater than or equal to arg2</li>
+<li><strong>arg2</strong> (<em>float</em><em> or </em><em>array like</em>) &#8211; arg1 is greater than or equal to arg2</li>
+<li><strong>unit</strong> (<em>float</em><em>, </em><em>optional</em>) &#8211; argX / unit (default : 1.0)</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Notes</p>
+<p>It must be used in inequality function.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="OpenGoddard.optimize.Condition.upper_bound">
+<code class="descname">upper_bound</code><span class="sig-paren">(</span><em>arg1</em>, <em>arg2</em>, <em>unit=1.0</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Condition.upper_bound" title="Permalink to this definition">¶</a></dt>
+<dd><p>add inequation constraint condition in Problem inequality function
+arg1 &lt;= arg2
+arg2 - arg1 &gt;= 0</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>arg1</strong> (<em>array like</em>) &#8211; arg1 is less than or equal to arg2</li>
+<li><strong>arg2</strong> (<em>float</em><em> or </em><em>array like</em>) &#8211; arg1 is less than or equal to arg2</li>
+<li><strong>unit</strong> (<em>float</em><em>, </em><em>optional</em>) &#8211; argX / unit (default : 1.0)</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Notes</p>
+<p>It must be used in inequality function.</p>
+</dd></dl>
 
 </dd></dl>
 
@@ -111,6 +201,22 @@ thin wrappper of numpy zeros and hstack</p>
 <p>OpenGoddard.optimize Condition class
 thin wrapper for dynamics function
 Behave like a dictionary type</p>
+<p>Examples:
+Dynamics class must be used in dynamics function.
+It is an example of the equation of motion of thrust and free fall.
+Thrust is controllable.
+dot{x} = v
+dpt{v} = T/m - g
+&gt;&gt;&gt; def dynamics(prob, obj, section):
+&gt;&gt;&gt;     x = prob.states(0, section)
+&gt;&gt;&gt;     v = prob.states(1, section)
+&gt;&gt;&gt;     T = prob.controls(0, section)
+&gt;&gt;&gt;     g = 9.8
+&gt;&gt;&gt;     m = 1.0
+&gt;&gt;&gt;     dx = Dynamics(prob, section)
+&gt;&gt;&gt;     dx[0] = v
+&gt;&gt;&gt;     dx[1] = T / m - g
+&gt;&gt;&gt;     return dx()</p>
 </dd></dl>
 
 <dl class="class">
@@ -525,7 +631,7 @@ Gauss-Radau nodes are roots of <span class="math">\(P_n(x) + P_{n-1}(x)\)</span>
 <dl class="method">
 <dt id="OpenGoddard.optimize.Problem.plot">
 <code class="descname">plot</code><span class="sig-paren">(</span><em>title_comment=''</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Problem.plot" title="Permalink to this definition">¶</a></dt>
-<dd><p>plot inner variables</p>
+<dd><p>plot inner variables that to be optimized</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
@@ -735,6 +841,9 @@ stopping criterion, (default: 1e-6)</li>
 </tr>
 </tbody>
 </table>
+<p>Examples:
+&#8220;prob&#8221; is Problem class&#8217;s instance.
+&gt;&gt;&gt; prob.solve(obj, display_func, ftol=1e-12)</p>
 </dd></dl>
 
 <dl class="method">
