@@ -39,10 +39,10 @@ def equality(prob, obj):
     result = Condition()
 
     # event condition
-    result.add(x[0] - 0.0)
-    result.add(y[0] - 0.0)
-    result.add(v[0] - 0.0)
-    result.add(x[-1] - obj.l)
+    result.equal(x[0], 0.0)
+    result.equal(y[0], 0.0)
+    result.equal(v[0], 0.0)
+    result.equal(x[-1], obj.l)
 
     return result()
 
@@ -57,13 +57,13 @@ def inequality(prob, obj):
     result = Condition()
 
     # lower bounds
-    result.add(tf - 0.1)
-    result.add(y - 0)
-    result.add(theta - 0)
-    # result.add(x * np.tan(obj.theta0) + obj.h - y)
+    result.lower_bound(tf, 0.1)
+    result.lower_bound(y, 0)
+    result.lower_bound(theta, 0)
 
     # upper bounds
-    # result.add(np.pi/2 - theta)
+    # result.upper_bound(theta, np.pi/2)
+    # result.upper_bound(y, x * np.tan(obj.theta0) + obj.h)
 
     return result()
 
