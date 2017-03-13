@@ -55,11 +55,11 @@ def equality(prob, obj):
     result = Condition()
 
     # event condition
-    result.add(R[0] - obj.Re)
-    result.add(v[0] - 0.0)
-    result.add(m[0] - obj.M0)
-    result.add(v[-1] - 0.0)
-    result.add(m[-1] - obj.M0 * obj.Mc)
+    result.equal(R[0], obj.Re)
+    result.equal(v[0], 0.0)
+    result.equal(m[0], obj.M0)
+    result.equal(v[-1], 0.0)
+    result.equal(m[-1], obj.M0 * obj.Mc)
 
     return result()
 
@@ -73,14 +73,14 @@ def inequality(prob, obj):
 
     result = Condition()
     # lower bounds
-    result.add(R - obj.Re)
-    result.add(v - 0.0)
-    result.add(m - obj.M0 * obj.Mc)
-    result.add(T - 0.0)
-    result.add(tf - 10)
+    result.lower_bound(R, obj.Re)
+    result.lower_bound(v, 0.0)
+    result.lower_bound(m, obj.M0 * obj.Mc)
+    result.lower_bound(T, 0.0)
+    result.lower_bound(tf, 10)
     # upper bounds
-    result.add(obj.M0 - m)
-    result.add(obj.max_thrust * obj.M0 * obj.g0 - T)
+    result.upper_bound(m, obj.M0)
+    result.upper_bound(T, obj.max_thrust * obj.M0 * obj.g0)
 
     return result()
 

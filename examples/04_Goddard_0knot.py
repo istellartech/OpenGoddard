@@ -52,11 +52,11 @@ def equality(prob, obj):
     result = Condition()
 
     # event condition
-    result.add(h[0] - obj.H0)
-    result.add(v[0] - obj.V0)
-    result.add(m[0] - obj.M0)
-    result.add(v[-1] - 0.0)
-    result.add(m[-1] - obj.Mf)
+    result.equal(h[0], obj.H0)
+    result.equal(v[0], obj.V0)
+    result.equal(m[0], obj.M0)
+    result.equal(v[-1], 0.0)
+    result.equal(m[-1], obj.Mf)
 
     return result()
 
@@ -70,14 +70,14 @@ def inequality(prob, obj):
 
     result = Condition()
     # lower bounds
-    result.add(h - obj.H0)
-    result.add(v - 0.0)
-    result.add(m - obj.Mf)
-    result.add(T - 0.0)
-    result.add(tf - 0.1)
+    result.lower_bound(h, obj.H0)
+    result.lower_bound(v, 0.0)
+    result.lower_bound(m, obj.Mf)
+    result.lower_bound(T, 0.0)
+    result.lower_bound(tf, 0.1)
     # upper bounds
-    result.add(obj.M0 - m)
-    result.add(obj.T_max - T)
+    result.upper_bound(m, obj.M0)
+    result.upper_bound(T, obj.T_max)
 
     return result()
 

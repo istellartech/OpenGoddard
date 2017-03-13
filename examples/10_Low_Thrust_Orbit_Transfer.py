@@ -48,12 +48,12 @@ def equality(prob, obj):
     result = Condition()
 
     # event condition
-    result.add(r[0] - obj.r0)
-    result.add(vr[0] - obj.vr0)
-    result.add(vt[0] - obj.vt0)
-    result.add(r[-1] - obj.rf)
-    result.add(vr[-1] - obj.vrf)
-    result.add(vt[-1] - obj.vtf)
+    result.equal(r[0], obj.r0)
+    result.equal(vr[0], obj.vr0)
+    result.equal(vt[0], obj.vt0)
+    result.equal(r[-1], obj.rf)
+    result.equal(vr[-1], obj.vrf)
+    result.equal(vt[-1], obj.vtf)
 
     return result()
 
@@ -71,20 +71,20 @@ def inequality(prob, obj):
     result = Condition()
 
     # lower bounds
-    result.add(r - obj.r0)
-    result.add(ur1 - 0.0)
-    result.add(ut1 - 0.0)
-    result.add(ur2 - 0.0)
-    result.add(ut2 - 0.0)
-    result.add(tf - 0.0)
+    result.lower_bound(r, obj.r0)
+    result.lower_bound(ur1, 0.0)
+    result.lower_bound(ut1, 0.0)
+    result.lower_bound(ur2, 0.0)
+    result.lower_bound(ut2, 0.0)
+    result.lower_bound(tf, 0.0)
 
     # upper bounds
-    result.add(obj.rf - r)
-    result.add(obj.u_max - ur1)
-    result.add(obj.u_max - ut1)
-    result.add(obj.u_max - ur2)
-    result.add(obj.u_max - ut2)
-    result.add(obj.tf_max - tf)
+    result.upper_bound(r, obj.rf)
+    result.upper_bound(ur1, obj.u_max)
+    result.upper_bound(ut1, obj.u_max)
+    result.upper_bound(ur2, obj.u_max)
+    result.upper_bound(ut2, obj.u_max)
+    result.upper_bound(tf, obj.tf_max)
 
     return result()
 

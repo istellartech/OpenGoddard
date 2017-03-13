@@ -59,11 +59,11 @@ def equality(prob, obj):
     result = Condition()
 
     # event condition
-    result.add(R[0] - obj.Re)
-    result.add(v[0] - 0.0)
-    result.add(m[0] - obj.M0)
-    result.add(v[-1] - 0.0)
-    result.add(m[-1] - obj.M0_2nd * obj.Mc)
+    result.equal(R[0], obj.Re)
+    result.equal(v[0], 0.0)
+    result.equal(m[0], obj.M0)
+    result.equal(v[-1], 0.0)
+    result.equal(m[-1], obj.M0_2nd * obj.Mc)
 
     # knotting condition
     R1 = prob.states(0, 0)
@@ -72,9 +72,9 @@ def equality(prob, obj):
     R2 = prob.states(0, 1)
     v2 = prob.states(1, 1)
     m2 = prob.states(2, 1)
-    result.add(R1[-1] - R2[0])
-    result.add(v1[-1] - v2[0])
-    result.add(m1[-1] - m2[0] - 1200)
+    result.equal(R1[-1], R2[0])
+    result.equal(v1[-1], v2[0])
+    result.equal(m1[-1], m2[0] - 1200)
 
     return result()
 
@@ -90,16 +90,16 @@ def inequality(prob, obj):
     result = Condition()
 
     # lower bounds
-    result.add(R - obj.Re)
-    result.add(v - 0.0)
-    result.add(m - obj.M0_2nd * obj.Mc)
-    result.add(T - 0.0)
-    result.add(ts0 - 50)
-    result.add(tf - 50)
+    result.lower_bound(R, obj.Re)
+    result.lower_bound(v, 0.0)
+    result.lower_bound(m, obj.M0_2nd * obj.Mc)
+    result.lower_bound(T, 0.0)
+    result.lower_bound(ts0, 50)
+    result.lower_bound(tf, 50)
 
     # upper bounds
-    result.add(obj.M0 - m)
-    result.add(obj.max_thrust * obj.M0 * obj.g0 - T)
+    result.upper_bound(m, obj.M0)
+    result.upper_bound(T, obj.max_thrust * obj.M0 * obj.g0)
 
     return result()
 

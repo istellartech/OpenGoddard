@@ -76,14 +76,14 @@ def equality(prob, obj):
     result = Condition()
 
     # event condition
-    result.add(R[0] - obj.Re, unit=prob.unit_states[0][0])
-    result.add(theta[0] - 0.0, unit=prob.unit_states[0][1])
-    result.add(Vr[0] - 0.0, unit=prob.unit_states[0][2])
-    result.add(Vt[0] - 0.0, unit=prob.unit_states[0][3])
-    result.add(m[0] - obj.M0, unit=prob.unit_states[0][4])
-    result.add(R[-1] - obj.Rtarget, unit=prob.unit_states[0][1])
-    result.add(Vr[-1] - 0.0, unit=prob.unit_states[0][2])
-    result.add(Vt[-1] - obj.Vtarget, unit=prob.unit_states[0][3])
+    result.equal(R[0], obj.Re, unit=prob.unit_states[0][0])
+    result.equal(theta[0], 0.0, unit=prob.unit_states[0][1])
+    result.equal(Vr[0], 0.0, unit=prob.unit_states[0][2])
+    result.equal(Vt[0], 0.0, unit=prob.unit_states[0][3])
+    result.equal(m[0], obj.M0, unit=prob.unit_states[0][4])
+    result.equal(R[-1], obj.Rtarget, unit=prob.unit_states[0][1])
+    result.equal(Vr[-1], 0.0, unit=prob.unit_states[0][2])
+    result.equal(Vt[-1], obj.Vtarget, unit=prob.unit_states[0][3])
 
     return result()
 
@@ -117,21 +117,21 @@ def inequality(prob, obj):
     result = Condition()
 
     # lower bounds
-    result.add(R - obj.Re, unit=prob.unit_states[0][0])
-    # result.add(Vr - 0.0, unit=prob.unit_states[0][2])
-    # result.add(Vt - 0.0, unit=prob.unit_states[0][3])
-    result.add(m[1:] - (obj.M0 - obj.Mp), unit=prob.unit_states[0][4])
-    result.add(Tr - 0.0, unit=prob.unit_controls[0][0])
-    # result.add(Tt + obj.Tmax / obj.unit_T, unit=prob.unit_controls[0][0])
-    result.add(Tt - 0.0, unit=prob.unit_controls[0][0])
+    result.lower_bound(R, obj.Re, unit=prob.unit_states[0][0])
+    # result.lower_bound(Vr, 0.0, unit=prob.unit_states[0][2])
+    # result.lower_bound(Vt, 0.0, unit=prob.unit_states[0][3])
+    result.lower_bound(m[1:], (obj.M0 - obj.Mp), unit=prob.unit_states[0][4])
+    result.lower_bound(Tr, 0.0, unit=prob.unit_controls[0][0])
+    # result.lower_bound(Tt, obj.Tmax / obj.unit_T, unit=prob.unit_controls[0][0])
+    result.lower_bound(Tt, 0.0, unit=prob.unit_controls[0][0])
 
     # upper bounds
-    result.add(obj.M0 - m, unit=prob.unit_states[0][4])
-    result.add(obj.Tmax - Tr, unit=prob.unit_controls[0][0])
-    result.add(obj.Tmax - Tt, unit=prob.unit_controls[0][0])
-    result.add(obj.Tmax - T, unit=prob.unit_controls[0][0])
-    # result.add(obj.MaxQ - q, unit = prob.unit_states[0][0])
-    result.add(obj.MaxG * obj.g0 - a_mag)
+    result.upper_bound(m, obj.M0, unit=prob.unit_states[0][4])
+    result.upper_bound(Tr, obj.Tmax, unit=prob.unit_controls[0][0])
+    result.upper_bound(Tt, obj.Tmax, unit=prob.unit_controls[0][0])
+    result.upper_bound(T, obj.Tmax, unit=prob.unit_controls[0][0])
+    # result.upper_bound(q, obj.MaxQ, unit = prob.unit_states[0][0])
+    result.upper_bound(a_mag, obj.MaxG * obj.g0)
 
     return result()
 
