@@ -589,6 +589,9 @@ class Problem:
                 stopping criterion, (default: 1e-6)
             maxiter (int, optional) : Maximum number of iterations., (default : 25)
 
+        Examples:
+        "prob" is Problem class's instance.
+        >>> prob.solve(obj, display_func, ftol=1e-12)
         """
         assert len(self.dynamics) != 0, "It must be set dynamics"
         assert self.cost is not None, "It must be set cost function"
@@ -787,7 +790,7 @@ class Problem:
         print("Completed saving \"%s\"" % (filename))
 
     def plot(self, title_comment=""):
-        """ plot inner variables
+        """ plot inner variables that to be optimized
 
         Args:
             title_comment (str) : string for title
