@@ -901,6 +901,22 @@ class Guess:
 class Condition(object):
     """OpenGoddard.optimize Condition class
     thin wrappper of numpy zeros and hstack
+
+    Examples:
+        for examples in equality function.
+        Initial condtion : x[0] = 0.0
+        Termination Condition : x[-1] = 100
+        >>> result = Condition()
+        >>> result.equal(x[0], 0.0)
+        >>> return result()
+
+        for examples in inequality function
+        Inequation condtion : 0.0 <= x <= 100
+        >>> result = Condition()
+        >>> result.lower_bound(x, 0.0)
+        >>> result.upper_bound(x, 100)
+        >>> return result()
+
     """
     def __init__(self, length=0):
         self._condition = np.zeros(length)
@@ -910,7 +926,59 @@ class Condition(object):
     #         self._condition = np.hstack((self._condition, arg))
 
     def add(self, arg, unit=1.0):
+        """add condition
+
+        Args:
+            arg (array_like) : condition
+        """
         self._condition = np.hstack((self._condition, arg / unit))
+
+    def equal(self, arg1, arg2, unit=1.0):
+        """add equation constraint condition in Problem equality function
+        arg1 = arg2
+
+        Args:
+            arg1 (float or array_like) : right side of the equation
+            arg2 (float or array_like) : left side of the equation
+            unit (float, optional) : argX / unit (default : 1.0)
+
+        Notes:
+            It must be used in equality function.
+        """
+        arg = arg1 - arg2
+        self.add(arg, unit)
+
+    def lower_bound(self, arg1, arg2, unit=1.0):
+        """add inequation constraint condition in Problem inequality function
+        arg1 >= arg2
+        arg1 - arg2 >= 0
+
+        Args:
+            arg1 (array like) : arg1 is greater than or equal to arg2
+            arg2 (float or array like) : arg1 is greater than or equal to arg2
+            unit (float, optional) : argX / unit (default : 1.0)
+
+        Notes:
+            It must be used in inequality function.
+        """
+        arg = arg1 - arg2
+        self.add(arg, unit)
+
+    def upper_bound(self, arg1, arg2, unit=1.0):
+        """add inequation constraint condition in Problem inequality function
+        arg1 <= arg2
+        arg2 - arg1 >= 0
+
+        Args:
+            arg1 (array like) : arg1 is less than or equal to arg2
+            arg2 (float or array like) : arg1 is less than or equal to arg2
+            unit (float, optional) : argX / unit (default : 1.0)
+
+        Notes:
+            It must be used in inequality function.
+        """
+        arg = arg2 - arg1
+        self.add(arg, unit)
 
     def change_value(self, index, value):
         self._condition[index] = value
@@ -923,6 +991,23 @@ class Dynamics(object):
     """OpenGoddard.optimize Condition class
     thin wrapper for dynamics function
     Behave like a dictionary type
+
+    Examples:
+    Dynamics class must be used in dynamics function.
+    It is an example of the equation of motion of thrust and free fall.
+    Thrust is controllable.
+    \dot{x} = v
+    \dpt{v} = T/m - g
+    >>> def dynamics(prob, obj, section):
+    >>>     x = prob.states(0, section)
+    >>>     v = prob.states(1, section)
+    >>>     T = prob.controls(0, section)
+    >>>     g = 9.8
+    >>>     m = 1.0
+    >>>     dx = Dynamics(prob, section)
+    >>>     dx[0] = v
+    >>>     dx[1] = T / m - g
+    >>>     return dx()
     """
 
     def __init__(self, prob, section=0):
@@ -1341,11 +1426,16 @@ if __name__ == '__main__':
         tf = prob.time_final(-1)
 
         result = Condition()
-        result.add(x[0] - 0.0)
-        result.add(y[0] - 0.0)
-        result.add(v[0] - 0.0)
-        result.add(x[-1] - obj.l)
-        result.add(y[-1] - 0.0)
+        # result.add(x[0] - 0.0)
+        # result.add(y[0] - 0.0)
+        # result.add(v[0] - 0.0)
+        # result.add(x[-1] - obj.l)
+        # result.add(y[-1] - 0.0)
+        result.equal(x[0], 0.0)
+        result.equal(y[0], 0.0)
+        result.equal(v[0], 0.0)
+        result.equal(x[-1], obj.l)
+        result.equal(y[-1], 0.0)
 
         return result()
 
@@ -1357,15 +1447,24 @@ if __name__ == '__main__':
         tf = prob.time_final(-1)
 
         result = Condition()
+        # # lower bounds
+        # result.add(tf - 500)
+        # result.add(x - 0)
+        # result.add(y - 0)
+        # result.add(theta - 0)
+        # # upper bounds
+        # result.add(np.pi - theta)
+        # result.add(obj.l - x)
+        # result.add(700 - tf)
         # lower bounds
-        result.add(tf - 500)
-        result.add(x - 0)
-        result.add(y - 0)
-        result.add(theta - 0)
+        result.lower_bound(tf, 500)
+        result.lower_bound(x, 0)
+        result.lower_bound(y, 0)
+        result.lower_bound(theta, 0)
         # upper bounds
-        result.add(np.pi - theta)
-        result.add(obj.l - x)
-        result.add(700 - tf)
+        result.upper_bound(theta, np.pi)
+        result.upper_bound(x, obj.l)
+        result.upper_bound(tf, 700)
 
         return result()
 
