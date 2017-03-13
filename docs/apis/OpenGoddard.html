@@ -90,21 +90,28 @@
 <dt id="OpenGoddard.optimize.Condition">
 <em class="property">class </em><code class="descclassname">OpenGoddard.optimize.</code><code class="descname">Condition</code><span class="sig-paren">(</span><em>length=0</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Condition" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
-<p>OpenGoddard.optimize Condition class
-thin wrappper of numpy zeros and hstack</p>
-<p class="rubric">Examples</p>
-<p>for examples in equality function.
-Initial condtion : x[0] = 0.0
-Termination Condition : x[-1] = 100
-&gt;&gt;&gt; result = Condition()
-&gt;&gt;&gt; result.equal(x[0], 0.0)
-&gt;&gt;&gt; return result()</p>
-<p>for examples in inequality function
-Inequation condtion : 0.0 &lt;= x &lt;= 100
-&gt;&gt;&gt; result = Condition()
-&gt;&gt;&gt; result.lower_bound(x, 0.0)
-&gt;&gt;&gt; result.upper_bound(x, 100)
-&gt;&gt;&gt; return result()</p>
+<p>OpenGoddard.optimize Condition class</p>
+<p>thin wrappper of numpy zeros and hstack</p>
+<div class="admonition-examples admonition">
+<p class="first admonition-title">Examples</p>
+<p>for examples in equality function.</p>
+<p>Initial condtion : x[0] = 0.0</p>
+<p>Termination Condition : x[-1] = 100</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">result</span> <span class="o">=</span> <span class="n">Condition</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">result</span><span class="o">.</span><span class="n">equal</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="mf">0.0</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">result</span><span class="o">.</span><span class="n">equal</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="mi">100</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">return</span> <span class="n">result</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>for examples in inequality function</p>
+<p>Inequation condtion : 0.0 &lt;= x &lt;= 100</p>
+<div class="last highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">result</span> <span class="o">=</span> <span class="n">Condition</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">result</span><span class="o">.</span><span class="n">lower_bound</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">result</span><span class="o">.</span><span class="n">upper_bound</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="mi">100</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">return</span> <span class="n">result</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
 <dl class="method">
 <dt id="OpenGoddard.optimize.Condition.add">
 <code class="descname">add</code><span class="sig-paren">(</span><em>arg</em>, <em>unit=1.0</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Condition.add" title="Permalink to this definition">¶</a></dt>
@@ -127,8 +134,8 @@ Inequation condtion : 0.0 &lt;= x &lt;= 100
 <dl class="method">
 <dt id="OpenGoddard.optimize.Condition.equal">
 <code class="descname">equal</code><span class="sig-paren">(</span><em>arg1</em>, <em>arg2</em>, <em>unit=1.0</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Condition.equal" title="Permalink to this definition">¶</a></dt>
-<dd><p>add equation constraint condition in Problem equality function
-arg1 = arg2</p>
+<dd><p>add equation constraint condition in Problem equality function</p>
+<p>arg1 = arg2</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
@@ -142,16 +149,17 @@ arg1 = arg2</p>
 </tr>
 </tbody>
 </table>
-<p class="rubric">Notes</p>
-<p>It must be used in equality function.</p>
+<div class="admonition-notes admonition">
+<p class="first admonition-title">Notes</p>
+<p class="last">It must be used in equality function.</p>
+</div>
 </dd></dl>
 
 <dl class="method">
 <dt id="OpenGoddard.optimize.Condition.lower_bound">
 <code class="descname">lower_bound</code><span class="sig-paren">(</span><em>arg1</em>, <em>arg2</em>, <em>unit=1.0</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Condition.lower_bound" title="Permalink to this definition">¶</a></dt>
-<dd><p>add inequation constraint condition in Problem inequality function
-arg1 &gt;= arg2
-arg1 - arg2 &gt;= 0</p>
+<dd><p>add inequation constraint condition in Problem inequality function</p>
+<p>arg1 &gt;= arg2</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
@@ -165,16 +173,17 @@ arg1 - arg2 &gt;= 0</p>
 </tr>
 </tbody>
 </table>
-<p class="rubric">Notes</p>
-<p>It must be used in inequality function.</p>
+<div class="admonition-notes admonition">
+<p class="first admonition-title">Notes</p>
+<p class="last">It must be used in inequality function.</p>
+</div>
 </dd></dl>
 
 <dl class="method">
 <dt id="OpenGoddard.optimize.Condition.upper_bound">
 <code class="descname">upper_bound</code><span class="sig-paren">(</span><em>arg1</em>, <em>arg2</em>, <em>unit=1.0</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Condition.upper_bound" title="Permalink to this definition">¶</a></dt>
-<dd><p>add inequation constraint condition in Problem inequality function
-arg1 &lt;= arg2
-arg2 - arg1 &gt;= 0</p>
+<dd><p>add inequation constraint condition in Problem inequality function</p>
+<p>arg1 &lt;= arg2</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
@@ -188,8 +197,10 @@ arg2 - arg1 &gt;= 0</p>
 </tr>
 </tbody>
 </table>
-<p class="rubric">Notes</p>
-<p>It must be used in inequality function.</p>
+<div class="admonition-notes admonition">
+<p class="first admonition-title">Notes</p>
+<p class="last">It must be used in inequality function.</p>
+</div>
 </dd></dl>
 
 </dd></dl>
@@ -198,33 +209,37 @@ arg2 - arg1 &gt;= 0</p>
 <dt id="OpenGoddard.optimize.Dynamics">
 <em class="property">class </em><code class="descclassname">OpenGoddard.optimize.</code><code class="descname">Dynamics</code><span class="sig-paren">(</span><em>prob</em>, <em>section=0</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Dynamics" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
-<p>OpenGoddard.optimize Condition class
-thin wrapper for dynamics function
-Behave like a dictionary type</p>
-<p>Examples:
-Dynamics class must be used in dynamics function.
+<p>OpenGoddard.optimize Condition class.</p>
+<p>thin wrapper for dynamics function.
+Behave like a dictionary type.</p>
+<div class="admonition-examples admonition">
+<p class="first admonition-title">Examples</p>
+<p>Dynamics class must be used in dynamics function.
 It is an example of the equation of motion of thrust and free fall.
-Thrust is controllable.
-dot{x} = v
-dpt{v} = T/m - g
-&gt;&gt;&gt; def dynamics(prob, obj, section):
-&gt;&gt;&gt;     x = prob.states(0, section)
-&gt;&gt;&gt;     v = prob.states(1, section)
-&gt;&gt;&gt;     T = prob.controls(0, section)
-&gt;&gt;&gt;     g = 9.8
-&gt;&gt;&gt;     m = 1.0
-&gt;&gt;&gt;     dx = Dynamics(prob, section)
-&gt;&gt;&gt;     dx[0] = v
-&gt;&gt;&gt;     dx[1] = T / m - g
-&gt;&gt;&gt;     return dx()</p>
+Thrust is controllable.</p>
+<div class="math">
+\[ \begin{align}\begin{aligned}\dot{x} &amp;= v\\\dot{v} &amp;= T/m - g\end{aligned}\end{align} \]</div>
+<div class="last highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="k">def</span> <span class="nf">dynamics</span><span class="p">(</span><span class="n">prob</span><span class="p">,</span> <span class="n">obj</span><span class="p">,</span> <span class="n">section</span><span class="p">):</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="n">x</span> <span class="o">=</span> <span class="n">prob</span><span class="o">.</span><span class="n">states</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">section</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="n">v</span> <span class="o">=</span> <span class="n">prob</span><span class="o">.</span><span class="n">states</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">section</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="n">T</span> <span class="o">=</span> <span class="n">prob</span><span class="o">.</span><span class="n">controls</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">section</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="n">g</span> <span class="o">=</span> <span class="mf">9.8</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="n">m</span> <span class="o">=</span> <span class="mf">1.0</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="n">dx</span> <span class="o">=</span> <span class="n">Dynamics</span><span class="p">(</span><span class="n">prob</span><span class="p">,</span> <span class="n">section</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="n">dx</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="n">dx</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">T</span> <span class="o">/</span> <span class="n">m</span> <span class="o">-</span> <span class="n">g</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="k">return</span> <span class="n">dx</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
 </dd></dl>
 
 <dl class="class">
 <dt id="OpenGoddard.optimize.Guess">
 <em class="property">class </em><code class="descclassname">OpenGoddard.optimize.</code><code class="descname">Guess</code><a class="headerlink" href="#OpenGoddard.optimize.Guess" title="Permalink to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
-<p>Class for initial value guess for optimization
-Collection of class methods</p>
+<p>Class for initial value guess for optimization.</p>
+<p>Collection of class methods</p>
 <dl class="classmethod">
 <dt id="OpenGoddard.optimize.Guess.constant">
 <em class="property">classmethod </em><code class="descname">constant</code><span class="sig-paren">(</span><em>time</em>, <em>const</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Guess.constant" title="Permalink to this definition">¶</a></dt>
@@ -340,7 +355,7 @@ Collection of class methods</p>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
 <li><strong>time_init</strong> (<em>list of float</em>) &#8211; [time_start, time_section0, time_section0, , , time_final]</li>
 <li><strong>nodes</strong> (<em>int</em>) &#8211; number of nodes</li>
 <li><strong>number_of_states</strong> (<em>list</em>) &#8211; number of states</li>
@@ -349,146 +364,35 @@ Collection of class methods</p>
 </ul>
 </td>
 </tr>
+<tr class="field-even field"><th class="field-name">Variables:</th><td class="field-body"><ul class="first last simple">
+<li><strong>nodes</strong> (<em>int</em>) &#8211; time nodes.</li>
+<li><strong>number_of_states</strong> (<em>int</em>) &#8211; number of states.</li>
+<li><strong>number_of_controls</strong> (<em>int</em>) &#8211; number of controls</li>
+<li><strong>number_of_section</strong> (<em>int</em>) &#8211; number of section</li>
+<li><strong>number_of_param</strong> (<em>int</em>) &#8211; number of inner variables</li>
+<li><strong>div</strong> (<em>list</em>) &#8211; division point of inner variables</li>
+<li><strong>tau</strong> &#8211; Gauss nodes</li>
+<li><strong>w</strong> &#8211; weights of Gaussian quadrature</li>
+<li><strong>D</strong> &#8211; differentiation matrix of Gaussian quadrature</li>
+<li><strong>time</strong> &#8211; time</li>
+<li><strong>maxIterator</strong> (<em>int</em>) &#8211; max iterator</li>
+<li><strong>time_all_section</strong> &#8211; all section time</li>
+<li><strong>unit_states</strong> (<em>list of float</em>) &#8211; canonical unit of states</li>
+<li><strong>unit_controls</strong> (<em>list of float</em>) &#8211; canonical unit of controls</li>
+<li><strong>unit_time</strong> (<em>float</em>) &#8211; canonical unit of time</li>
+<li><strong>p</strong> (<em></em><em>(</em><em>N</em><em>,</em><em></em><em>) </em><em>ndarray</em>) &#8211; inner variables for optimization</li>
+<li><strong>dynamics</strong> (<em>function</em>) &#8211; function list, list of function of dynamics</li>
+<li><strong>knot_states_smooth</strong> (<em>list of True/False</em>) &#8211; list of states are smooth on phase knots</li>
+<li><strong>cost</strong> (<em>function</em>) &#8211; cost function</li>
+<li><strong>running_cost</strong> (<em>function</em><em>, </em><em>optional</em>) &#8211; (default = None)</li>
+<li><strong>cost_derivative</strong> (<em>function</em><em>, </em><em>optional</em>) &#8211; (default = None)</li>
+<li><strong>equality</strong> (<em>function</em>) &#8211; (default = None)</li>
+<li><strong>inequality</strong> (<em>function</em>) &#8211; (default = None)</li>
+</ul>
+</td>
+</tr>
 </tbody>
 </table>
-<dl class="attribute">
-<dt id="OpenGoddard.optimize.Problem.nodes">
-<code class="descname">nodes</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.nodes" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>int</em> &#8211; time nodes.</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="OpenGoddard.optimize.Problem.number_of_states">
-<code class="descname">number_of_states</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.number_of_states" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>int</em> &#8211; number of states.</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="OpenGoddard.optimize.Problem.number_of_controls">
-<code class="descname">number_of_controls</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.number_of_controls" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>int</em> &#8211; number of controls</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="OpenGoddard.optimize.Problem.number_of_section">
-<code class="descname">number_of_section</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.number_of_section" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>int</em> &#8211; number of section</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="OpenGoddard.optimize.Problem.number_of_param">
-<code class="descname">number_of_param</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.number_of_param" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>int</em> &#8211; number of inner variables</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="OpenGoddard.optimize.Problem.div">
-<code class="descname">div</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.div" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>list</em> &#8211; division point of inner variables</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="OpenGoddard.optimize.Problem.tau">
-<code class="descname">tau</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.tau" title="Permalink to this definition">¶</a></dt>
-<dd><p>time</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="OpenGoddard.optimize.Problem.w">
-<code class="descname">w</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.w" title="Permalink to this definition">¶</a></dt>
-<dd><p>weights</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="OpenGoddard.optimize.Problem.D">
-<code class="descname">D</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.D" title="Permalink to this definition">¶</a></dt>
-<dd><p>matrix</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="OpenGoddard.optimize.Problem.time">
-<code class="descname">time</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.time" title="Permalink to this definition">¶</a></dt>
-<dd><p>time</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="OpenGoddard.optimize.Problem.maxIterator">
-<code class="descname">maxIterator</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.maxIterator" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>int</em> &#8211; max iterator</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="OpenGoddard.optimize.Problem.time_all_section">
-<code class="descname">time_all_section</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.time_all_section" title="Permalink to this definition">¶</a></dt>
-<dd><p>all section time</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="OpenGoddard.optimize.Problem.unit_states">
-<code class="descname">unit_states</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.unit_states" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>list of float</em> &#8211; canonical unit of states</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="OpenGoddard.optimize.Problem.unit_controls">
-<code class="descname">unit_controls</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.unit_controls" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>list of float</em> &#8211; canonical unit of controls</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="OpenGoddard.optimize.Problem.unit_time">
-<code class="descname">unit_time</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.unit_time" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>float</em> &#8211; canonical unit of time</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="OpenGoddard.optimize.Problem.p">
-<code class="descname">p</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.p" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>(N,) ndarray</em> &#8211; inner variables for optimization</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="OpenGoddard.optimize.Problem.dynamics">
-<code class="descname">dynamics</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.dynamics" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>function</em> &#8211; function list, list of function of dynamics</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="OpenGoddard.optimize.Problem.knot_states_smooth">
-<code class="descname">knot_states_smooth</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.knot_states_smooth" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>list of True/False</em> &#8211; list of states are smooth on phase knots</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="OpenGoddard.optimize.Problem.cost">
-<code class="descname">cost</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.cost" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>function</em> &#8211; cost function</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="OpenGoddard.optimize.Problem.running_cost">
-<code class="descname">running_cost</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.running_cost" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>function, optional</em> &#8211; (default = None)</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="OpenGoddard.optimize.Problem.cost_derivative">
-<code class="descname">cost_derivative</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.cost_derivative" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>function, optional</em> &#8211; (default = None)</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="OpenGoddard.optimize.Problem.equality">
-<code class="descname">equality</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.equality" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>function</em> &#8211; (default = None)</p>
-</dd></dl>
-
-<dl class="attribute">
-<dt id="OpenGoddard.optimize.Problem.inequality">
-<code class="descname">inequality</code><a class="headerlink" href="#OpenGoddard.optimize.Problem.inequality" title="Permalink to this definition">¶</a></dt>
-<dd><p><em>function</em> &#8211; (default = None)</p>
-</dd></dl>
-
 <dl class="method">
 <dt id="OpenGoddard.optimize.Problem.controls">
 <code class="descname">controls</code><span class="sig-paren">(</span><em>control</em>, <em>section</em><span class="sig-paren">)</span><a class="headerlink" href="#OpenGoddard.optimize.Problem.controls" title="Permalink to this definition">¶</a></dt>
@@ -602,11 +506,13 @@ Gauss-Lobatto nodes are roots of <span class="math">\(P'_{n-1}(x)\)</span> and -
 </tr>
 </tbody>
 </table>
-<p class="rubric">References</p>
-<p>Fariba Fahroo and I. Michael Ross. &#8220;Advances in Pseudospectral Methods
+<div class="admonition-references admonition">
+<p class="first admonition-title">References</p>
+<p class="last">Fariba Fahroo and I. Michael Ross. &#8220;Advances in Pseudospectral Methods
 for Optimal Control&#8221;, AIAA Guidance, Navigation and Control Conference
 and Exhibit, Guidance, Navigation, and Control and Co-located Conferences
 <a class="reference external" href="http://dx.doi.org/10.2514/6.2008-7309">http://dx.doi.org/10.2514/6.2008-7309</a></p>
+</div>
 </dd></dl>
 
 <dl class="method">
@@ -841,9 +747,13 @@ stopping criterion, (default: 1e-6)</li>
 </tr>
 </tbody>
 </table>
-<p>Examples:
-&#8220;prob&#8221; is Problem class&#8217;s instance.
-&gt;&gt;&gt; prob.solve(obj, display_func, ftol=1e-12)</p>
+<div class="admonition-examples admonition">
+<p class="first admonition-title">Examples</p>
+<p>&#8220;prob&#8221; is Problem class&#8217;s instance.</p>
+<div class="last highlight-default"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">prob</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">display_func</span><span class="p">,</span> <span class="n">ftol</span><span class="o">=</span><span class="mi">1</span><span class="n">e</span><span class="o">-</span><span class="mi">12</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
 </dd></dl>
 
 <dl class="method">

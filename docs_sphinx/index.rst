@@ -23,7 +23,7 @@ See examples_ in github repository.
 and, see module detail :ref:`modindex`
 
 Example: Brachistochrone Problem with wall
------------------------------------------
+------------------------------------------
 
 .. image:: images/BrachistochroneProblem_with_wall.png
 

@@ -52,9 +52,9 @@ class Problem:
         number_of_section (int) : number of section
         number_of_param (int) : number of inner variables
         div (list) : division point of inner variables
-        tau : time
-        w : weights
-        D :  matrix
+        tau : Gauss nodes
+        w : weights of Gaussian quadrature
+        D :  differentiation matrix of Gaussian quadrature
         time : time
         maxIterator (int) : max iterator
         time_all_section : all section time
@@ -590,8 +590,10 @@ class Problem:
             maxiter (int, optional) : Maximum number of iterations., (default : 25)
 
         Examples:
-        "prob" is Problem class's instance.
-        >>> prob.solve(obj, display_func, ftol=1e-12)
+            "prob" is Problem class's instance.
+
+            >>> prob.solve(obj, display_func, ftol=1e-12)
+
         """
         assert len(self.dynamics) != 0, "It must be set dynamics"
         assert self.cost is not None, "It must be set cost function"
@@ -808,7 +810,8 @@ class Problem:
 
 
 class Guess:
-    """Class for initial value guess for optimization
+    """Class for initial value guess for optimization.
+
     Collection of class methods
     """
 
@@ -903,18 +906,25 @@ class Guess:
 
 class Condition(object):
     """OpenGoddard.optimize Condition class
+
     thin wrappper of numpy zeros and hstack
 
     Examples:
         for examples in equality function.
+
         Initial condtion : x[0] = 0.0
+
         Termination Condition : x[-1] = 100
+
         >>> result = Condition()
         >>> result.equal(x[0], 0.0)
+        >>> result.equal(x[-1], 100)
         >>> return result()
 
         for examples in inequality function
+
         Inequation condtion : 0.0 <= x <= 100
+
         >>> result = Condition()
         >>> result.lower_bound(x, 0.0)
         >>> result.upper_bound(x, 100)
@@ -938,6 +948,7 @@ class Condition(object):
 
     def equal(self, arg1, arg2, unit=1.0):
         """add equation constraint condition in Problem equality function
+
         arg1 = arg2
 
         Args:
@@ -953,8 +964,8 @@ class Condition(object):
 
     def lower_bound(self, arg1, arg2, unit=1.0):
         """add inequation constraint condition in Problem inequality function
+
         arg1 >= arg2
-        arg1 - arg2 >= 0
 
         Args:
             arg1 (array like) : arg1 is greater than or equal to arg2
@@ -969,8 +980,8 @@ class Condition(object):
 
     def upper_bound(self, arg1, arg2, unit=1.0):
         """add inequation constraint condition in Problem inequality function
+
         arg1 <= arg2
-        arg2 - arg1 >= 0
 
         Args:
             arg1 (array like) : arg1 is less than or equal to arg2
@@ -991,26 +1002,32 @@ class Condition(object):
 
 
 class Dynamics(object):
-    """OpenGoddard.optimize Condition class
-    thin wrapper for dynamics function
-    Behave like a dictionary type
+    """OpenGoddard.optimize Condition class.
+
+    thin wrapper for dynamics function.
+    Behave like a dictionary type.
 
     Examples:
-    Dynamics class must be used in dynamics function.
-    It is an example of the equation of motion of thrust and free fall.
-    Thrust is controllable.
-    \dot{x} = v
-    \dpt{v} = T/m - g
-    >>> def dynamics(prob, obj, section):
-    >>>     x = prob.states(0, section)
-    >>>     v = prob.states(1, section)
-    >>>     T = prob.controls(0, section)
-    >>>     g = 9.8
-    >>>     m = 1.0
-    >>>     dx = Dynamics(prob, section)
-    >>>     dx[0] = v
-    >>>     dx[1] = T / m - g
-    >>>     return dx()
+        Dynamics class must be used in dynamics function.
+        It is an example of the equation of motion of thrust and free fall.
+        Thrust is controllable.
+
+        .. math::
+
+            \dot{x} &= v
+
+            \dot{v} &= T/m - g
+
+        >>> def dynamics(prob, obj, section):
+        >>>     x = prob.states(0, section)
+        >>>     v = prob.states(1, section)
+        >>>     T = prob.controls(0, section)
+        >>>     g = 9.8
+        >>>     m = 1.0
+        >>>     dx = Dynamics(prob, section)
+        >>>     dx[0] = v
+        >>>     dx[1] = T / m - g
+        >>>     return dx()
     """
 
     def __init__(self, prob, section=0):
