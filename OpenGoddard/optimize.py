@@ -439,6 +439,73 @@ class Problem:
         time_final_index = range(-self.number_of_section, 0)
         self.p[time_final_index[section]] = value / self.unit_time
 
+    def set_states_bounds(self, state, section, lb, ub):
+        """ set value to bounds of state at specific section
+
+        Args:
+            state (int)   : state
+            section (int) : section
+            lb (float or None) : lower bound
+            ub (float or None) : upper bound
+
+        """
+        lb = lb / self.unit_states[section][state] if lb is not None else None
+        ub = ub / self.unit_states[section][state] if ub is not None else None
+        div_back, div_front = self._division_states(state, section)        
+        self.bounds[div_front:div_back] = [(lb, ub)] * self.nodes[section]
+
+    def set_states_bounds_all_section(self, state, lb, ub):
+        """ set value to bounds of state at all sections
+
+        Args:
+            state (int)   : state
+            lb (float or None) : lower bound
+            ub (float or None) : upper bound
+
+        """
+        for section in range(self.number_of_section):
+            self.set_states_bounds(state, section, lb, ub)
+
+    def set_controls_bounds(self, control, section, lb, ub):
+        """ set value to bounds of control at specific section
+
+        Args:
+            control (int)   : control
+            section (int) : section
+            lb (float or None) : lower bound
+            ub (float or None) : upper bound
+
+        """
+        lb = lb / self.unit_controls[section][control] if lb is not None else None
+        ub = ub / self.unit_controls[section][control] if ub is not None else None
+        div_back, div_front = self._division_controls(control, section)        
+        self.bounds[div_front:div_back] = [(lb, ub)] * self.nodes[section]
+
+    def set_controls_bounds_all_section(self, control, lb, ub):
+        """ set value to bounds of control at all sections
+
+        Args:
+            control (int)   : control
+            lb (float or None) : lower bound
+            ub (float or None) : upper bound
+
+        """
+        for section in range(self.number_of_section):
+            self.set_controls_bounds(control, section, lb, ub)
+
+    def set_time_final_bounds(self, section, lb, ub):
+        """ set value to bounds of time_final at specific section
+
+        Args:
+            section (int)   : section
+            lb (float or None) : lower bound
+            ub (float or None) : upper bound
+
+        """
+        lb = lb / self.unit_time if lb is not None else 0.0
+        ub = ub / self.unit_time if ub is not None else None
+        self.bounds[self.index_time_final(section)] = (lb, ub)
+
     def time_to_tau(self, time):
         time_init = min(time)
         time_final = max(time)
@@ -673,6 +740,7 @@ class Problem:
             opt = optimize.minimize(wrap_for_solver(cost_add, self.cost, obj),
                                     self.p,
                                     args=(self, obj),
+                                    bounds=self.bounds,
                                     constraints=cons,
                                     jac=jac,
                                     method='SLSQP',
@@ -735,6 +803,9 @@ class Problem:
             self.unit_controls.append([1.0]*self.number_of_controls[i])
         # ====
         self.p = np.zeros(self.number_of_variables, dtype=float)
+        self.bounds = [(None, None)] * self.number_of_variables
+        for i in range(self.number_of_section):
+            self.set_time_final_bounds(i, 0.0, None)
         # ====
         # function
         self.dynamics = []
