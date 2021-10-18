@@ -117,18 +117,18 @@ def inequality(prob, obj):
     result = Condition()
 
     # lower bounds
-    result.lower_bound(R, obj.Re, unit=prob.unit_states[0][0])
+    # result.lower_bound(R, obj.Re, unit=prob.unit_states[0][0])
     # result.lower_bound(Vr, 0.0, unit=prob.unit_states[0][2])
     # result.lower_bound(Vt, 0.0, unit=prob.unit_states[0][3])
     result.lower_bound(m[1:], (obj.M0 - obj.Mp), unit=prob.unit_states[0][4])
-    result.lower_bound(Tr, 0.0, unit=prob.unit_controls[0][0])
+    # result.lower_bound(Tr, 0.0, unit=prob.unit_controls[0][0])
     # result.lower_bound(Tt, obj.Tmax / obj.unit_T, unit=prob.unit_controls[0][0])
     result.lower_bound(Tt, 0.0, unit=prob.unit_controls[0][0])
 
     # upper bounds
     result.upper_bound(m, obj.M0, unit=prob.unit_states[0][4])
-    result.upper_bound(Tr, obj.Tmax, unit=prob.unit_controls[0][0])
-    result.upper_bound(Tt, obj.Tmax, unit=prob.unit_controls[0][0])
+    # result.upper_bound(Tr, obj.Tmax, unit=prob.unit_controls[0][0])
+    # result.upper_bound(Tt, obj.Tmax, unit=prob.unit_controls[0][0])
     result.upper_bound(T, obj.Tmax, unit=prob.unit_controls[0][0])
     # result.upper_bound(q, obj.MaxQ, unit = prob.unit_states[0][0])
     result.upper_bound(a_mag, obj.MaxG * obj.g0)
@@ -229,6 +229,11 @@ prob.set_states_all_section(3, Vt_init)
 prob.set_states_all_section(4, M_init)
 prob.set_controls_all_section(0, Tr_init)
 prob.set_controls_all_section(1, Tt_init)
+
+prob.set_states_bounds_all_section(0, obj.Re, None)
+# prob.set_states_bounds_all_section(4, obj.M0 - obj.Mp, obj.M0)
+prob.set_controls_bounds_all_section(0, 0.0, obj.Tmax)
+prob.set_controls_bounds_all_section(1, 0.0, obj.Tmax)
 
 # ========================
 # Main Process
