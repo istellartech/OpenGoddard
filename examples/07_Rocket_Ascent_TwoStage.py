@@ -74,7 +74,7 @@ def equality(prob, obj):
     m2 = prob.states(2, 1)
     result.equal(R1[-1], R2[0])
     result.equal(v1[-1], v2[0])
-    result.equal(m1[-1], m2[0] - 1200)
+    result.equal(m1[-1], m2[0] + 1200)
 
     return result()
 
@@ -90,16 +90,16 @@ def inequality(prob, obj):
     result = Condition()
 
     # lower bounds
-    result.lower_bound(R, obj.Re)
-    result.lower_bound(v, 0.0)
-    result.lower_bound(m, obj.M0_2nd * obj.Mc)
-    result.lower_bound(T, 0.0)
-    result.lower_bound(ts0, 50)
-    result.lower_bound(tf, 50)
+    #result.lower_bound(R, obj.Re)
+    #result.lower_bound(v, 0.0)
+    #result.lower_bound(m, obj.M0_2nd * obj.Mc)
+    #result.lower_bound(T, 0.0)
+    #result.lower_bound(ts0, 50)
+    #result.lower_bound(tf, 50)
 
     # upper bounds
-    result.upper_bound(m, obj.M0)
-    result.upper_bound(T, obj.max_thrust * obj.M0 * obj.g0)
+    #result.upper_bound(m, obj.M0)
+    #result.upper_bound(T, obj.max_thrust * obj.M0 * obj.g0)
 
     return result()
 
@@ -174,6 +174,13 @@ prob.set_states_all_section(0, R_init)
 prob.set_states_all_section(1, V_init)
 prob.set_states_all_section(2, M_init)
 prob.set_controls_all_section(0, T_init)
+
+prob.set_states_bounds_all_section(0, obj.Re, None)
+prob.set_states_bounds_all_section(1, 0.0, None)
+prob.set_states_bounds_all_section(2, obj.M0_2nd * obj.Mc, obj.M0)
+prob.set_controls_bounds_all_section(0, 0.0, obj.max_thrust * obj.M0 * obj.g0)
+prob.set_time_final_bounds(0, 50.0, None)
+prob.set_time_final_bounds(1, 50.0, None)
 
 # ========================
 # Main Process

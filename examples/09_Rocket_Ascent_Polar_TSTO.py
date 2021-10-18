@@ -33,6 +33,7 @@ class Rocket:
     def air_density(self, h):
         beta = 1/8500.0  # scale factor [1/m]
         rho0 = 1.225  # kg/m3
+        h[h < -100.0] = -100.0
         return rho0*np.exp(-beta*h)
 
 
@@ -172,21 +173,21 @@ def inequality(prob, obj):
     result.lower_bound(R, obj.Re, unit=prob.unit_states[0][0])
     # result.lower_bound(Vr, 0.0, unit=prob.unit_states[0][2])
     # result.lower_bound(Vt, 0.0, unit=prob.unit_states[0][3])
-    result.lower_bound(m0, obj.Mdry[0], unit=prob.unit_states[0][4])
+    # result.lower_bound(m0, obj.Mdry[0], unit=prob.unit_states[0][4])
     # result.lower_bound(m1, obj.Mdry[1], unit=prob.unit_states[0][4])
-    result.lower_bound(m1, 1, unit=prob.unit_states[0][4])
-    result.lower_bound(Tr, - obj.Tmax[1], unit=prob.unit_controls[0][0])
+    # result.lower_bound(m1, 1, unit=prob.unit_states[0][4])
+    # result.lower_bound(Tr, - obj.Tmax[1], unit=prob.unit_controls[0][0])
     # result.lower_bound(Tt, - obj.Tmax / obj.unit_T, unit=prob.unit_controls[0][0])
-    result.lower_bound(Tt, - obj.Tmax[1], unit=prob.unit_controls[0][0])
+    # result.lower_bound(Tt, - obj.Tmax[1], unit=prob.unit_controls[0][0])
 
     # upper bounds
-    result.upper_bound(m0, obj.M0[0], unit=prob.unit_states[0][4])
-    result.upper_bound(m1, obj.M0[1], unit=prob.unit_states[0][4])
-    result.upper_bound(Tr0, obj.Tmax[0], unit=prob.unit_controls[0][0])
-    result.upper_bound(Tt0, obj.Tmax[0], unit=prob.unit_controls[0][0])
+    # result.upper_bound(m0, obj.M0[0], unit=prob.unit_states[0][4])
+    # result.upper_bound(m1, obj.M0[1], unit=prob.unit_states[0][4])
+    # result.upper_bound(Tr0, obj.Tmax[0], unit=prob.unit_controls[0][0])
+    # result.upper_bound(Tt0, obj.Tmax[0], unit=prob.unit_controls[0][0])
     result.upper_bound(T0, obj.Tmax[0], unit=prob.unit_controls[0][0])
-    result.upper_bound(Tr1, obj.Tmax[1], unit=prob.unit_controls[0][0])
-    result.upper_bound(Tt1, obj.Tmax[1], unit=prob.unit_controls[0][0])
+    # result.upper_bound(Tr1, obj.Tmax[1], unit=prob.unit_controls[0][0])
+    # result.upper_bound(Tt1, obj.Tmax[1], unit=prob.unit_controls[0][0])
     result.upper_bound(T1, obj.Tmax[1], unit=prob.unit_controls[0][0])
     # result.upper_bound(q, obj.MaxQ, unit = prob.unit_states[0][0])
     result.upper_bound(a_mag0, obj.MaxG * obj.g0)
@@ -208,7 +209,7 @@ time_init = [0.0, 100, 200]
 n = [20, 20]
 num_states = [5, 5]
 num_controls = [2, 2]
-max_iteration = 20
+max_iteration = 40
 
 flag_savefig = True
 savefig_file = "08_Rocket_Ascent_Polar/TSTO_"
@@ -282,6 +283,14 @@ prob.set_states_all_section(3, Vt_init)
 prob.set_states_all_section(4, M_init)
 prob.set_controls_all_section(0, Tr_init)
 prob.set_controls_all_section(1, Tt_init)
+
+prob.set_states_bounds_all_section(0, obj.Re, None)
+prob.set_states_bounds(4, 0, obj.Mdry[0], obj.M0[0])
+prob.set_states_bounds(4, 1, 1.0, obj.M0[1])
+prob.set_controls_bounds(0, 0, -obj.Tmax[1], obj.Tmax[0])
+prob.set_controls_bounds(1, 0, -obj.Tmax[1], obj.Tmax[0])
+prob.set_controls_bounds(0, 1, -obj.Tmax[1], obj.Tmax[1])
+prob.set_controls_bounds(1, 1, -obj.Tmax[1], obj.Tmax[1])
 
 # ========================
 # Main Process

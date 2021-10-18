@@ -73,14 +73,14 @@ def inequality(prob, obj):
 
     result = Condition()
     # lower bounds
-    result.lower_bound(R, obj.Re)
-    result.lower_bound(v, 0.0)
-    result.lower_bound(m, obj.M0 * obj.Mc)
-    result.lower_bound(T, 0.0)
-    result.lower_bound(tf, 10)
+    # result.lower_bound(R, obj.Re)
+    # result.lower_bound(v, 0.0)
+    # result.lower_bound(m, obj.M0 * obj.Mc)
+    # result.lower_bound(T, 0.0)
+    # result.lower_bound(tf, 10)
     # upper bounds
-    result.upper_bound(m, obj.M0)
-    result.upper_bound(T, obj.max_thrust * obj.M0 * obj.g0)
+    # result.upper_bound(m, obj.M0)
+    # result.upper_bound(T, obj.max_thrust * obj.M0 * obj.g0)
 
     return result()
 
@@ -160,6 +160,12 @@ prob.set_states_all_section(0, R_init)
 prob.set_states_all_section(1, V_init)
 prob.set_states_all_section(2, M_init)
 prob.set_controls_all_section(0, T_init)
+
+prob.set_states_bounds_all_section(0, obj.Re, None)
+prob.set_states_bounds_all_section(1, 0.0, None)
+prob.set_states_bounds_all_section(2, obj.M0*obj.Mc, obj.M0)
+prob.set_controls_bounds_all_section(0, 0.0, obj.max_thrust * obj.M0 * obj.g0)
+prob.set_time_final_bounds(0, 10.0, None)
 
 # ========================
 # Main Process
