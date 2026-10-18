@@ -59,6 +59,9 @@ class Problem:
         number_of_controls (sequence of int): Nonnegative control counts per phase.
         maxIterator (int): Maximum SLSQP attempts after iteration limits.
         method (str): Only ``"LGL"`` is supported for optimal control.
+        mesh (optional): Per-section lists of ``(left, right, nodes)`` elements
+            partitioning the phase coordinate [-1, 1]. Logical section numbers
+            do not change. Node counts include both sides of internal interfaces.
 
     All state, control and time getters and setters use physical units. Only
     ``p`` and ``bounds`` use scaled units. Setters for units preserve physical

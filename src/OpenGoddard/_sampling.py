@@ -57,6 +57,10 @@ class SampledView:
         self.nodes = [len(tau) for tau in self.tau]
 
     def __getattr__(self, name):
+        if name == "p" or name.startswith("index_"):
+            raise AttributeError(
+                "sampled path callbacks must use physical state/control/time getters"
+            )
         return getattr(self._base, name)
 
     def states(self, state, section):
@@ -96,7 +100,9 @@ class SampledView:
 
 
 def original_inequality(problem):
-    return getattr(problem, "_mesh_original_inequality", problem.inequality)
+    callback = problem.inequality
+    body = callback.function if isinstance(callback, LinearCallback) else callback
+    return body.callback if isinstance(body, SampledPath) else callback
 
 
 class SampledPath:
@@ -140,9 +146,8 @@ class SampledPath:
 
 
 def enable_path_sampling(problem, factor, points=None):
-    if not hasattr(problem, "_mesh_original_inequality"):
-        problem._mesh_original_inequality = problem.inequality
-    callback = problem._mesh_original_inequality
+    callback = original_inequality(problem)
+    problem._mesh_original_inequality = callback
     if points is not None:
         problem._mesh_path_points = points
     sampled = SampledPath(callback, factor, getattr(problem, "_mesh_path_points", None))

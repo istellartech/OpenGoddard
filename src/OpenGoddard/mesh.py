@@ -1,4 +1,4 @@
-"""Warm-started p refinement with independent, between-node defect checks."""
+"""Phase-preserving mesh refinement and independent, between-node defect checks."""
 
 import copy
 import warnings
@@ -137,11 +137,15 @@ def estimate_error(problem, obj=None, check_factor=2):
     """Measure relative dimensionless ODE defects away from collocation nodes.
 
     Per phase: max|dX/dtau - (tf-ti) f/2| / (unit + max|X|), evaluated at
-    ``check_factor * nodes + 1`` Gauss points. This is a residual indicator,
+    ``check_factor * element.nodes + 1`` Gauss points per element. Derivatives
+    are scaled back to phase coordinates, so smaller elements do not artificially
+    reduce the residual. This is a residual indicator,
     not a rigorous state-error bound. Nonpositive durations are rejected.
     Requires DynamicsModel to evaluate physical dynamics on an independent grid.
-    Path constraints and box bounds are also checked on a denser LGL mesh;
-    these checks are sampled, and do not prove continuous feasibility.
+    Path constraints and box bounds are also checked on a denser LGL mesh and
+    at state/control polynomial extrema. Affine pointwise scalar bounds reach
+    their worst violations at these extrema (up to polynomial/root roundoff).
+    General nonlinear path constraints remain sampled and are not certified.
     """
     factor = integer(check_factor, "check_factor", 2)
     from ._sampling import SampledPath, original_inequality, polynomial_extrema
@@ -286,8 +290,11 @@ def solve_adaptive(
     Mutates the original problem to the final mesh and returns its OptimizeResult.
     ``result.success`` remains the optimizer's status; additionally inspect
     ``result.mesh_converged``. Node/refinement limits or solver failure never
-    count as mesh convergence. This is p refinement, not phase splitting;
-    known discontinuities should be represented as separate phases.
+    count as mesh convergence. The default ``strategy='p'`` increases node counts.
+    ``'h'`` splits elements and ``'hp'`` chooses splitting or increasing order;
+    see hp.solve_hp_adaptive. Both retain logical phases and include off-grid
+    path constraints with fixed extrema cuts. These callbacks must use physical
+    getters, not direct ``p`` indices or mesh-dependent global reductions.
     A failed coarse solve grows all phases and retries from its pre-solve guess;
     failures remain visible in mesh_history and never count as convergence.
     """

@@ -5,7 +5,7 @@ import unittest
 import numpy as np
 
 from OpenGoddard import DynamicsModel, LinearCallback, Problem
-from OpenGoddard._sampling import SampledPath
+from OpenGoddard._sampling import SampledPath, enable_path_sampling, original_inequality
 from OpenGoddard.derivatives import Derivatives, finite_difference
 
 
@@ -105,6 +105,7 @@ class ElementTests(unittest.TestCase):
             [[(-1, 0, 4), (0.1, 1, 4)]],
             [[(-1, 0.5, 8)]],
             [[(-1, 1, 7)]],
+            [[(-1, 1 - 5e-13, 4), (1 - 5e-13, 1 + 5e-13, 4)]],
         ):
             with self.subTest(mesh=mesh), self.assertRaises(ValueError):
                 Problem([0, 1], [8], [1], [1], mesh=mesh)
@@ -116,6 +117,23 @@ class ElementTests(unittest.TestCase):
         self.assertTrue((callback(p, None) >= 0).all())
         guard = SampledPath(callback, 4)
         self.assertLess(np.min(guard(p, None)), -0.005)
+
+    def test_path_callback_replacement_does_not_use_stale_original(self):
+        p = self.piecewise()
+        old = LinearCallback(lambda v, o: v.controls_all_section(0))
+        new = LinearCallback(lambda v, o: v.controls_all_section(0) - 10)
+        p.inequality = old
+        enable_path_sampling(p, 3)
+        self.assertIs(original_inequality(p), old)
+        p.inequality = new
+        self.assertIs(original_inequality(p), new)
+        enable_path_sampling(p, 3)
+        self.assertIs(original_inequality(p), new)
+        self.assertGreater(p.estimate_error()["path_violation"], 8)
+
+    def test_sampled_path_rejects_direct_parameter_access(self):
+        with self.assertRaisesRegex(AttributeError, "physical"):
+            SampledPath(lambda v, o: v.p, 3)(self.piecewise(), None)
 
 
 class AdaptiveElementTests(unittest.TestCase):

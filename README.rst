@@ -242,11 +242,52 @@ Per-phase units, endpoint times and discontinuities are preserved. Nodal box
 bounds must be constant for each variable within a phase; express varying bounds
 as path callbacks instead.
 
-This implements p refinement (node counts), not automatic phase splitting.
-Gibbs oscillations near thrust switches may leave sampled path violations even
-when ODE defects are tiny. Node/refinement limits or a successful NLP solve alone
-do not imply ``mesh_converged``. Represent known discontinuities as separate
-phases when needed; automatic splitting would change section-dependent callbacks.
+The default ``strategy="p"`` increases node counts within each element. Select
+``strategy="h"`` for element splitting, or ``strategy="hp"`` to choose between
+splitting and increasing order::
+
+  result = problem.solve_adaptive(
+      obj, strategy="hp", derivatives="autograd", tolerance=1e-5,
+      max_refinements=12, max_nodes=150, max_elements=24,
+      max_order=14, path_check_factor=4, maxiter=600, ftol=1e-10,
+  )
+
+Elements live INSIDE logical phases, so section numbers, original phase times,
+scales and stage-separation conditions remain unchanged. States are continuous
+at internal element interfaces; controls have separate left/right values.
+``max_nodes`` counts all nodes per logical phase, including both copies of an
+internal interface. ``max_elements`` is also a per-phase limit. ``max_order`` is
+the element node-count threshold for selecting splitting over p refinement.
+Use ``problem.remesh`` for an explicit partition, e.g.
+``problem.remesh([[(-1, 0, 8), (0, 1, 8)]])`` for a one-phase problem.
+
+The h/hp strategies include path constraints between collocation nodes and add
+fixed cuts at state/control polynomial extrema when violations remain. Root
+locations are recomputed outside optimization and held fixed during each NLP;
+the optimizer does not differentiate through moving roots. Affine pointwise
+scalar bounds are checked at their polynomial extrema, up to numerical root
+accuracy. General nonlinear path constraints are still sampled, not certified.
+Callbacks must use physical state/control/time getters and ``view.condition()``;
+direct ``p`` indices, mesh-dependent reductions and in-place mutation are not
+supported by the sampled view.
+
+``estimate_error`` now checks these extrema for every strategy, in addition to
+an independent denser mesh. Its ODE defect is measured in phase coordinates,
+so merely shrinking an element cannot artificially improve the indicator.
+Node/refinement limits or a successful NLP solve alone do not imply
+``mesh_converged``. Inspect ``mesh_stop_reason`` and ``mesh_history`` for h/hp
+solves. The splitting locations and smoothness indicators are heuristics, with
+no global-optimality or continuous-state-error guarantee.
+
+The Goddard comparison, including independent IVP integration, is documented in
+`benchmarks/HP_REPORT.rst <benchmarks/HP_REPORT.rst>`_. Reproduce it with::
+
+  uv run --extra autodiff python benchmarks/compare_hp.py
+
+It loads the previous p implementation from Git revision ``978b97a`` into an
+isolated temporary package. It never resets or checks out the working tree.
+All solutions receive the same current residual, polynomial-extrema and IVP
+checks; historical p and equal-budget p are both reported.
 
 Reproducible performance comparison
 ===================================

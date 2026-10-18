@@ -41,6 +41,8 @@ def normalize_mesh(nodes, mesh=None):
                     "mesh elements must partition [-1, 1] without gaps or overlaps"
                 )
             right = 1.0 if abs(element.right - 1.0) < 1e-12 else float(element.right)
+            if right <= left:
+                raise ValueError("mesh elements must have strictly positive width")
             elements.append(Element(left, right, n))
             left = right
         if not elements or left != 1.0 or sum(e.nodes for e in elements) != count:

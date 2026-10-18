@@ -32,4 +32,7 @@ Adaptive meshes
 ---------------
 
 .. automodule:: OpenGoddard.mesh
-    :members: refine, estimate_error, solve_adaptive
+    :members: refine, remesh, estimate_error, solve_adaptive
+
+.. automodule:: OpenGoddard.hp
+    :members: solve_hp_adaptive
