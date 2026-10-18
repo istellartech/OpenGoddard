@@ -7,30 +7,57 @@ import numpy as np
 from scipy.interpolate import BarycentricInterpolator
 from scipy.special import roots_legendre
 
+from ._grid import Element, elements_with_slices, normalize_mesh
 from ._validation import integer, positive_scale
 from .derivatives import DynamicsModel
 
 
-def refine(problem, nodes):
-    """Return a new problem interpolated onto larger or smaller LGL meshes.
+def interpolate(problem, section, values, points, *, right_endpoint=False):
+    """Evaluate piecewise polynomials, choosing one-sided values at interfaces."""
+    points = np.asarray(points, dtype=float)
+    entries = list(elements_with_slices(problem, section))
+    right = np.array([e.right for e, _ in entries])
+    owner = np.searchsorted(right, points, side="right")
+    if right_endpoint and points.size:
+        owner[-1] = np.searchsorted(right, points[-1], side="left")
+    owner = np.clip(owner, 0, len(entries) - 1)
+    result = np.empty(values.shape[:-1] + points.shape)
+    for panel, (element, rows) in enumerate(entries):
+        mask = owner == panel
+        if np.any(mask):
+            local = (problem.tau[section][rows] - element.left) * 2 / (
+                element.right - element.left
+            ) - 1
+            target = (points[mask] - element.left) * 2 / (
+                element.right - element.left
+            ) - 1
+            result[..., mask] = BarycentricInterpolator(
+                local, values[..., rows], axis=-1, rng=0
+            )(target)
+    return result
 
-    Phase topology, endpoints, units, callbacks and constant per-variable bounds
-    are preserved. Varying nodal box bounds are rejected: express such bounds as
-    path constraints instead. Barycentric interpolation does not merge duplicate
-    phase endpoints and therefore preserves stage-separation discontinuities.
-    Callbacks must use the problem passed to them, rather than capture an old p.
+
+def remesh(problem, mesh):
+    """Interpolate onto independent LGL elements without renumbering phases.
+
+    State/control arrays include both sides of each internal element interface.
+    Only states are constrained continuous. Constant per-variable nodal bounds,
+    units, phase endpoints, callbacks and custom metadata are preserved.
     """
     from .optimize import Problem
 
-    nodes = [integer(n, "nodes", 2) for n in nodes]
-    if len(nodes) != problem.number_of_section:
-        raise ValueError("provide one node count per section")
+    counts = [
+        sum(e.nodes if isinstance(e, Element) else e[2] for e in entries)
+        for entries in mesh
+    ]
+    layout = normalize_mesh(counts, mesh)
     new = Problem(
         problem.time_knots(),
-        nodes,
+        counts,
         problem.number_of_states,
         problem.number_of_controls,
         problem.maxIterator,
+        mesh=layout,
     )
     new.set_unit_time(problem.unit_time)
     for section in range(problem.number_of_section):
@@ -54,11 +81,16 @@ def refine(problem, nodes):
             else:
                 new.set_unit_controls(component, section, unit)
                 new_back, new_front = new._division_controls(component, section)
-            interpolator = BarycentricInterpolator(
-                problem.tau[section], problem.p[front:back], rng=0
-            )
-            new.p[new_front:new_back] = interpolator(new.tau[section])
-            new.bounds[new_front:new_back] = pairs[:1] * nodes[section]
+            values = problem.p[front:back]
+            for element, rows in elements_with_slices(new, section):
+                new.p[new_front + rows.start : new_front + rows.stop] = interpolate(
+                    problem,
+                    section,
+                    values,
+                    new.tau[section][rows],
+                    right_endpoint=True,
+                )
+            new.bounds[new_front:new_back] = pairs[:1] * counts[section]
     new.bounds[-new.number_of_section :] = problem.bounds[-problem.number_of_section :]
     for name in (
         "dynamics",
@@ -70,10 +102,35 @@ def refine(problem, nodes):
         "knot_states_smooth",
     ):
         setattr(new, name, copy.copy(getattr(problem, name)))
-    # Preserve user metadata without copying caches/results from the old mesh.
     new.__dict__ = {**problem.__dict__, **new.__dict__}
     new.time_update()
     return new
+
+
+def refine(problem, nodes):
+    """Change p while preserving existing element boundaries and phase topology.
+
+    Counts are totals per logical phase, including duplicated interface nodes.
+    At least two nodes per existing element are required. Varying nodal box
+    bounds are rejected; express them as path constraints instead.
+    """
+    nodes = [integer(n, "nodes", 2) for n in nodes]
+    if len(nodes) != problem.number_of_section:
+        raise ValueError("provide one node count per section")
+    mesh = []
+    for count, entries in zip(nodes, problem.mesh):
+        extra = count - 2 * len(entries)
+        if extra < 0:
+            raise ValueError("at least two nodes per existing element are required")
+        weights = np.array([max(1, e.nodes - 2) for e in entries], dtype=float)
+        exact = extra * weights / weights.sum()
+        allocation = np.floor(exact).astype(int)
+        order = np.argsort(-(exact - allocation), kind="stable")
+        allocation[order[: extra - int(allocation.sum())]] += 1
+        mesh.append(
+            [Element(e.left, e.right, int(n) + 2) for e, n in zip(entries, allocation)]
+        )
+    return remesh(problem, mesh)
 
 
 def estimate_error(problem, obj=None, check_factor=2):
@@ -87,7 +144,9 @@ def estimate_error(problem, obj=None, check_factor=2):
     these checks are sampled, and do not prove continuous feasibility.
     """
     factor = integer(check_factor, "check_factor", 2)
-    errors = []
+    from ._sampling import SampledPath, original_inequality, polynomial_extrema
+
+    errors, details = [], []
     if not all(isinstance(model, DynamicsModel) for model in problem.dynamics):
         raise ValueError(
             "mesh error estimation requires DynamicsModel in every section"
@@ -95,29 +154,98 @@ def estimate_error(problem, obj=None, check_factor=2):
     for section, n in enumerate(problem.nodes):
         model = problem.dynamics[section]
         x, u, _ = model.inputs(problem, section)
-        check = roots_legendre(factor * n + 1)[0]
-        state_poly = BarycentricInterpolator(problem.tau[section], x, axis=1, rng=0)
-        state = state_poly(check)
-        control = (
-            BarycentricInterpolator(problem.tau[section], u, axis=1, rng=0)(check)
-            if u.shape[0]
-            else np.empty((0, check.size))
-        )
         start, end = problem.time_start(section), problem.time_final(section)
         if end <= start:
             raise ValueError(
                 "mesh error estimation requires strictly positive phase durations"
             )
-        time = start + (check + 1) / 2 * (end - start)
-        residual = state_poly.derivative(check) - (end - start) / 2 * model.physical(
-            state, control, time, obj, section
-        )
-        denominator = np.asarray(problem.unit_states[section]) + np.max(
-            np.abs(state), axis=1
-        )
-        errors.append(float(np.max(np.abs(residual) / denominator[:, None])))
-    dense = refine(problem, [factor * n + 1 for n in problem.nodes])
-    inequalities = dense._inequality_constraints(obj)
+        panels = []
+        for element, rows in elements_with_slices(problem, section):
+            local = (problem.tau[section][rows] - element.left) * 2 / (
+                element.right - element.left
+            ) - 1
+            check = roots_legendre(factor * element.nodes + 1)[0]
+            tau = element.left + (check + 1) * (element.right - element.left) / 2
+            state_poly = BarycentricInterpolator(local, x[:, rows], axis=1, rng=0)
+            state = state_poly(check)
+            control_poly = (
+                BarycentricInterpolator(local, u[:, rows], axis=1, rng=0)
+                if u.shape[0]
+                else None
+            )
+            control = (
+                control_poly(check)
+                if control_poly is not None
+                else np.empty((0, check.size))
+            )
+            time = start + (tau + 1) / 2 * (end - start)
+            residual = state_poly.derivative(check) * 2 / (
+                element.right - element.left
+            ) - (end - start) / 2 * model.physical(state, control, time, obj, section)
+            denominator = np.asarray(problem.unit_states[section]) + np.max(
+                np.abs(state), axis=1
+            )
+            point_errors = np.max(np.abs(residual) / denominator[:, None], axis=0)
+            scaled = np.concatenate(
+                (
+                    x[:, rows] / np.asarray(problem.unit_states[section])[:, None],
+                    u[:, rows] / np.asarray(problem.unit_controls[section])[:, None],
+                )
+            )
+            coefficients = np.polynomial.legendre.legfit(
+                local, scaled.T, element.nodes - 1
+            )
+            amplitude = np.linalg.norm(coefficients[1:], axis=0)
+            ratios = np.linalg.norm(
+                coefficients[-min(3, element.nodes - 1) :], axis=0
+            ) / np.maximum(amplitude, 1e-8)
+            smoothness = float(np.max(ratios))
+            sampled = np.concatenate(
+                (
+                    state / np.asarray(problem.unit_states[section])[:, None],
+                    control / np.asarray(problem.unit_controls[section])[:, None],
+                )
+            )
+            overshoot = float(
+                np.max(
+                    np.maximum(
+                        np.min(scaled, axis=1)[:, None] - sampled,
+                        sampled - np.max(scaled, axis=1)[:, None],
+                    ),
+                    initial=0,
+                )
+            )
+            split = float(tau[int(np.argmax(point_errors))])
+            # Avoid pathological slivers when the defect maximum is near a boundary.
+            split = float(
+                np.clip(
+                    split,
+                    element.left + 0.25 * (element.right - element.left),
+                    element.right - 0.25 * (element.right - element.left),
+                )
+            )
+            panels.append(
+                {
+                    "left": element.left,
+                    "right": element.right,
+                    "nodes": element.nodes,
+                    "error": float(np.max(point_errors)),
+                    "smoothness": smoothness,
+                    "overshoot": overshoot,
+                    "split": split,
+                }
+            )
+        errors.append(max(e["error"] for e in panels))
+        details.append(panels)
+    dense = remesh(
+        problem,
+        [
+            [Element(e.left, e.right, factor * e.nodes + 1) for e in entries]
+            for entries in problem.mesh
+        ],
+    )
+    callback = original_inequality(problem)
+    inequalities = np.empty(0) if callback is None else callback(dense, obj)
     violation = max(0.0, -float(np.min(inequalities, initial=0)))
     for value, pair in zip(dense.p, dense.bounds):
         lower, upper = pair
@@ -126,10 +254,15 @@ def estimate_error(problem, obj=None, check_factor=2):
             0.0 if lower is None else lower - value,
             0.0 if upper is None else value - upper,
         )
+    extreme_residuals = SampledPath(callback, factor, polynomial_extrema(problem))(
+        problem, obj
+    )
+    violation = max(violation, -float(np.min(extreme_residuals, initial=0)))
     return {
         "section_errors": errors,
         "max_error": max(errors),
         "path_violation": float(violation),
+        "elements": details,
     }
 
 
@@ -141,6 +274,11 @@ def solve_adaptive(
     max_refinements=4,
     max_nodes=100,
     growth=1.5,
+    strategy="p",
+    max_elements=24,
+    min_element_nodes=6,
+    max_order=14,
+    path_check_factor=4,
     **solve_options,
 ):
     """Solve, check between nodes, and grow only phases exceeding tolerance.
@@ -153,6 +291,25 @@ def solve_adaptive(
     A failed coarse solve grows all phases and retries from its pre-solve guess;
     failures remain visible in mesh_history and never count as convergence.
     """
+    if strategy not in ("p", "h", "hp"):
+        raise ValueError("strategy must be 'p', 'h' or 'hp'")
+    if strategy != "p":
+        from .hp import solve_hp_adaptive
+
+        return solve_hp_adaptive(
+            problem,
+            obj,
+            strategy=strategy,
+            tolerance=tolerance,
+            max_refinements=max_refinements,
+            max_nodes=max_nodes,
+            growth=growth,
+            max_elements=max_elements,
+            min_element_nodes=min_element_nodes,
+            max_order=max_order,
+            path_check_factor=path_check_factor,
+            **solve_options,
+        )
     tolerance = positive_scale(tolerance)
     refinements = integer(max_refinements, "max_refinements")
     cap = integer(max_nodes, "max_nodes", 2)

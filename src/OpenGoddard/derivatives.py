@@ -7,6 +7,7 @@ Arbitrary legacy dynamics remain supported by ``derivatives='finite-difference'`
 import numpy as np
 from scipy import sparse
 
+from ._grid import interfaces
 from ._validation import index, vector
 
 
@@ -360,6 +361,20 @@ class Derivatives:
                 / scale
             )
             blocks.append(xp.reshape(residual, (-1,)))
+        for section in range(p.number_of_section):
+            for left, right in interfaces(p, section):
+                blocks.append(
+                    xp.stack(
+                        [
+                            (
+                                view.states(state, section)[left]
+                                - view.states(state, section)[right]
+                            )
+                            / p.unit_states[section][state]
+                            for state in range(p.number_of_states[section])
+                        ]
+                    )
+                )
         for knot, smooth in enumerate(p.knot_states_smooth):
             if smooth and p.number_of_states[knot] == p.number_of_states[knot + 1]:
                 blocks.append(
@@ -471,6 +486,18 @@ class Derivatives:
             blocks.append(block.tocsr())
         rows, cols, data = [], [], []
         count = 0
+        for section in range(p.number_of_section):
+            for left, right in interfaces(p, section):
+                for state in range(p.number_of_states[section]):
+                    rows.extend((count, count))
+                    cols.extend(
+                        (
+                            p.index_states(state, section, left),
+                            p.index_states(state, section, right),
+                        )
+                    )
+                    data.extend((1.0, -1.0))
+                    count += 1
         for knot, smooth in enumerate(p.knot_states_smooth):
             if not smooth or p.number_of_states[knot] != p.number_of_states[knot + 1]:
                 continue

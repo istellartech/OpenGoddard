@@ -35,6 +35,7 @@ import numpy as np
 from numpy.typing import NDArray
 from scipy import optimize, special
 
+from ._grid import interfaces, normalize_mesh, rule
 from ._helpers import Condition as Condition
 from ._helpers import Dynamics as Dynamics
 from ._helpers import Guess as Guess
@@ -609,6 +610,20 @@ class Problem:
                 self.time_final(section) - self.time_start(section)
             ) / self.unit_time
             blocks.append(derivative - duration / 2 * dx)
+        for section in range(self.number_of_section):
+            for left, right in interfaces(self, section):
+                blocks.append(
+                    np.array(
+                        [
+                            (
+                                self.states(state, section)[left]
+                                - self.states(state, section)[right]
+                            )
+                            / self.unit_states[section][state]
+                            for state in range(self.number_of_states[section])
+                        ]
+                    )
+                )
         for knot, smooth in enumerate(self.knot_states_smooth):
             if (
                 not smooth
@@ -852,6 +867,17 @@ class Problem:
 
         return refine(self, nodes)
 
+    def remesh(self, mesh):
+        """Return a warm start on per-phase lists of (left, right, nodes) elements.
+
+        Element endpoints are phase coordinates in [-1, 1]. Logical section
+        indices remain unchanged. States are continuous at internal interfaces;
+        controls have independent left and right limits.
+        """
+        from .mesh import remesh
+
+        return remesh(self, mesh)
+
     def estimate_error(self, obj=None, check_factor=2):
         """Estimate between-node ODE and sampled path residuals; see mesh.estimate_error."""
         from .mesh import estimate_error
@@ -872,6 +898,8 @@ class Problem:
         number_of_controls,
         maxIterator=100,
         method="LGL",
+        *,
+        mesh=None,
     ):
         # LG and LGR quadrature utilities remain available, but their endpoint
         # transcriptions differ from LGL and are not implemented by this solver.
@@ -911,7 +939,8 @@ class Problem:
         self.number_of_variables = (
             int(np.dot(self.number_of_param, self.nodes)) + self.number_of_section
         )
-        rules = [self.method_LGL(n) for n in self.nodes]
+        self.mesh = normalize_mesh(self.nodes, mesh)
+        rules = [rule(elements) for elements in self.mesh]
         self.tau = [rule[0] for rule in rules]
         self.w = [rule[1] for rule in rules]
         self.D = [rule[2] for rule in rules]
