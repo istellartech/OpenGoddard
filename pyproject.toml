@@ -7,7 +7,7 @@ name = "OpenGoddard"
 version = "1.2.0"
 description = "Optimal Trajectories module with PseudoSpectral Method"
 readme = "README.md"
-requires-python = ">=3.15"
+requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "Interstellar Technologies Inc." }]
@@ -20,12 +20,17 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Mathematics",
     "Topic :: Scientific/Engineering :: Physics",
     "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Programming Language :: Python :: 3.15",
 ]
 dependencies = [
-    "numpy>=2.5.4,<3",
-    "scipy>=1.18.1,<2",
-    "matplotlib>=3.11.2,<4",
+    "numpy>=1.26.0,<3",
+    "scipy>=1.15.0,<2",
+    "matplotlib>=3.9.0,<4",
+    "typing-extensions>=4.4.0,<5",
 ]
 
 [project.urls]
@@ -44,6 +49,9 @@ prerelease = "disallow"
 [tool.uv.build-backend]
 module-name = "OpenGoddard"
 source-include = ["examples/**", "tests/**"]
+
+[tool.ruff]
+target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E4", "E7", "E9", "F", "I"]

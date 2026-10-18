@@ -22,7 +22,7 @@ minimum-time motion, and minimum-energy control.
 
 ## Install
 
-Requires Python 3.15 or later. NumPy, SciPy, and Matplotlib are installed as
+Requires Python 3.11 or later. NumPy, SciPy, and Matplotlib are installed as
 dependencies.
 
 ```sh

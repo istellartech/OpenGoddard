@@ -28,11 +28,12 @@ OpenGoddard.optimize - Optimal Trajectories module with PseudoSpectral Method
 
 import warnings
 from collections.abc import Callable
-from typing import Any, cast, override
+from typing import Any, cast
 
 import numpy as np
 from numpy.typing import NDArray
 from scipy import optimize, special
+from typing_extensions import override
 
 from ._grid import interfaces, normalize_mesh, rule
 from ._helpers import Condition as Condition

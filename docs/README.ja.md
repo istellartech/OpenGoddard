@@ -19,7 +19,7 @@ Legendre–Gauss–Lobattoの擬スペクトル法で、運動方程式・制約
 
 ## インストール
 
-Python 3.15以上が必要です。NumPy・SciPy・Matplotlibも依存ライブラリとしてインストールされます。
+Python 3.11以上が必要です。NumPy・SciPy・Matplotlibも依存ライブラリとしてインストールされます。
 
 ```sh
 pip install OpenGoddard

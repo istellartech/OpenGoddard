@@ -4,10 +4,9 @@
 Arbitrary legacy dynamics remain supported by ``derivatives='finite-difference'``.
 """
 
-from typing import override
-
 import numpy as np
 from scipy import sparse
+from typing_extensions import override
 
 from ._grid import interfaces
 from ._validation import index, vector

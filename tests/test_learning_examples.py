@@ -6,11 +6,11 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from typing import override
 
 import numpy as np
 from scipy.integrate import solve_ivp
 from scipy.interpolate import BarycentricInterpolator
+from typing_extensions import override
 
 from examples.catalog import load_example
 

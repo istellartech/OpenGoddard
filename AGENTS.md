@@ -1,6 +1,6 @@
 # OpenGoddard
 
-擬スペクトル法による最適軌道計算のPythonライブラリ。Python 3.15、uvで管理。
+擬スペクトル法による最適軌道計算のPythonライブラリ。Python 3.11、uvで管理。
 
 ## 構成
 
