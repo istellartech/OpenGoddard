@@ -186,7 +186,9 @@ def main(*, flag_savefig: bool = True):
         R = prob.states_all_section(0)
         print(f"max altitude: {R[-1] - obj.Re:.5f}")
 
-    prob.solve(obj, display_func, ftol=1e-12)
+    # One long SLSQP run keeps its Hessian estimate; restarts at the default
+    # maxiter (25) discard it and never meet ftol.
+    prob.solve(obj, display_func, ftol=1e-12, maxiter=2000)
 
     # ========================
     # Post Process

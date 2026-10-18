@@ -109,8 +109,10 @@ def main(*, flag_savefig: bool = True):
     plt.close("all")
     plt.ion()
     # Program Starting Point
-    time_init = [0.0, 10.0]
-    n = [100]
+    # With |u| <= u_max = 0.01 the spiral needs a velocity change of about 0.5,
+    # so the transfer takes at least ~35 time units; start near the optimum.
+    time_init = [0.0, 50.0]
+    n = [60]
     num_states = [3]
     num_controls = [4]
     max_iteration = 10
@@ -133,15 +135,16 @@ def main(*, flag_savefig: bool = True):
     # Guess.plot(prob.time_all_section, vr_init, "vr", "time", "vr")
     # if(flag_savefig):plt.savefig(savefig_dir + "guess_vr" + savefig_add + ".png")
 
-    vt_init = Guess.linear(prob.time_all_section, obj.vt0, obj.vtf)
+    # Circular speed at the guessed radius keeps the initial guess near-feasible.
+    vt_init = 1 / np.sqrt(r_init)
     # Guess.plot(prob.time_all_section, theta_init, "vt", "time", "vt")
     # if(flag_savefig):plt.savefig(savefig_dir + "guess_vt" + savefig_add + ".png")
 
-    ur1_init = Guess.linear(prob.time_all_section, obj.u_max, obj.u_max)
+    ur1_init = Guess.constant(prob.time_all_section, 0.0)
     # Guess.plot(prob.time_all_section, ur1_init, "ur1", "time", "ur1")
     # if(flag_savefig):plt.savefig(savefig_dir + "guess_ur1" + savefig_add + ".png")
 
-    ut1_init = Guess.linear(prob.time_all_section, obj.u_max, obj.u_max)
+    ut1_init = Guess.constant(prob.time_all_section, obj.u_max / 2)
     # Guess.plot(prob.time_all_section, ut1_init, "ut1", "time", "ut1")
     # if(flag_savefig):plt.savefig(savefig_dir + "guess_ut1" + savefig_add + ".png")
 
@@ -165,7 +168,7 @@ def main(*, flag_savefig: bool = True):
         tf = prob.time_final(-1)
         print(f"tf: {tf:.5f}")
 
-    prob.solve(obj, display_func, ftol=1e-12)
+    prob.solve(obj, display_func, ftol=1e-10, maxiter=300)
 
     # ========================
     # Post Process

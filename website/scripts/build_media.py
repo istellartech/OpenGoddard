@@ -45,6 +45,9 @@ sys.path.insert(0, str(ROOT))
 
 from examples.catalog import EXAMPLES, find_example, load_example  # noqa: E402
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from scenes import Flight, Series, render_flight  # noqa: E402
+
 FPS = 30
 SECONDS = 8
 SAMPLES = 241
@@ -658,6 +661,202 @@ CLASSIC: dict[str, Classic] = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Rocket and orbit examples: explanatory flight animations (see scenes.py)
+
+RE = 6371.0e3
+
+
+def _km(name: str) -> Getter:
+    return lambda p: (p[name] - RE) / 1e3
+
+
+def _ascent_thrust(p: Phase) -> np.ndarray:
+    return np.hypot(p["Tr"], p["Tt"])
+
+
+def _ascent_pitch(p: Phase) -> np.ndarray:
+    """Thrust elevation above the local horizontal [deg]."""
+    return np.rad2deg(np.arctan2(p["Tr"], p["Tt"]))
+
+
+def goddard_flight(title: str, names: list[str]) -> Flight:
+    return Flight(
+        "vertical",
+        title,
+        names,
+        throttle=key("T"),
+        altitude=key("h"),
+        altitude_label="高度 h [-]（無次元）",
+        altitude_unit="",
+        theme="space",
+        panels=[
+            [Series("高度 h [-]", key("h"), "{:.5f}")],
+            [Series("速度 v [-]", key("v"), "{:.4f}")],
+            [Series("質量 m [-]", key("m"), "{:.4f}")],
+            [Series("推力 T [-]", key("T"), "{:.3f}")],
+        ],
+        readout=[
+            Series("高度", key("h"), "{:.5f}"),
+            Series("速度", key("v"), "{:.4f}"),
+            Series("質量", key("m"), "{:.4f}"),
+            Series("推力", key("T"), "{:.3f}"),
+        ],
+        time_unit="-",
+        note="無次元量（地球半径=1）。ロケットの図は模式図、炎の長さは各段の最大推力に対する比",
+    )
+
+
+def vertical_rocket_flight(title: str, names: list[str], staging: bool) -> Flight:
+    return Flight(
+        "vertical",
+        title,
+        names,
+        throttle=key("T"),
+        altitude=_km("R"),
+        altitude_label="高度 [km]",
+        altitude_unit="km",
+        staging=staging,
+        panels=[
+            [Series("高度 [km]", _km("R"), "{:.1f}", "km")],
+            [Series("速度 [km/s]", key("v", 1e-3), "{:.3f}", "km/s")],
+            [Series("質量 [t]", key("m", 1e-3), "{:.3f}", "t")],
+            [Series("推力 [kN]", key("T", 1e-3), "{:.1f}", "kN")],
+        ],
+        readout=[
+            Series("高度", _km("R"), "{:.1f}", "km"),
+            Series("速度", key("v", 1e-3), "{:.3f}", "km/s"),
+            Series("質量", key("m"), "{:.0f}", "kg"),
+            Series("推力", key("T", 1e-3), "{:.1f}", "kN"),
+        ],
+        note="ロケットの図は模式図。炎の長さは各段の最大推力に対する比",
+    )
+
+
+def ascent_flight(title: str, names: list[str], staging: bool) -> Flight:
+    return Flight(
+        "ascent",
+        title,
+        names,
+        throttle=_ascent_thrust,
+        staging=staging,
+        radius=key("R"),
+        angle=key("theta"),
+        thrust_radial=key("Tr"),
+        thrust_tangential=key("Tt"),
+        panels=[
+            [Series("高度 [km]", _km("R"), "{:.1f}", "km")],
+            [
+                Series("水平速度 Vt", key("Vt", 1e-3), "{:.3f}", "km/s"),
+                Series("鉛直速度 Vr", key("Vr", 1e-3), "{:.3f}", "km/s"),
+            ],
+            [Series("質量 [t]", key("m", 1e-3), "{:.2f}", "t")],
+            [Series("推力 [kN]", lambda p: _ascent_thrust(p) / 1e3, "{:.0f}", "kN")],
+            [
+                Series(
+                    "推力の仰角 [deg]",
+                    _ascent_pitch,
+                    "{:.1f}",
+                    "deg",
+                    mask_coast=True,
+                )
+            ],
+        ],
+        readout=[
+            Series("高度", _km("R"), "{:.1f}", "km"),
+            Series(
+                "速さ", lambda p: np.hypot(p["Vr"], p["Vt"]) / 1e3, "{:.3f}", "km/s"
+            ),
+            Series("質量", key("m"), "{:.0f}", "kg"),
+            Series("推力", lambda p: _ascent_thrust(p) / 1e3, "{:.0f}", "kN"),
+        ],
+    )
+
+
+FLIGHTS: dict[str, Flight] = {
+    "goddard_0knot": goddard_flight("Goddard問題：単一区間", ["単一区間"]),
+    "goddard_1knot": goddard_flight(
+        "Goddard問題：区間分割（knot 1つ）", ["区間1", "区間2"]
+    ),
+    "rocket_ascent_single_stage": vertical_rocket_flight(
+        "単段ロケットの鉛直上昇", ["単段"], staging=False
+    ),
+    "rocket_ascent_two_stage": vertical_rocket_flight(
+        "2段ロケットの鉛直上昇", ["1段目", "2段目"], staging=True
+    ),
+    "rocket_ascent_polar_ssto": ascent_flight(
+        "極座標：単段で軌道投入", ["単段"], staging=False
+    ),
+    "rocket_ascent_polar_tsto": ascent_flight(
+        "極座標：2段で軌道投入", ["1段目", "2段目"], staging=True
+    ),
+    "polar_tsto_taiki": ascent_flight(
+        "大樹町からの2段軌道投入（空気抵抗あり）",
+        ["1段目", "2段目"],
+        staging=True,
+    ),
+    "low_thrust_orbit_transfer": Flight(
+        "orbit",
+        "低推力による軌道遷移（r = 1 → 4）",
+        ["軌道遷移"],
+        throttle=lambda p: np.hypot(p["ur1"] - p["ur2"], p["ut1"] - p["ut2"]),
+        position=lambda p: (p["px"], p["py"]),
+        thrust_radial=lambda p: p["ur1"] - p["ur2"],
+        thrust_tangential=lambda p: p["ut1"] - p["ut2"],
+        orbits=[1.0, 4.0],
+        panels=[
+            [Series("軌道半径 r [-]", key("r"), "{:.3f}")],
+            [
+                Series("周方向速度 vt", key("vt"), "{:.3f}", "-"),
+                Series("動径方向速度 vr", key("vr"), "{:.3f}", "-"),
+            ],
+            [
+                Series("周方向推力 ut", lambda p: p["ut1"] - p["ut2"], "{:.4f}", "-"),
+                Series("動径方向推力 ur", lambda p: p["ur1"] - p["ur2"], "{:.4f}", "-"),
+            ],
+        ],
+        readout=[
+            Series("半径", key("r"), "{:.3f}"),
+            Series("vt", key("vt"), "{:.3f}"),
+            Series("vr", key("vr"), "{:.3f}"),
+        ],
+        time_unit="-",
+        note="無次元量（初期軌道半径=1、中心天体の重力定数=1）",
+        coast_speedup=1.0,
+    ),
+}
+
+
+def soft_landing_flight(parameters) -> Flight:
+    readout = [
+        Series("高度", key("altitude"), "{:.1f}", "m"),
+        Series("速度", key("velocity"), "{:.2f}", "m/s"),
+        Series("推力", key("thrust", 1e-3), "{:.2f}", "kN"),
+    ]
+    panels = [
+        [Series("高度 [m]", key("altitude"), "{:.1f}", "m")],
+        [Series("速度 [m/s]（上向き正）", key("velocity"), "{:.2f}", "m/s")],
+        [Series("推力 [kN]", key("thrust", 1e-3), "{:.2f}", "kN")],
+    ]
+    if parameters.variable_mass:
+        panels.append([Series("質量 [kg]", key("mass"), "{:.1f}", "kg")])
+        readout.append(Series("質量", key("mass"), "{:.1f}", "kg"))
+    return Flight(
+        "vertical",
+        "月面への鉛直軟着陸",
+        ["慣性降下", "減速噴射"],
+        throttle=key("thrust"),
+        altitude=key("altitude"),
+        altitude_label="高度 [m]",
+        altitude_unit="m",
+        theme="moon",
+        panels=panels,
+        readout=readout,
+        note="着陸機の図は模式図。炎の長さは各段の最大推力に対する比",
+        coast_speedup=1.0,
+    )
+
+
 def floor_line(max_depth):
     def decorate(ax):
         if max_depth is not None:
@@ -726,7 +925,8 @@ def source_hash(example) -> str:
     digest = hashlib.sha256()
     files = sorted((ROOT / "examples" / example.directory).rglob("*"))
     files += sorted((ROOT / "src" / "OpenGoddard").glob("*.py"))
-    files += [ROOT / "examples" / "_shared.py", Path(__file__).resolve()]
+    files += [ROOT / "examples" / "_shared.py"]
+    files += sorted(Path(__file__).resolve().parent.glob("*.py"))
     for path in files:
         if path.is_file() and "output" not in path.parts and path.suffix != ".pyc":
             digest.update(path.relative_to(ROOT).as_posix().encode())
@@ -763,7 +963,12 @@ def build_shared(example, module, out: Path, manifest: Manifest):
         view = shared_view(example.id, parameters)
         objective = trajectory.solver["objective"]
         view.title = f"{example.id} / preset: {name}  (objective = {objective:.4g})"
-        render(view, phases, out / name)
+        if example.id == "soft_landing":
+            flight = soft_landing_flight(parameters)
+            flight.title += f"（プリセット {name}）"
+            render_flight(flight, phases, out / name)
+        else:
+            render(view, phases, out / name)
         manifest.videos.append(
             {"name": name, "video": f"{name}.mp4", "poster": f"{name}.png"}
         )
@@ -791,7 +996,13 @@ def build_classic(example, module, out: Path, manifest: Manifest):
     phases = sample_problem(prob, spec.states, spec.controls)
     if spec.prepare is not None:
         spec.prepare(phases)
-    render(spec.view, phases, out / "solution")
+    if example.id in FLIGHTS:
+        flight = FLIGHTS[example.id]
+        if flight.kind == "ascent":
+            flight.target_altitude = module.Rocket().Htarget  # the example's own
+        render_flight(flight, phases, out / "solution")
+    else:
+        render(spec.view, phases, out / "solution")
     manifest.videos.append(
         {"name": "solution", "video": "solution.mp4", "poster": "solution.png"}
     )

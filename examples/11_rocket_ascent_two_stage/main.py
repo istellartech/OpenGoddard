@@ -204,7 +204,9 @@ def main(*, flag_savefig: bool = True):
         print(f"final time  : {tf:.3f}")
 
     # prob.solve(obj, display_func, options = {'ftol':1e-15})
-    prob.solve(obj, display_func, ftol=1e-10)
+    # One long SLSQP run keeps its Hessian estimate; restarts at the default
+    # maxiter (25) discard it and never meet ftol.
+    prob.solve(obj, display_func, ftol=1e-10, maxiter=2000)
 
     # ========================
     # Post Process

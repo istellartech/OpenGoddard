@@ -322,7 +322,9 @@ def main(*, flag_savefig: bool = True):
         plt.grid()
         plt.pause(0.2)
 
-    prob.solve(obj, display_func, ftol=1e-8)
+    # One long SLSQP run keeps its Hessian estimate; restarts at the default
+    # maxiter (25) discard it and never meet ftol.
+    prob.solve(obj, display_func, ftol=1e-6, maxiter=3000)
 
     # ========================
     # Post Process
