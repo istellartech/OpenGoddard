@@ -45,13 +45,15 @@ class Rocket:
         self.Htarget = 561.0 * 1000  # Altitude [m]
         self.Rtarget = self.Re + self.Htarget  # Orbit Radius [m]
         self.Vtarget = np.sqrt(self.GMe / self.Rtarget)  # [m/s]
-        self.lat_taiki = 42.506167  # [deg]
-        self.Vt_equator = 1674.36  # [km/h]
-        self.Vt_taiki = (
-            self.Vt_equator * np.cos(self.lat_taiki * np.pi / 180.0) * 1000.0 / 3600.0
-        )  # Radial Velocity of Earth Surface [m/s]
-        self.inclination = 96.7  # [deg]
-        self.V0 = self.Vt_taiki * np.cos(-self.inclination * np.pi / 180.0)  # [m/s]
+        self.omega = 7.2921159e-5  # Earth rotation rate [rad/s]
+        self.lat_taiki = 42.506167  # Launch site latitude [deg]
+        self.inclination = 96.7  # Orbit inclination [deg]
+        # The launch site moves east at omega * Re * cos(lat). The orbit plane
+        # crosses the site at azimuth Az with sin(Az) = cos(inc) / cos(lat), so
+        # the in-plane part is omega * Re * cos(lat) * sin(Az) = omega * Re * cos(inc).
+        # For inc = 96.7 deg this is about -54 m/s (a retrograde orbit loses speed).
+        # The cross-plane part is ignored in this planar model.
+        self.V0 = self.omega * self.Re * np.cos(np.deg2rad(self.inclination))  # [m/s]
         self.H0 = 10.0  # Initial Altitude [m]
         self.Mdry = [1300.0, 220.0]  # Dry Mass [kg], [1st stage, 2nd stage]
         self.beta = [10.0, 15.0]  # Structure Efficienty [%], [1st stage, 2nd stage]
@@ -98,6 +100,16 @@ class Rocket:
         self.MaxQ = 500000.0  # Pa
         self.MaxG = 20.0  # G
 
+    def delta_thrust(self, section, h):
+        """Thrust change from the rated value at altitude h [N].
+
+        Stage 1 is rated at the launch site and gains (p(H0) - p(h)) * Ae as the
+        outside pressure falls. Stage 2 is rated in vacuum and loses p(h) * Ae.
+        """
+        if section == 0:
+            return (self.airPressure(self.H0) - self.airPressure(h)) * self.Ae[0]
+        return -self.airPressure(h) * self.Ae[1]
+
 
 # 状態は半径・角度・半径方向速度・接線方向速度・質量。section で段を指定する。
 def dynamics(problem, obj, section):
@@ -108,15 +120,12 @@ def dynamics(problem, obj, section):
     Tr = problem.controls(0, section)
     Tt = problem.controls(1, section)
     g0 = obj.g0
-    g = obj.g0 * (obj.Re / R) ** 2
+    g = obj.GMe / R**2
     rho = obj.airDensity(R - obj.Re)
     Mach = np.sqrt(Vr**2 + Vt**2) / obj.airSound(R - obj.Re)
     Cd = obj.Cd(Mach)
-    dThrust = [
-        (obj.airPressure(obj.H0) - obj.airPressure(R - obj.Re)) * obj.Ae[0],
-        obj.airPressure(R - obj.Re) * obj.Ae[1],
-    ]
-    Isp = obj.Isp[section] + dThrust[section] / (obj.refMdot[section] * g0)
+    dThrust = obj.delta_thrust(section, R - obj.Re)
+    Isp = obj.Isp[section] + dThrust / (obj.refMdot[section] * g0)
     Dr = 0.5 * rho * Vr * np.sqrt(Vr**2 + Vt**2) * Cd * obj.A[section]
     Dt = 0.5 * rho * Vt * np.sqrt(Vr**2 + Vt**2) * Cd * obj.A[section]
     dx = Dynamics(problem, section)
@@ -162,67 +171,36 @@ def equality(problem, obj):
 
 
 def inequality(problem, obj):
-    R = problem.states_all_section(0)
-    Vr = problem.states_all_section(2)
-    Vt = problem.states_all_section(3)
-    m = problem.states_all_section(4)
-    Tr = problem.controls_all_section(0)
-    Tt = problem.controls_all_section(1)
-    R0 = problem.states(0, 0)
-    R1 = problem.states(0, 1)
-    m0 = problem.states(4, 0)
-    m1 = problem.states(4, 1)
-    Tr0 = problem.controls(0, 0)
-    Tr1 = problem.controls(0, 1)
-    Tt0 = problem.controls(1, 0)
-    Tt1 = problem.controls(1, 1)
-    rho = obj.airDensity(R - obj.Re)
-    Mach = np.sqrt(Vr**2 + Vt**2) / obj.airSound(R - obj.Re)
-    Cd = obj.Cd(Mach)
-    Dr0 = 0.5 * rho * Vr * np.sqrt(Vr**2 + Vt**2) * Cd * obj.A[0]
-    Dt0 = 0.5 * rho * Vt * np.sqrt(Vr**2 + Vt**2) * Cd * obj.A[0]
-    Dr1 = 0.5 * rho * Vr * np.sqrt(Vr**2 + Vt**2) * Cd * obj.A[1]
-    Dt1 = 0.5 * rho * Vt * np.sqrt(Vr**2 + Vt**2) * Cd * obj.A[1]
-    q = 0.5 * rho * (Vr**2 + Vt**2)
-    a_r0 = (Tr - Dr0) / m
-    a_t0 = (Tt - Dt0) / m
-    a_mag0 = np.sqrt(a_r0**2 + a_t0**2)
-    a_r1 = (Tr - Dr1) / m
-    a_t1 = (Tt - Dt1) / m
-    a_mag1 = np.sqrt(a_r1**2 + a_t1**2)
-    T0 = np.sqrt(Tr0**2 + Tt0**2)
-    T1 = np.sqrt(Tr1**2 + Tt1**2)
-    dThrust0 = (obj.airPressure(obj.H0) - obj.airPressure(R0 - obj.Re)) * obj.Ae[0]
-    dThrust1 = obj.airPressure(R1 - obj.Re) * obj.Ae[1]
+    unit_R = problem.unit_states[0][0]
+    unit_m = problem.unit_states[0][4]
+    unit_T = problem.unit_controls[0][0]
+    # Stage 1 carries the whole stage 2; stage 2 keeps its dry mass and payload.
+    m_min = [obj.Mdry[0] + obj.M0[1], obj.Mdry[1] + obj.Mpayload]
+    m_max = [obj.Minit, obj.M0[1]]
     result = Condition()
-    result.lower_bound(R, obj.Re, unit=problem.unit_states[0][0])
-    result.lower_bound(m0, obj.Mdry[0] + obj.M0[1], unit=problem.unit_states[0][4])
-    result.lower_bound(m1, obj.Mdry[1], unit=problem.unit_states[0][4])
-    result.lower_bound(Tr, -obj.ThrustMax[1], unit=problem.unit_controls[0][0])
-    result.lower_bound(Tt, -obj.ThrustMax[1], unit=problem.unit_controls[0][0])
-    result.upper_bound(m0, obj.Minit, unit=problem.unit_states[0][4])
-    result.upper_bound(m1, obj.M0[1], unit=problem.unit_states[0][4])
-    result.upper_bound(
-        Tr0, obj.ThrustMax[0] + dThrust0, unit=problem.unit_controls[0][0]
-    )
-    result.upper_bound(
-        Tt0, obj.ThrustMax[0] + dThrust0, unit=problem.unit_controls[0][0]
-    )
-    result.upper_bound(
-        T0, obj.ThrustMax[0] + dThrust0, unit=problem.unit_controls[0][0]
-    )
-    result.upper_bound(
-        Tr1, obj.ThrustMax[1] + dThrust1, unit=problem.unit_controls[0][0]
-    )
-    result.upper_bound(
-        Tt1, obj.ThrustMax[1] + dThrust1, unit=problem.unit_controls[0][0]
-    )
-    result.upper_bound(
-        T1, obj.ThrustMax[1] + dThrust1, unit=problem.unit_controls[0][0]
-    )
-    result.upper_bound(q, obj.MaxQ, unit=problem.unit_states[0][0])
-    result.upper_bound(a_mag0, obj.MaxG * obj.g0)
-    result.upper_bound(a_mag1, obj.MaxG * obj.g0)
+    for section in range(2):
+        R = problem.states(0, section)
+        Vr = problem.states(2, section)
+        Vt = problem.states(3, section)
+        m = problem.states(4, section)
+        Tr = problem.controls(0, section)
+        Tt = problem.controls(1, section)
+        h = R - obj.Re
+        rho = obj.airDensity(h)
+        V = np.sqrt(Vr**2 + Vt**2)
+        Cd = obj.Cd(V / obj.airSound(h))
+        Dr = 0.5 * rho * Vr * V * Cd * obj.A[section]
+        Dt = 0.5 * rho * Vt * V * Cd * obj.A[section]
+        q = 0.5 * rho * V**2
+        a_mag = np.sqrt(((Tr - Dr) / m) ** 2 + ((Tt - Dt) / m) ** 2)
+        T = np.sqrt(Tr**2 + Tt**2)
+        T_limit = obj.ThrustMax[section] + obj.delta_thrust(section, h)
+        result.lower_bound(R, obj.Re, unit=unit_R)
+        result.lower_bound(m, m_min[section], unit=unit_m)
+        result.upper_bound(m, m_max[section], unit=unit_m)
+        result.upper_bound(T, T_limit, unit=unit_T)
+        result.upper_bound(q, obj.MaxQ, unit=obj.MaxQ)
+        result.upper_bound(a_mag, obj.MaxG * obj.g0, unit=obj.MaxG * obj.g0)
     return result()
 
 
@@ -249,7 +227,9 @@ def make_problem(parameters):
     problem.set_unit_controls_all_section(1, unit_T)
     problem.set_unit_time(unit_t)
     M_init0 = Guess.cubic(problem.time[0], obj.Minit, 0.0, obj.Mdry[0] + obj.M0[1], 0.0)
-    M_init1 = Guess.cubic(problem.time[1], obj.M0[1], 0.0, obj.Mdry[1], 0.0)
+    M_init1 = Guess.cubic(
+        problem.time[1], obj.M0[1], 0.0, obj.Mdry[1] + obj.Mpayload, 0.0
+    )
     Tr_init0 = Guess.cubic(problem.time[0], obj.ThrustMax[0] * 9 / 10, 0.0, 0.0, 0.0)
     Tr_init1 = Guess.cubic(problem.time[1], obj.ThrustMax[1] * 9 / 10, 0.0, 0.0, 0.0)
     Tt_init0 = Guess.cubic(problem.time[0], obj.ThrustMax[0] / 10, 0.0, 0.0, 0.0)

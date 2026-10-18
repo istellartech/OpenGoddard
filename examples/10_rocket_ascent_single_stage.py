@@ -15,7 +15,7 @@ class Rocket:
 
     def __init__(self):
         self.M0 = 5000  # Initial total mass [kg]
-        self.Mc = 0.4  # Initial Propellant mass over total mass
+        self.Mc = 0.4  # Final mass over initial mass [-]
         self.Cd = 0.2  # Drag Coefficient [-]
         self.area = 10  # area [m2]
         self.Isp = 300.0  # Isp [s]

@@ -14,10 +14,12 @@ class Rocket:
     g0 = 9.80665
 
     def __init__(self):
-        self.M0 = 5000  # Initial total mass [kg]
-        self.M0_1st = 3000
-        self.M0_2nd = 2000
-        self.Mc = 0.4  # Initial Propellant mass over total mass
+        self.M0_1st = 3000  # Initial mass of the 1st stage [kg]
+        self.M0_2nd = 2000  # Initial mass of the 2nd stage [kg]
+        self.M0 = self.M0_1st + self.M0_2nd  # Initial total mass: 5000 kg
+        self.Mc = 0.4  # Final mass over initial mass of each stage [-]
+        self.Mdry_1st = self.M0_1st * self.Mc  # 1st-stage dry mass: 1200 kg
+        self.Mdry_2nd = self.M0_2nd * self.Mc  # 2nd-stage dry mass: 800 kg
         self.Cd = 0.2  # Drag Coefficient [-]
         self.area = 10  # area [m2]
         self.Isp = 300.0  # Isp [s]
@@ -56,7 +58,7 @@ def equality(problem, obj):
     result.equal(v[0], 0.0)
     result.equal(m[0], obj.M0)
     result.equal(v[-1], 0.0)
-    result.equal(m[-1], obj.M0_2nd * obj.Mc)
+    result.equal(m[-1], obj.Mdry_2nd)
     R1 = problem.states(0, 0)
     v1 = problem.states(1, 0)
     m1 = problem.states(2, 0)
@@ -65,7 +67,8 @@ def equality(problem, obj):
     m2 = problem.states(2, 1)
     result.equal(R1[-1], R2[0])
     result.equal(v1[-1], v2[0])
-    result.equal(m1[-1], m2[0] + 1200)
+    result.equal(m2[0], obj.M0_2nd)
+    result.equal(m1[-1], m2[0] + obj.Mdry_1st)
     return result()
 
 
@@ -96,9 +99,9 @@ def make_problem(parameters):
         0, Guess.cubic(problem.time_all_section, obj.Re, 0.0, obj.Re + 50 * 1000, 0.0)
     )
     problem.set_states_all_section(1, Guess.linear(problem.time_all_section, 0.0, 0.0))
-    problem.set_states_all_section(
-        2, Guess.cubic(problem.time_all_section, obj.M0, -0.6, obj.M0 * obj.Mc, 0.0)
-    )
+    M_init0 = Guess.linear(problem.time[0], obj.M0, obj.Mdry_1st + obj.M0_2nd)
+    M_init1 = Guess.linear(problem.time[1], obj.M0_2nd, obj.Mdry_2nd)
+    problem.set_states_all_section(2, np.hstack((M_init0, M_init1)))
     problem.set_controls_all_section(
         0,
         Guess.cubic(
@@ -107,10 +110,11 @@ def make_problem(parameters):
     )
     problem.set_states_bounds_all_section(0, obj.Re, None)
     problem.set_states_bounds_all_section(1, 0.0, None)
-    problem.set_states_bounds_all_section(2, obj.M0_2nd * obj.Mc, obj.M0)
+    problem.set_states_bounds(2, 0, obj.Mdry_1st + obj.M0_2nd, obj.M0)
+    problem.set_states_bounds(2, 1, obj.Mdry_2nd, obj.M0_2nd)
     problem.set_controls_bounds_all_section(0, 0.0, obj.max_thrust * obj.M0 * obj.g0)
-    problem.set_time_final_bounds(0, 50.0, None)
-    problem.set_time_final_bounds(1, 50.0, None)
+    problem.set_time_final_bounds(0, 10.0, None)
+    problem.set_time_final_bounds(1, 10.0, None)
     problem.dynamics = [dynamics, dynamics]
     problem.knot_states_smooth = [False]
     problem.cost = cost

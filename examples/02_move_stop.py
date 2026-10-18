@@ -32,21 +32,18 @@ def cost(problem, p):
 def make_problem(parameters=PARAMETERS, nodes=12):
     p = parameters
     a = p["max_acceleration"]
-    half_time = np.sqrt(p["distance"] / a)
-    problem = Problem([0, half_time, 2 * half_time], [nodes, nodes], [2, 2], [1, 1])
     # 加速・減速の2区間。位置と速度は区間の境界で自動的につながる。
-    x0, v0 = 0.0, 0.0
-    accelerations = [a, -a]
+    # 区間の時刻は答えを知らない前提で 0 -> 3 -> 6 s と大まかに置く。
+    problem = Problem([0, 3, 6], [nodes, nodes], [2, 2], [1, 1])
+    # 初期推定：6 s かけて一定の速さで進む（加速度 0）。始点・終点で止まる条件は
+    # まだ満たしていない。
+    t = problem.time_all_section
+    speed = p["distance"] / t[-1]
+    problem.set_states_all_section(0, speed * t)
+    problem.set_states_all_section(1, np.full(len(t), speed))
+    problem.set_controls_all_section(0, np.zeros(len(t)))
     for section in range(2):
-        t = problem.time[section] - problem.time_start(section)
-        acceleration = accelerations[section]
-        x = x0 + v0 * t + acceleration * t**2 / 2
-        v = v0 + acceleration * t
-        problem.set_states(0, section, x)
-        problem.set_states(1, section, v)
-        problem.set_controls(0, section, np.full(nodes, acceleration))
         problem.set_controls_bounds(0, section, -a, a)
-        x0, v0 = x[-1], v[-1]
     problem.dynamics = [dynamics, dynamics]
     problem.equality = equality
     problem.cost = cost

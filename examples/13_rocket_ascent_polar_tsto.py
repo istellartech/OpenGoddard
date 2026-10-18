@@ -14,9 +14,6 @@ class Rocket:
     g0 = 9.80665
 
     def __init__(self):
-        self.Vr = np.sqrt(self.GMe / self.Re)  # m/s
-        self.H0 = 10.0  # m
-        self.V0 = 0.0
         self.M0 = [20000.0, 1000.0]  # kg
         self.Mdry = [2000, 200]
         self.Mp = [self.M0[0] - self.Mdry[0], self.M0[1] - self.Mdry[1]]
@@ -25,10 +22,9 @@ class Rocket:
         self.A = [3.14, 3.14]  # m2
         self.Isp = [300.0, 350.0]  # s
         self.Tmax = [self.M0[0] * self.g0 * 1.5, self.M0[1] * self.g0 * 1.5]
-        self.MaxQ = 14000.0  # Pa
         self.MaxG = 8.0  # G
         self.Htarget = 500.0 * 1000  # m
-        self.Rtarget = self.Re + self.Htarget  # m/s
+        self.Rtarget = self.Re + self.Htarget  # m
         self.Vtarget = np.sqrt(self.GMe / self.Rtarget)  # m/s
 
     def air_density(self, h):
@@ -48,7 +44,7 @@ def dynamics(problem, obj, section):
     rho = obj.air_density(R - obj.Re)
     Dr = 0.5 * rho * Vr * np.sqrt(Vr**2 + Vt**2) * obj.Cd[section] * obj.A[section]
     Dt = 0.5 * rho * Vt * np.sqrt(Vr**2 + Vt**2) * obj.Cd[section] * obj.A[section]
-    g = obj.g0 * (obj.Re / R) ** 2
+    g = obj.GMe / R**2
     g0 = obj.g0
     Isp = obj.Isp[section]
     dx = Dynamics(problem, section)
@@ -94,35 +90,25 @@ def equality(problem, obj):
 
 
 def inequality(problem, obj):
-    R = problem.states_all_section(0)
-    Vr = problem.states_all_section(2)
-    Vt = problem.states_all_section(3)
-    m = problem.states_all_section(4)
-    Tr = problem.controls_all_section(0)
-    Tt = problem.controls_all_section(1)
-    Tr0 = problem.controls(0, 0)
-    Tr1 = problem.controls(0, 1)
-    Tt0 = problem.controls(1, 0)
-    Tt1 = problem.controls(1, 1)
-    rho = obj.air_density(R - obj.Re)
-    Dr0 = 0.5 * rho * Vr * np.sqrt(Vr**2 + Vt**2) * obj.Cd[0] * obj.A[0]
-    Dt0 = 0.5 * rho * Vt * np.sqrt(Vr**2 + Vt**2) * obj.Cd[0] * obj.A[0]
-    Dr1 = 0.5 * rho * Vr * np.sqrt(Vr**2 + Vt**2) * obj.Cd[1] * obj.A[1]
-    Dt1 = 0.5 * rho * Vt * np.sqrt(Vr**2 + Vt**2) * obj.Cd[1] * obj.A[1]
-    a_r0 = (Tr - Dr0) / m
-    a_t0 = (Tt - Dt0) / m
-    a_mag0 = np.sqrt(a_r0**2 + a_t0**2)
-    a_r1 = (Tr - Dr1) / m
-    a_t1 = (Tt - Dt1) / m
-    a_mag1 = np.sqrt(a_r1**2 + a_t1**2)
-    T0 = np.sqrt(Tr0**2 + Tt0**2)
-    T1 = np.sqrt(Tr1**2 + Tt1**2)
+    unit_R = problem.unit_states[0][0]
+    unit_T = problem.unit_controls[0][0]
     result = Condition()
-    result.lower_bound(R, obj.Re, unit=problem.unit_states[0][0])
-    result.upper_bound(T0, obj.Tmax[0], unit=problem.unit_controls[0][0])
-    result.upper_bound(T1, obj.Tmax[1], unit=problem.unit_controls[0][0])
-    result.upper_bound(a_mag0, obj.MaxG * obj.g0)
-    result.upper_bound(a_mag1, obj.MaxG * obj.g0)
+    for section in range(2):
+        R = problem.states(0, section)
+        Vr = problem.states(2, section)
+        Vt = problem.states(3, section)
+        m = problem.states(4, section)
+        Tr = problem.controls(0, section)
+        Tt = problem.controls(1, section)
+        rho = obj.air_density(R - obj.Re)
+        V = np.sqrt(Vr**2 + Vt**2)
+        Dr = 0.5 * rho * Vr * V * obj.Cd[section] * obj.A[section]
+        Dt = 0.5 * rho * Vt * V * obj.Cd[section] * obj.A[section]
+        a_mag = np.sqrt(((Tr - Dr) / m) ** 2 + ((Tt - Dt) / m) ** 2)
+        T = np.sqrt(Tr**2 + Tt**2)
+        result.lower_bound(R, obj.Re, unit=unit_R)
+        result.upper_bound(T, obj.Tmax[section], unit=unit_T)
+        result.upper_bound(a_mag, obj.MaxG * obj.g0, unit=obj.MaxG * obj.g0)
     return result()
 
 
@@ -169,9 +155,9 @@ def make_problem(parameters):
     problem.set_controls_all_section(1, np.hstack((Tt_init0, Tt_init1)))
     problem.set_states_bounds_all_section(0, obj.Re, None)
     problem.set_states_bounds(4, 0, obj.Mdry[0], obj.M0[0])
-    problem.set_states_bounds(4, 1, 1.0, obj.M0[1])
-    problem.set_controls_bounds(0, 0, -obj.Tmax[1], obj.Tmax[0])
-    problem.set_controls_bounds(1, 0, -obj.Tmax[1], obj.Tmax[0])
+    problem.set_states_bounds(4, 1, obj.Mdry[1], obj.M0[1])
+    problem.set_controls_bounds(0, 0, -obj.Tmax[0], obj.Tmax[0])
+    problem.set_controls_bounds(1, 0, -obj.Tmax[0], obj.Tmax[0])
     problem.set_controls_bounds(0, 1, -obj.Tmax[1], obj.Tmax[1])
     problem.set_controls_bounds(1, 1, -obj.Tmax[1], obj.Tmax[1])
     problem.dynamics = [dynamics, dynamics]

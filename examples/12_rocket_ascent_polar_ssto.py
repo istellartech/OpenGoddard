@@ -14,9 +14,6 @@ class Rocket:
     g0 = 9.80665
 
     def __init__(self):
-        self.Vr = np.sqrt(self.GMe / self.Re)  # m/s
-        self.H0 = 10.0  # m
-        self.V0 = 0.0
         self.M0 = 100000.0  # kg
         self.Mp = self.M0 * 0.99
         self.Cd = 0.6
@@ -24,10 +21,9 @@ class Rocket:
         self.Isp = 300.0  # s
         self.g0 = 9.80665  # m/s2
         self.Tmax = self.M0 * self.g0 * 1.5
-        self.MaxQ = 14000.0  # Pa
         self.MaxG = 8.0  # G
         self.Htarget = 400.0 * 1000  # m
-        self.Rtarget = self.Re + self.Htarget  # m/s
+        self.Rtarget = self.Re + self.Htarget  # m
         self.Vtarget = np.sqrt(self.GMe / self.Rtarget)  # m/s
 
     def air_density(self, h):
@@ -47,7 +43,7 @@ def dynamics(problem, obj, section):
     rho = obj.air_density(R - obj.Re)
     Dr = 0.5 * rho * Vr * np.sqrt(Vr**2 + Vt**2) * obj.Cd * obj.A
     Dt = 0.5 * rho * Vt * np.sqrt(Vr**2 + Vt**2) * obj.Cd * obj.A
-    g = obj.g0 * (obj.Re / R) ** 2
+    g = obj.GMe / R**2
     g0 = obj.g0
     Isp = obj.Isp
     dx = Dynamics(problem, section)
@@ -96,7 +92,7 @@ def inequality(problem, obj):
     result.lower_bound(Tt, 0.0, unit=problem.unit_controls[0][0])
     result.upper_bound(m, obj.M0, unit=problem.unit_states[0][4])
     result.upper_bound(T, obj.Tmax, unit=problem.unit_controls[0][0])
-    result.upper_bound(a_mag, obj.MaxG * obj.g0)
+    result.upper_bound(a_mag, obj.MaxG * obj.g0, unit=obj.MaxG * obj.g0)
     return result()
 
 
