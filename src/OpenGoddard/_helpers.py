@@ -4,8 +4,10 @@
 # SPDX-License-Identifier: MIT
 
 import numpy as np
+from numpy.typing import NDArray
 
 from ._validation import index, integer, positive_scale, vector
+from ._variables import scaled_derivatives
 
 
 def _guess_time(time):
@@ -16,68 +18,66 @@ def _guess_time(time):
 
 
 class Guess:
-    """Class for initial value guess for optimization.
-
-    Collection of class methods
-    """
+    """Construct physical initial guesses on a supplied time grid."""
 
     @classmethod
-    def zeros(cls, time):
-        """return zeros that array size is same as time length
+    def zeros(cls, time) -> NDArray[np.float64]:
+        """Return one zero per time node.
 
         Args:
-            time (array_like) :
+            time (array_like): Time nodes; only their count is used.
 
         Returns:
-            (N, ) ndarray
+            ndarray: Values of shape (N,).
         """
         return np.zeros(len(time))
 
     @classmethod
-    def constant(cls, time, const):
-        """return constant values that array size is same as time length
+    def constant(cls, time, const: float) -> NDArray[np.float64]:
+        """Return one constant physical value per time node.
 
         Args:
-            time (array_like) :
-            const (float) : set value
+            time (array_like): Time nodes; only their count is used.
+            const: Constant physical value.
 
         Returns:
-            (N, ) ndarray
-
+            ndarray: Values of shape (N,).
         """
         return np.ones(len(time)) * const
 
     @classmethod
-    def linear(cls, time, y0, yf):
-        """return linear function values that array size is same as time length
+    def linear(cls, time, y0: float, yf: float) -> NDArray[np.float64]:
+        """Interpolate physical endpoint values linearly in time.
 
         Args:
-            time (array_like) : time
-            y0 (float): initial value
-            yf (float): final value
+            time (array_like): Finite, nondecreasing physical times with a
+                positive span. Repeated interface times are supported.
+            y0: Physical value at the first time.
+            yf: Physical value at the last time.
 
         Returns:
-            (N, ) ndarray
-
+            ndarray: Values of shape (N,).
         """
         time = _guess_time(time)
         fraction = (time - time[0]) / (time[-1] - time[0])
         return y0 + (yf - y0) * fraction
 
     @classmethod
-    def cubic(cls, time, y0, yprime0, yf, yprimef):
-        """return cubic function values that array size is same as time length
+    def cubic(
+        cls, time, y0: float, yprime0: float, yf: float, yprimef: float
+    ) -> NDArray[np.float64]:
+        """Interpolate endpoint values and physical-time slopes with a cubic.
 
         Args:
-            time (array_like) : time
-            y0 (float) : initial value
-            yprime0 (float) : slope of initial value
-            yf (float) : final value
-            yprimef (float) : slope of final value
+            time (array_like): Finite, nondecreasing physical times with a
+                positive span. Repeated interface times are supported.
+            y0: Physical value at the first time.
+            yprime0: Physical dy/dt at the first time.
+            yf: Physical value at the last time.
+            yprimef: Physical dy/dt at the last time.
 
         Returns:
-            (N, ) ndarray
-
+            ndarray: Values of shape (N,).
         """
         time = _guess_time(time)
         duration = time[-1] - time[0]
@@ -93,14 +93,14 @@ class Guess:
 
     @classmethod
     def plot(cls, x, y, title="", xlabel="", ylabel=""):
-        """plot wrappper
+        """Plot physical initial-guess values against time.
 
         Args:
-            x (array_like) : array on the horizontal axis of the plot
-            y (array_like) : array on the vertical axis of the plot
-            title (str, optional) : title
-            xlabel (str, optional) : xlabel
-            ylabel (str, optional) : ylabel
+            x (array_like): array on the horizontal axis of the plot
+            y (array_like): array on the vertical axis of the plot
+            title (str, optional): title
+            xlabel (str, optional): xlabel
+            ylabel (str, optional): ylabel
 
         """
         import matplotlib.pyplot as plt
@@ -114,31 +114,25 @@ class Guess:
 
 
 class Condition:
-    """OpenGoddard.optimize Condition class
+    """Accumulate dimensionless equality or inequality residuals.
 
-    Accumulate scalar and vector residuals without repeated array reallocations.
+    Equality residuals must be zero; inequality residuals must be nonnegative.
+    Scalar and one-dimensional inputs follow NumPy broadcasting rules. A
+    positive reference unit scales each residual. Prefer problem.condition()
+    inside callbacks so automatic differentiation selects the correct backend.
+
+    Args:
+        length (int): Number of initial zero residuals, normally zero.
+        backend (module): NumPy-compatible module, supplied by the callback view.
 
     Examples:
-        for examples in equality function.
-
-        Initial condtion : x[0] = 0.0
-
-        Termination Condition : x[-1] = 100
-
         >>> result = Condition()
-        >>> result.equal(x[0], 0.0)
-        >>> result.equal(x[-1], 100)
-        >>> return result()
+        >>> result.equal(5, 5)
+        >>> result()
+        array([0.])
 
-        for examples in inequality function
-
-        Inequation condtion : 0.0 <= x <= 100
-
-        >>> result = Condition()
-        >>> result.lower_bound(x, 0.0)
-        >>> result.upper_bound(x, 100)
-        >>> return result()
-
+        For physical bounds 0 <= x <= 100 in an inequality callback, call
+        result.lower_bound(x, 0) and result.upper_bound(x, 100).
     """
 
     def __init__(self, length=0, *, backend=np):
@@ -154,54 +148,40 @@ class Condition:
         self._chunks.append(value)
 
     def equal(self, arg1, arg2, unit=1.0):
-        """add equation constraint condition in Problem equality function
-
-        arg1 = arg2
+        """Append (arg1 - arg2)/unit; enforces arg1 = arg2 in an equality callback.
 
         Args:
-            arg1 (float or array_like) : right side of the equation
-            arg2 (float or array_like) : left side of the equation
-            unit (float, optional) : argX / unit (default : 1.0)
-
-        Notes:
-            It must be used in equality function.
+            arg1 (float or array_like): Left side of the equation.
+            arg2 (float or array_like): Right side of the equation.
+            unit (float): Positive reference unit for the residual.
         """
         arg = self._backend.array(arg1) - self._backend.array(arg2)
         self.add(arg, unit)
 
     def lower_bound(self, arg1, arg2, unit=1.0):
-        """add inequation constraint condition in Problem inequality function
-
-        arg1 >= arg2
+        """Append (arg1 - arg2)/unit; enforces arg1 >= arg2 in inequalities.
 
         Args:
-            arg1 (array like) : arg1 is greater than or equal to arg2
-            arg2 (float or array like) : arg1 is greater than or equal to arg2
-            unit (float, optional) : argX / unit (default : 1.0)
-
-        Notes:
-            It must be used in inequality function.
+            arg1 (float or array_like): Physical values to constrain.
+            arg2 (float or array_like): Physical lower bounds.
+            unit (float): Positive reference unit for the residual.
         """
         arg = self._backend.array(arg1) - self._backend.array(arg2)
         self.add(arg, unit)
 
     def upper_bound(self, arg1, arg2, unit=1.0):
-        """add inequation constraint condition in Problem inequality function
-
-        arg1 <= arg2
+        """Append (arg2 - arg1)/unit; enforces arg1 <= arg2 in inequalities.
 
         Args:
-            arg1 (array like) : arg1 is less than or equal to arg2
-            arg2 (float or array like) : arg1 is less than or equal to arg2
-            unit (float, optional) : argX / unit (default : 1.0)
-
-        Notes:
-            It must be used in inequality function.
+            arg1 (float or array_like): Physical values to constrain.
+            arg2 (float or array_like): Physical upper bounds.
+            unit (float): Positive reference unit for the residual.
         """
         arg = self._backend.array(arg2) - self._backend.array(arg1)
         self.add(arg, unit)
 
     def change_value(self, index, value):
+        """Replace an existing dimensionless residual by its flattened index."""
         self()[index] = value
 
     def __call__(self):
@@ -213,8 +193,11 @@ class Condition:
 class Dynamics:
     r"""Scaled state derivatives at a section's collocation nodes.
 
-    thin wrapper for dynamics function.
-    Behave like a dictionary type.
+    Assign physical dx/dt values with dx[state] = values. Calling dx() converts
+    them to d(x/unit_states)/d(t/unit_time), flattened in state order for the
+    LGL residual. Scalars are broadcast to every node. Unassigned states have
+    zero derivative. For pointwise models that also support independent-grid
+    error checks and structured derivatives, use DynamicsModel.
 
     Examples:
         Dynamics class must be used in dynamics function.
@@ -255,5 +238,6 @@ class Dynamics:
         self._values[key] = vector(value, "dynamics", self._values.shape[1])
 
     def __call__(self):
-        scale = self.unit_time / np.asarray(self.unit_states[self.section])
-        return (self._values * scale[:, None]).ravel()
+        return scaled_derivatives(
+            self._values, self.unit_states[self.section], self.unit_time
+        )

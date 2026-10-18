@@ -60,13 +60,15 @@ class ScalingAndLayoutTests(unittest.TestCase):
             np.testing.assert_allclose(problem.states(1, 1), [1, 2, 3, 4, 5])
             np.testing.assert_allclose(problem.controls(0, 0), [2, 4, 6, 8])
             np.testing.assert_allclose(
-                problem.bounds[problem.index_states(1, 1)], (-3 / unit, 6 / unit)
+                np.asarray(problem.bounds[problem.index_states(1, 1)], dtype=float),
+                (-3 / unit, 6 / unit),
             )
             self.assertEqual(
                 problem.bounds[problem.index_controls(0, 0)], (None, 10 / unit)
             )
             np.testing.assert_allclose(
-                problem.bounds[problem.index_time_final(1)], (15 / unit, 25 / unit)
+                np.asarray(problem.bounds[problem.index_time_final(1)], dtype=float),
+                (15 / unit, 25 / unit),
             )
             np.testing.assert_allclose(problem.time_knots(), [10, 13, 20])
             self.assertEqual(problem.time_start(-1), 13)
@@ -99,6 +101,27 @@ class ScalingAndLayoutTests(unittest.TestCase):
         ):
             with self.subTest(call=call), self.assertRaises(IndexError):
                 call()
+
+    def test_time_tracks_setters_and_direct_parameter_changes(self):
+        problem = Problem([5, 8, 12], [4, 5], [1, 1], [0, 0])
+        problem.set_unit_time(3)
+        problem.set_time_final(0, 10)
+        self.assertEqual(problem.time[0][-1], 10)
+        self.assertEqual(problem.time[1][0], 10)
+        self.assertEqual(problem.time_all_section[3], 10)
+        # Direct p access is part of the legacy API, including in-place edits
+        # and replacement by a solver. Neither requires a cache refresh.
+        problem.p[problem.index_time_final(1)] = 5
+        self.assertEqual(problem.time[-1][-1], 15)
+        parameters = problem.p.copy()
+        parameters[problem.index_time_final(0)] = 4
+        problem.p = parameters
+        self.assertEqual(problem.time[0][-1], 12)
+        self.assertEqual(problem.time[1][0], 12)
+        np.testing.assert_array_equal(problem.time_update(), problem.time_all_section)
+        problem.time[0][:] = -99
+        self.assertEqual(problem.time[0][0], 5)
+        self.assertEqual(problem.time[0][-1], 12)
 
     def test_phase_continuity_with_different_state_scales(self):
         problem = Problem([2, 4, 9], [3, 4], [1, 1], [0, 0])

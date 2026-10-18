@@ -3,9 +3,10 @@
 import operator
 
 import numpy as np
+from numpy.typing import NDArray
 
 
-def integer(value, name, minimum=0):
+def integer(value, name: str, minimum: int = 0) -> int:
     """Accept Python and NumPy integers without silently truncating floats."""
     if isinstance(value, (bool, np.bool_)):
         raise ValueError(f"{name} must be an integer >= {minimum}")
@@ -18,7 +19,7 @@ def integer(value, name, minimum=0):
     return result
 
 
-def index(value, size, name):
+def index(value, size: int, name: str) -> int:
     """Normalize a Python-style index, checking both ends of its range."""
     try:
         result = operator.index(value)
@@ -29,14 +30,14 @@ def index(value, size, name):
     return result % size
 
 
-def positive_scale(value):
+def positive_scale(value) -> float:
     value = float(value)
     if not np.isfinite(value) or value <= 0:
         raise ValueError("unit must be finite and strictly positive")
     return value
 
 
-def vector(value, name, length=None):
+def vector(value, name: str, length: int | None = None) -> NDArray[np.float64]:
     result = np.asarray(value, dtype=float)
     if result.ndim != 1 or (length is not None and result.size != length):
         expected = "a one-dimensional array" if length is None else f"shape ({length},)"

@@ -3,6 +3,7 @@
 from functools import lru_cache
 
 import numpy as np
+from numpy.typing import NDArray
 from scipy import special
 
 from ._validation import integer
@@ -38,7 +39,7 @@ def _rule(method, n):
     return nodes, weights, differentiation
 
 
-def legendre_rule(method, n):
+def legendre_rule(method, n) -> tuple[NDArray[np.float64], ...]:
     if method not in {"LG", "LGR", "LGL"}:
         raise ValueError("method must be 'LG', 'LGR', or 'LGL'")
     n = integer(n, "number of nodes", 2 if method == "LGL" else 1)

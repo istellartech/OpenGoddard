@@ -7,8 +7,9 @@ from scipy.interpolate import BarycentricInterpolator
 from scipy.special import roots_legendre
 
 from ._helpers import Condition
+from ._models import LinearCallback
 from ._spectral import legendre_rule
-from .derivatives import LinearCallback
+from ._variables import node_times
 
 
 @lru_cache(maxsize=256)
@@ -85,11 +86,7 @@ class SampledView:
 
     @property
     def time(self):
-        return [
-            self.time_start(s)
-            + (tau + 1) / 2 * (self.time_final(s) - self.time_start(s))
-            for s, tau in enumerate(self.tau)
-        ]
+        return node_times(self)
 
     @property
     def time_all_section(self):

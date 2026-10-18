@@ -1,17 +1,22 @@
 """Residual-guided h/hp adaptation inside unchanged logical phases."""
 
 import warnings
+from typing import TYPE_CHECKING
 
 import numpy as np
+from scipy.optimize import OptimizeResult
 
 from ._grid import Element
 from ._sampling import enable_path_sampling, polynomial_extrema
 from ._validation import integer, positive_scale
-from .mesh import estimate_error, remesh
+from .mesh import _adopt_mesh, estimate_error, remesh
+
+if TYPE_CHECKING:
+    from .optimize import Problem
 
 
 def solve_hp_adaptive(
-    problem,
+    problem: "Problem",
     obj=None,
     *,
     strategy="hp",
@@ -24,7 +29,7 @@ def solve_hp_adaptive(
     max_order=14,
     path_check_factor=4,
     **solve_options,
-):
+) -> OptimizeResult:
     """Split nonsmooth elements (h), or increase smooth element orders (hp).
 
     Controls may jump at an element interface; state continuity is enforced by
@@ -184,9 +189,8 @@ def solve_hp_adaptive(
             break
         if not result.success:
             problem.p = initial
-            problem.time_update()
         refined = remesh(problem, mesh)
-        problem.__dict__.update(refined.__dict__)
+        _adopt_mesh(problem, refined)
     if result is None:
         raise RuntimeError("adaptive solver did not produce a result")
     result.mesh_converged = bool(converged)

@@ -9,122 +9,12 @@ from scipy import sparse
 from typing_extensions import override
 
 from ._grid import interfaces
+from ._models import DynamicsModel as DynamicsModel
+from ._models import LinearCallback as LinearCallback
+from ._models import _autograd
+from ._transcription import equality, inequality, objective
 from ._validation import index, vector
-
-
-def _autograd():
-    try:
-        import autograd.numpy as anp
-        from autograd import grad, jacobian
-    except ImportError as exc:
-        raise ImportError(
-            "Install OpenGoddard[autodiff] for derivatives='autograd'"
-        ) from exc
-    return anp, grad, jacobian
-
-
-class LinearCallback:
-    """Declare a cost/boundary/path callback affine in the scaled vector p.
-
-    Its Jacobian is computed once per solve and cached. This is an explicit
-    mathematical contract, not a heuristic: nonlinear expressions must not be
-    wrapped. Coefficients, units and obj must remain constant during a solve.
-    """
-
-    def __init__(self, function):
-        if not callable(function):
-            raise TypeError("function must be callable")
-        self.function = function
-
-    def __call__(self, problem, obj):
-        return self.function(problem, obj)
-
-
-class DynamicsModel:
-    """Pointwise physical dynamics ``function(x, u, t, obj, section, xp)``.
-
-    ``x`` has shape (states, nodes), ``u`` (controls, nodes), and ``t`` (nodes,).
-    Return an array with shape (states, nodes). Each output column must depend
-    ONLY on the corresponding input column. Use ``xp`` for array operations;
-    it is NumPy for values and autograd.numpy for automatic differentiation.
-    Reductions or interpolation across nodes violate this contract.
-
-    Instances are callable with the legacy ``(problem, obj, section)`` signature.
-    Local derivatives use simultaneous central differences, or reverse-mode AD
-    of each state's sum over independent nodes. No full dense dynamics Jacobian
-    is formed. Non-smooth expressions require the user's choice of formulation.
-    """
-
-    def __init__(self, function):
-        if not callable(function):
-            raise TypeError("function must be callable")
-        self.function = function
-
-    def physical(self, x, u, time, obj, section):
-        result = np.asarray(self.function(x, u, time, obj, section, np), dtype=float)
-        if result.shape != x.shape or not np.isfinite(result).all():
-            raise ValueError(
-                "DynamicsModel must return finite values of shape (states, nodes)"
-            )
-        return result
-
-    def __call__(self, problem, obj, section):
-        x, u, time = self.inputs(problem, section)
-        scale = problem.unit_time / np.asarray(problem.unit_states[section])
-        return (self.physical(x, u, time, obj, section) * scale[:, None]).ravel()
-
-    @staticmethod
-    def inputs(problem, section):
-        x = np.stack(
-            [
-                problem.states(i, section)
-                for i in range(problem.number_of_states[section])
-            ]
-        )
-        u = np.array(
-            [
-                problem.controls(i, section)
-                for i in range(problem.number_of_controls[section])
-            ]
-        ).reshape(-1, problem.nodes[section])
-        return x, u, problem.time[section]
-
-    def linearize(self, problem, obj, section, mode):
-        x, u, time = self.inputs(problem, section)
-        ns, nc = x.shape[0], u.shape[0]
-        z = np.concatenate((x, u, time[None, :]))
-        values = self.physical(x, u, time, obj, section)
-        if mode == "autograd":
-            xp, grad, _ = _autograd()
-
-            def evaluate(data, output):
-                return xp.sum(
-                    self.function(
-                        data[:ns], data[ns : ns + nc], data[-1], obj, section, xp
-                    )[output]
-                )
-
-            partials = np.stack([grad(evaluate)(z, output) for output in range(ns)])
-        else:
-            partials = np.empty((ns, z.shape[0], z.shape[1]))
-            for variable in range(z.shape[0]):
-                step = np.cbrt(np.finfo(float).eps) * np.maximum(1, np.abs(z[variable]))
-                plus, minus = z.copy(), z.copy()
-                plus[variable] += step
-                minus[variable] -= step
-                upper = self.physical(
-                    plus[:ns], plus[ns : ns + nc], plus[-1], obj, section
-                )
-                lower = self.physical(
-                    minus[:ns], minus[ns : ns + nc], minus[-1], obj, section
-                )
-                partials[:, variable] = (upper - lower) / (2 * step)
-        if (
-            partials.shape != (ns, ns + nc + 1, x.shape[1])
-            or not np.isfinite(partials).all()
-        ):
-            raise ValueError("invalid local dynamics derivatives")
-        return values, partials
+from ._variables import node_times
 
 
 class ArrayView:
@@ -179,11 +69,7 @@ class ArrayView:
 
     @property
     def time(self):
-        return [
-            self.time_start(s)
-            + (self.tau[s] + 1) / 2 * (self.time_final(s) - self.time_start(s))
-            for s in range(self.number_of_section)
-        ]
+        return node_times(self)
 
     @property
     def time_all_section(self):
@@ -245,14 +131,12 @@ class Derivatives:
             # the real instance, and restore its state even when a probe fails.
             def legacy(p):
                 problem.p = p
-                problem.time_update()
                 return function(problem, self.obj)
 
             try:
                 result = finite_difference(legacy, parameters)
             finally:
                 problem.p = parameters
-                problem.time_update()
         result = np.asarray(result, dtype=float)
         if (
             result.ndim != 2
@@ -285,7 +169,6 @@ class Derivatives:
 
             def evaluate(p):
                 problem.p = p
-                problem.time_update()
                 return problem._objective(self.obj)
 
             try:
@@ -295,7 +178,6 @@ class Derivatives:
                 return result
             finally:
                 problem.p = parameters
-                problem.time_update()
         _, grad, _ = _autograd()
         result = vector(
             grad(self._objective_trace)(problem.p),
@@ -308,87 +190,14 @@ class Derivatives:
 
     def _objective_trace(self, parameters):
         xp, _, _ = _autograd()
-        problem = self.problem
-        view = ArrayView(problem, parameters, xp)
-        value = 0.0 if problem.cost is None else problem.cost(view, self.obj)
-        if problem.running_cost is not None:
-            integrand = problem.running_cost(view, self.obj)
-            front = 0
-            for section, n in enumerate(problem.nodes):
-                value += (
-                    (view.time_final(section) - view.time_start(section))
-                    / 2
-                    * xp.dot(problem.w[section], integrand[front : front + n])
-                )
-                front += n
-        return value
+        view = ArrayView(self.problem, parameters, xp)
+        return objective(self.problem, self.obj, view=view, xp=xp)
 
     def _constraint_trace(self, parameters, kind):
         xp, _, _ = _autograd()
-        p = self.problem
-        view = ArrayView(p, parameters, xp)
-        if kind == "ineq":
-            blocks = [
-                xp.stack(
-                    [
-                        view.time_final(s) - view.time_start(s)
-                        for s in range(p.number_of_section)
-                    ]
-                )
-                / p.unit_time
-            ]
-            if p.inequality is not None:
-                blocks.append(p.inequality(view, self.obj))
-            return xp.concatenate(blocks)
-        blocks = [] if p.equality is None else [p.equality(view, self.obj)]
-        for section, n in enumerate(p.nodes):
-            x = xp.stack(
-                [view.states(i, section) for i in range(p.number_of_states[section])]
-            )
-            nc = p.number_of_controls[section]
-            u = (
-                xp.stack([view.controls(i, section) for i in range(nc)])
-                if nc
-                else xp.zeros((0, n))
-            )
-            scale = xp.array(p.unit_states[section])[:, None]
-            physical = p.dynamics[section].function(
-                x, u, view.time[section], self.obj, section, xp
-            )
-            residual = (
-                xp.dot(x / scale, p.D[section].T)
-                - (view.time_final(section) - view.time_start(section))
-                / 2
-                * physical
-                / scale
-            )
-            blocks.append(xp.reshape(residual, (-1,)))
-        for section in range(p.number_of_section):
-            for left, right in interfaces(p, section):
-                blocks.append(
-                    xp.stack(
-                        [
-                            (
-                                view.states(state, section)[left]
-                                - view.states(state, section)[right]
-                            )
-                            / p.unit_states[section][state]
-                            for state in range(p.number_of_states[section])
-                        ]
-                    )
-                )
-        for knot, smooth in enumerate(p.knot_states_smooth):
-            if smooth and p.number_of_states[knot] == p.number_of_states[knot + 1]:
-                blocks.append(
-                    xp.stack(
-                        [
-                            (view.states(i, knot)[-1] - view.states(i, knot + 1)[0])
-                            / p.unit_states[knot][i]
-                            for i in range(p.number_of_states[knot])
-                        ]
-                    )
-                )
-        return xp.concatenate(blocks)
+        view = ArrayView(self.problem, parameters, xp)
+        evaluate = inequality if kind == "ineq" else equality
+        return evaluate(self.problem, self.obj, view=view, xp=xp)
 
     def hessian(self, kind="objective", weights=None):
         """Matrix-free AD Hessian-vector products for trust-constr.

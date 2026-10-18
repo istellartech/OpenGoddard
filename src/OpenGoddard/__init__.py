@@ -1,6 +1,6 @@
 """Pseudospectral optimal control with NumPy and SciPy."""
 
-from .derivatives import DynamicsModel, LinearCallback
+from ._models import DynamicsModel, LinearCallback
 from .optimize import Condition, Dynamics, Guess, Problem
 
 __all__ = [

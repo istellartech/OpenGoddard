@@ -10,6 +10,30 @@ from OpenGoddard import DynamicsModel, Problem
 
 
 class MeshTests(unittest.TestCase):
+    def test_remesh_copies_configuration_and_resets_solver_state(self):
+        p = Problem([0, 1], [4], [1], [0])
+        p.metadata["vehicle"] = {"mass": 2}
+        vars(p)["label"] = ["initial"]  # legacy public extension attribute
+        vars(p)["_extension_cache"] = np.zeros(4)
+        p.cost = lambda v, obj: v.time_final(0)
+        p.result = OptimizeResult(x=p.p.copy(), success=True)
+        p.result_history = [p.result]
+        p.iterator = 1
+        fine = p.refine([7])
+        self.assertIsNone(fine.result)
+        self.assertEqual(fine.result_history, [])
+        self.assertEqual(fine.iterator, 0)
+        self.assertIsNot(fine.metadata, p.metadata)
+        self.assertIs(fine.metadata["vehicle"], p.metadata["vehicle"])
+        fine.metadata["new"] = 3
+        self.assertNotIn("new", p.metadata)
+        self.assertIsNot(vars(fine)["label"], vars(p)["label"])
+        self.assertFalse(hasattr(fine, "_extension_cache"))
+        self.assertIs(fine.cost, p.cost)
+        fine.set_unit_states(0, 0, 9)
+        self.assertEqual(p.unit_states[0][0], 1)
+        self.assertIsNotNone(p.result)
+
     def test_refinement_preserves_phase_discontinuities_units_and_bounds(self):
         p = Problem([3, 4, 6], [4, 5], [2, 1], [1, 0])
         p.set_unit_time(7)
@@ -60,6 +84,8 @@ class MeshTests(unittest.TestCase):
 
     def test_adaptive_refinement_reduces_between_node_error(self):
         p = self.nonlinear()
+        metadata = p.metadata
+        p.metadata["vehicle"] = "test"
         result = p.solve_adaptive(
             tolerance=1e-7,
             max_refinements=5,
@@ -75,6 +101,10 @@ class MeshTests(unittest.TestCase):
         self.assertGreater(result.mesh_history[0]["error"]["max_error"], 1e-7)
         self.assertAlmostEqual(p.states(0, 0)[-1], np.e - 1, places=6)
         self.assertEqual(p.nodes, result.mesh_history[-1]["nodes"])
+        self.assertIs(p.metadata, metadata)
+        self.assertEqual(p.metadata["vehicle"], "test")
+        self.assertIs(p.result, result)
+        self.assertIs(p.result_history[-1], result)
 
     def test_node_limit_does_not_claim_mesh_convergence(self):
         p = self.nonlinear()

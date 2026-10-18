@@ -2,14 +2,77 @@
 
 import copy
 import warnings
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from scipy.interpolate import BarycentricInterpolator
+from scipy.optimize import OptimizeResult
 from scipy.special import roots_legendre
 
 from ._grid import Element, elements_with_slices, normalize_mesh
+from ._models import DynamicsModel
 from ._validation import integer, positive_scale
-from .derivatives import DynamicsModel
+
+if TYPE_CHECKING:
+    from .optimize import Problem
+
+
+def _copy_configuration(source, target):
+    """Copy model settings and metadata, keeping new mesh/solver data intact.
+
+    Functions are shared; mutable callback lists and metadata containers get
+    shallow copies. Private extension attributes are not copied implicitly.
+    Sampling cuts are explicit solver settings in phase coordinates.
+    """
+    for name in (
+        "dynamics",
+        "cost",
+        "running_cost",
+        "cost_derivative",
+        "equality",
+        "inequality",
+        "knot_states_smooth",
+        "metadata",
+    ):
+        setattr(target, name, copy.copy(getattr(source, name)))
+    for name in ("_mesh_path_points", "_mesh_original_inequality"):
+        if hasattr(source, name):
+            setattr(target, name, copy.copy(getattr(source, name)))
+    # Preserve legacy user-added public attributes. New code should put these
+    # in metadata, so their lifetime and copy behavior are easy to find.
+    for name in vars(source).keys() - source._core_attributes:
+        if not name.startswith("_"):
+            setattr(target, name, copy.copy(getattr(source, name)))
+
+
+def _adopt_mesh(problem, refined):
+    """Replace only mesh/iterate data during adaptation; retain model settings."""
+    for name in (
+        "nodes",
+        "number_of_states",
+        "number_of_controls",
+        "number_of_section",
+        "number_of_param",
+        "number_of_variables",
+        "_layout",
+        "div",
+        "mesh",
+        "tau",
+        "w",
+        "D",
+        "time_init",
+        "t0",
+        "unit_states",
+        "unit_controls",
+        "unit_time",
+        "p",
+        "bounds",
+    ):
+        setattr(problem, name, getattr(refined, name))
+    # A previous OptimizeResult describes a different parameter layout.
+    problem.iterator = 0
+    problem.result = None
+    problem.result_history = []
 
 
 def interpolate(problem, section, values, points, *, right_endpoint=False):
@@ -37,12 +100,14 @@ def interpolate(problem, section, values, points, *, right_endpoint=False):
     return result
 
 
-def remesh(problem, mesh):
+def remesh(problem: "Problem", mesh) -> "Problem":
     """Interpolate onto independent LGL elements without renumbering phases.
 
     State/control arrays include both sides of each internal element interface.
     Only states are constrained continuous. Constant per-variable nodal bounds,
-    units, phase endpoints, callbacks and custom metadata are preserved.
+    units, phase endpoints and callbacks are preserved. Metadata containers are
+    shallow-copied (nested objects remain shared). Solver results are reset;
+    private extension caches are not transferred.
     """
     from .optimize import Problem
 
@@ -93,22 +158,11 @@ def remesh(problem, mesh):
                 )
             new.bounds[new_front:new_back] = pairs[:1] * counts[section]
     new.bounds[-new.number_of_section :] = problem.bounds[-problem.number_of_section :]
-    for name in (
-        "dynamics",
-        "cost",
-        "running_cost",
-        "cost_derivative",
-        "equality",
-        "inequality",
-        "knot_states_smooth",
-    ):
-        setattr(new, name, copy.copy(getattr(problem, name)))
-    new.__dict__ = {**problem.__dict__, **new.__dict__}
-    new.time_update()
+    _copy_configuration(problem, new)
     return new
 
 
-def refine(problem, nodes):
+def refine(problem: "Problem", nodes) -> "Problem":
     """Change p while preserving existing element boundaries and phase topology.
 
     Counts are totals per logical phase, including duplicated interface nodes.
@@ -137,7 +191,7 @@ def refine(problem, nodes):
     return remesh(problem, mesh)
 
 
-def estimate_error(problem, obj=None, check_factor=2):
+def estimate_error(problem: "Problem", obj=None, check_factor=2) -> dict[str, Any]:
     """Measure relative dimensionless ODE defects away from collocation nodes.
 
     Per phase: max|dX/dtau - (tf-ti) f/2| / (unit + max|X|), evaluated at
@@ -161,6 +215,7 @@ def estimate_error(problem, obj=None, check_factor=2):
         )
     for section in range(problem.number_of_section):
         model = problem.dynamics[section]
+        assert isinstance(model, DynamicsModel)  # checked for every phase above
         x, u, _ = model.inputs(problem, section)
         start, end = problem.time_start(section), problem.time_final(section)
         if end <= start:
@@ -275,7 +330,7 @@ def estimate_error(problem, obj=None, check_factor=2):
 
 
 def solve_adaptive(
-    problem,
+    problem: "Problem",
     obj=None,
     *,
     tolerance=1e-5,
@@ -288,7 +343,7 @@ def solve_adaptive(
     max_order=14,
     path_check_factor=4,
     **solve_options,
-):
+) -> OptimizeResult:
     """Solve, check between nodes, and grow only phases exceeding tolerance.
 
     Mutates the original problem to the final mesh and returns its OptimizeResult.
@@ -365,9 +420,8 @@ def solve_adaptive(
             # A very coarse transcription may be infeasible. Retry a larger
             # mesh from its pre-solve guess, not the failed solver's iterate.
             problem.p = initial_parameters
-            problem.time_update()
         refined = refine(problem, nodes)
-        problem.__dict__.update(refined.__dict__)
+        _adopt_mesh(problem, refined)
     if result is None:
         raise RuntimeError("adaptive solver did not produce a result")
     result.mesh_converged = bool(converged)

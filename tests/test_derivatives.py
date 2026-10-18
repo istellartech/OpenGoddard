@@ -9,7 +9,7 @@ from unittest.mock import patch
 import numpy as np
 from scipy import sparse
 
-from OpenGoddard import DynamicsModel, LinearCallback, Problem
+from OpenGoddard import Dynamics, DynamicsModel, LinearCallback, Problem
 from OpenGoddard.derivatives import Derivatives, finite_difference
 
 try:
@@ -92,6 +92,44 @@ class DerivativeTests(unittest.TestCase):
     @unittest.skipUnless(HAS_AD, "optional autograd extra is not installed")
     def test_automatic_jacobian_scaling_time_and_knots(self):
         self.check_jacobians("autograd")
+
+    def test_simple_and_pointwise_models_have_identical_scaled_residuals(self):
+        p = self.problem()
+        expected = p._equality_constraints(None)
+
+        def simple(problem, obj, section):
+            x = problem.states(0, section)
+            velocity = problem.states(1, section)
+            u = problem.controls(0, section)
+            t = problem.time[section]
+            dx = Dynamics(problem, section)
+            dx[0] = velocity + u * t
+            dx[1] = np.sin(x) + u**2 + t**2
+            return dx()
+
+        p.dynamics = [simple, simple]
+        np.testing.assert_allclose(p._equality_constraints(None), expected, atol=1e-12)
+
+    @unittest.skipUnless(HAS_AD, "optional autograd extra is not installed")
+    def test_traced_values_match_validated_values_with_backend_callbacks(self):
+        p = self.problem()
+
+        def running_cost(view, obj):
+            return view.array_module.exp(view.controls_all_section(0))
+
+        p.running_cost = running_cost
+        derivatives = Derivatives(p, None, "autograd")
+        self.assertAlmostEqual(derivatives._objective_trace(p.p), p._objective(None))
+        for kind, evaluate in (
+            ("eq", p._equality_constraints),
+            ("ineq", p._inequality_constraints),
+        ):
+            np.testing.assert_allclose(
+                derivatives._constraint_trace(p.p, kind), evaluate(None), atol=1e-12
+            )
+        np.testing.assert_allclose(
+            derivatives.objective(), self.reference(p, p._objective), atol=2e-7
+        )
 
     @unittest.skipUnless(HAS_AD, "optional autograd extra is not installed")
     def test_matrix_free_hessian_products_against_gradient_differences(self):
@@ -179,6 +217,9 @@ class DerivativeTests(unittest.TestCase):
                         return xp.stack((u[0],))
 
                     p.dynamics = [DynamicsModel(motion)]
+                    p.running_cost = lambda view, obj: view.array_module.square(
+                        view.controls_all_section(0)
+                    )
                     p.equality = LinearCallback(p.equality)
                     p.cost = LinearCallback(p.cost)
                     options = {"maxiter": 300}
