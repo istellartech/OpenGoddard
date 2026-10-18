@@ -6,7 +6,7 @@ build-backend = "uv_build"
 name = "OpenGoddard"
 version = "1.2.0"
 description = "Optimal Trajectories module with PseudoSpectral Method"
-readme = "README.rst"
+readme = "README.md"
 requires-python = ">=3.15"
 license = "MIT"
 license-files = ["LICENSE"]
