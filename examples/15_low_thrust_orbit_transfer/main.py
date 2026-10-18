@@ -72,21 +72,12 @@ def inequality(prob, obj):
 
     result = Condition()
 
-    # lower bounds
-    result.lower_bound(r, obj.r0)
-    result.lower_bound(ur1, 0.0)
-    result.lower_bound(ut1, 0.0)
-    result.lower_bound(ur2, 0.0)
-    result.lower_bound(ut2, 0.0)
-    result.lower_bound(tf, 0.0)
-
-    # upper bounds
-    result.upper_bound(r, obj.rf)
-    result.upper_bound(ur1, obj.u_max)
-    result.upper_bound(ut1, obj.u_max)
-    result.upper_bound(ur2, obj.u_max)
-    result.upper_bound(ut2, obj.u_max)
-    result.upper_bound(tf, obj.tf_max)
+    # Radius stays between the two orbits. Endpoints are already fixed by the
+    # equality constraints; repeating them here makes SLSQP's subproblem
+    # degenerate ("Inequality constraints incompatible" on some platforms).
+    result.lower_bound(r[1:-1], obj.r0)
+    result.upper_bound(r[1:-1], obj.rf)
+    # Thrust and final-time limits are box bounds set in main().
 
     return result()
 
@@ -153,6 +144,9 @@ def main(*, flag_savefig: bool = True):
     prob.set_states_all_section(2, vt_init)
     prob.set_controls_all_section(0, ur1_init)
     prob.set_controls_all_section(2, ut1_init)
+    for control in range(4):
+        prob.set_controls_bounds(control, 0, 0.0, obj.u_max)
+    prob.set_time_final_bounds(0, 1.0, obj.tf_max)
 
     # ========================
     # Main Process

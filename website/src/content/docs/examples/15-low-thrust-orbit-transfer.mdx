@@ -40,7 +40,7 @@ $$
 r(0) = 1,\ v_r(0) = 0,\ v_t(0) = 1; \qquad r(t_f) = 4,\ v_r(t_f) = 0,\ v_t(t_f) = 0.5
 $$
 
-不等式制約と目的関数は次のとおりです。終端時刻 $t_f$ は自由ですが、$0 \le t_f \le 55$ に制限されます。
+不等式制約と目的関数は次のとおりです。終端時刻 $t_f$ は自由ですが、$1 \le t_f \le 55$ に制限されます。
 
 $$
 0 \le u_{r1}, u_{r2}, u_{t1}, u_{t2} \le 0.01, \qquad 1 \le r \le 4, \qquad
@@ -70,9 +70,9 @@ $u_{r1} + u_{r2} = \lvert u_r\rvert$ が成り立ちます。こうして絶対�
 | $\dot{v}_r$ | `dx[1] = vt**2 / r - 1 / r**2 + (ur1 - ur2)` |
 | $\dot{v}_t$ | `dx[2] = -vr * vt / r + (ut1 - ut2)` |
 | 初期・終端の円軌道 | `equality` の `result.equal(r[0], obj.r0)` 〜 `result.equal(vt[-1], obj.vtf)` の6本 |
-| $0 \le u \le 0.01$ | `inequality` の `result.lower_bound(ur1, 0.0)`、`result.upper_bound(ur1, obj.u_max)` など |
-| $1 \le r \le 4$ | `result.lower_bound(r, obj.r0)`、`result.upper_bound(r, obj.rf)` |
-| $0 \le t_f \le 55$ | `result.lower_bound(tf, 0.0)`、`result.upper_bound(tf, obj.tf_max)` |
+| $0 \le u \le 0.01$ | `main` の `prob.set_controls_bounds(control, 0, 0.0, obj.u_max)`（4つの制御すべて） |
+| $1 \le r \le 4$ | `inequality` の `result.lower_bound(r[1:-1], obj.r0)`、`result.upper_bound(r[1:-1], obj.rf)`（内部のノードのみ） |
+| $1 \le t_f \le 55$ | `main` の `prob.set_time_final_bounds(0, 1.0, obj.tf_max)` |
 | $J = \int (u_{r1}+u_{r2}+u_{t1}+u_{t2})\,dt$ | `running_cost` が `(ur1 + ur2) + (ut1 + ut2)` を返し、`cost` は 0 |
 | $\theta = \int v_t/r\,dt$ | `integrate.cumulative_trapezoid(vt / r, time, initial=0)` |
 
@@ -99,6 +99,16 @@ $t_f = 10$ から出発した SLSQP は、線形化した制約を同時に満�
 `Inequality constraints incompatible` を出して止まっていました。
 現在は終端時刻の推定を最適解に近い 50 にし、$v_t$ を各半径での円軌道速度 $1/\sqrt{r}$ にして、
 各時点で「ほぼ円軌道」の状態から出発するようにしています。非線形の問題では、物理的に筋の通った初期推定が収束を大きく左右します。
+
+### 制約の重複を避ける
+
+もう一つの修正は制約の書き方です。以前は `inequality` で全ノードに $1 \le r \le 4$ を課していましたが、
+両端のノードでは `equality` が $r(0) = 1$、$r(t_f) = 4$ をすでに固定しているので、同じ条件が等式と不等式で二重になります。
+こうした重複は SLSQP の部分問題を退化させ、計算環境によっては丸め誤差だけで `Inequality constraints incompatible` になります
+（実際、手元の macOS では収束しても GitHub Actions の Linux では失敗しました）。
+現在は半径の範囲を内部のノード `r[1:-1]` だけに課し、制御と終端時刻の上下限は不等式ではなく
+`set_controls_bounds`・`set_time_final_bounds` による変数の上下限（box bounds）として与えています。
+上下限はソルバーが直接扱えるので、不等式制約として線形化するより数値的に安定です。
 
 ## 計算結果
 
