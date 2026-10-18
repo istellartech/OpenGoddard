@@ -81,7 +81,7 @@ Install uv, then run the following commands from the repository root::
   uv run python -m unittest discover -s tests
   uv build
 
-Python is managed by uv using ``.python-version``. Project metadata and tool
+Python is managed by uv from ``requires-python``. Project metadata and tool
 settings live in ``pyproject.toml``, and ``uv.lock`` records the resolved
 development environment. The package lives in ``src/OpenGoddard``; its import
 path remains ``OpenGoddard``. The build backend is ``uv_build``.
@@ -308,31 +308,6 @@ Node/refinement limits or a successful NLP solve alone do not imply
 ``mesh_converged``. Inspect ``mesh_stop_reason`` and ``mesh_history`` for h/hp
 solves. The splitting locations and smoothness indicators are heuristics, with
 no global-optimality or continuous-state-error guarantee.
-
-The Goddard comparison, including independent IVP integration, is documented in
-`benchmarks/HP_REPORT.rst <benchmarks/HP_REPORT.rst>`_. Reproduce it with::
-
-  uv run --extra autodiff python benchmarks/compare_hp.py
-
-It loads the previous p implementation from Git revision ``978b97a`` into an
-isolated temporary package. It never resets or checks out the working tree.
-All solutions receive the same current residual, polynomial-extrema and IVP
-checks; historical p and equal-budget p are both reported.
-
-Reproducible performance comparison
-===================================
-
-Run ``uv run --extra autodiff python benchmarks/compare_solvers.py`` to compare
-full finite differences, structured differences, AD, sparse trust-constr, and
-adaptive AD on existing examples 01, 03, 04, 05 and 12. The runner isolates cases
-in subprocesses, fixes BLAS thread counts, rotates mode order, repeats each case
-three times, records failures/timeouts, and checks between-node accuracy after
-timing. One-time imports and AD warmup are excluded; AD has no JIT compilation.
-
-``benchmarks/results.json`` contains timings, objectives, analytic errors where
-available, collocation/path/mesh residuals, solver status, versions and source
-hashes. ``benchmarks/REPORT.rst`` discusses the measured tradeoffs. These are
-local measurements, not a guarantee that a particular solver is always faster.
 
 License
 =======
