@@ -4,6 +4,8 @@
 Arbitrary legacy dynamics remain supported by ``derivatives='finite-difference'``.
 """
 
+from typing import override
+
 import numpy as np
 from scipy import sparse
 
@@ -259,7 +261,8 @@ class Derivatives:
             or not np.isfinite(result).all()
         ):
             raise ValueError(
-                "constraint callback must return a one-dimensional differentiable vector"
+                "constraint callback must return a one-dimensional "
+                "differentiable vector"
             )
         if isinstance(function, LinearCallback):
             self._linear_jacobians[function] = result
@@ -427,6 +430,7 @@ class Derivatives:
                     dtype=np.dtype(float), shape=(parameters.size, parameters.size)
                 )
 
+            @override
             def _matvec(self, x):
                 return np.asarray(product(parameters, x), dtype=float)
 

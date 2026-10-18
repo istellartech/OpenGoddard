@@ -57,6 +57,7 @@ def solve_hp_adaptive(
     history = []
     reason = "refinement_limit"
     converged = False
+    result = None
     for iteration in range(refinements + 1):
         initial = problem.p.copy()
         result = problem.solve(obj, **solve_options)
@@ -88,7 +89,7 @@ def solve_hp_adaptive(
             )
             points = []
             added = 0
-            for old, new in zip(previous, current):
+            for old, new in zip(previous, current, strict=True):
                 # Keep previous cuts; never differentiate through moving roots.
                 extras = [
                     point
@@ -128,7 +129,7 @@ def solve_hp_adaptive(
         mesh = [list(entries) for entries in problem.mesh]
         # Descending panel index keeps replacements valid within each section.
         chosen = sorted(candidates, reverse=True)[:2]
-        for score, section, panel, detail in sorted(
+        for _score, section, panel, detail in sorted(
             chosen, key=lambda v: (v[1], v[2]), reverse=True
         ):
             e = mesh[section][panel]
@@ -186,13 +187,16 @@ def solve_hp_adaptive(
             problem.time_update()
         refined = remesh(problem, mesh)
         problem.__dict__.update(refined.__dict__)
+    if result is None:
+        raise RuntimeError("adaptive solver did not produce a result")
     result.mesh_converged = bool(converged)
     result.mesh_history = history
     result.mesh_strategy = strategy
     result.mesh_stop_reason = reason
     if not converged:
         warnings.warn(
-            "adaptive solve stopped before meeting the mesh tolerance; inspect mesh_history",
+            "adaptive solve stopped before meeting the mesh tolerance; "
+            "inspect mesh_history",
             RuntimeWarning,
             stacklevel=2,
         )

@@ -24,7 +24,7 @@ def normalize_mesh(nodes, mesh=None):
     if len(mesh) != len(nodes):
         raise ValueError("mesh must have one element list per logical section")
     result = []
-    for count, entries in zip(nodes, mesh):
+    for count, entries in zip(nodes, mesh, strict=True):
         elements = []
         left = -1.0
         for entry in entries:

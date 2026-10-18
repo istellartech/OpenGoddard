@@ -70,7 +70,8 @@ def remesh(problem, mesh):
             pairs = problem.bounds[front:back]
             if any(pair != pairs[0] for pair in pairs):
                 raise ValueError(
-                    "refinement requires constant nodal box bounds; use path constraints for varying bounds"
+                    "refinement requires constant nodal box bounds; "
+                    "use path constraints for varying bounds"
                 )
             unit = (problem.unit_states if state else problem.unit_controls)[section][
                 component
@@ -82,7 +83,7 @@ def remesh(problem, mesh):
                 new.set_unit_controls(component, section, unit)
                 new_back, new_front = new._division_controls(component, section)
             values = problem.p[front:back]
-            for element, rows in elements_with_slices(new, section):
+            for _element, rows in elements_with_slices(new, section):
                 new.p[new_front + rows.start : new_front + rows.stop] = interpolate(
                     problem,
                     section,
@@ -118,7 +119,7 @@ def refine(problem, nodes):
     if len(nodes) != problem.number_of_section:
         raise ValueError("provide one node count per section")
     mesh = []
-    for count, entries in zip(nodes, problem.mesh):
+    for count, entries in zip(nodes, problem.mesh, strict=True):
         extra = count - 2 * len(entries)
         if extra < 0:
             raise ValueError("at least two nodes per existing element are required")
@@ -128,7 +129,10 @@ def refine(problem, nodes):
         order = np.argsort(-(exact - allocation), kind="stable")
         allocation[order[: extra - int(allocation.sum())]] += 1
         mesh.append(
-            [Element(e.left, e.right, int(n) + 2) for e, n in zip(entries, allocation)]
+            [
+                Element(e.left, e.right, int(n) + 2)
+                for e, n in zip(entries, allocation, strict=True)
+            ]
         )
     return remesh(problem, mesh)
 
@@ -155,7 +159,7 @@ def estimate_error(problem, obj=None, check_factor=2):
         raise ValueError(
             "mesh error estimation requires DynamicsModel in every section"
         )
-    for section, n in enumerate(problem.nodes):
+    for section in range(problem.number_of_section):
         model = problem.dynamics[section]
         x, u, _ = model.inputs(problem, section)
         start, end = problem.time_start(section), problem.time_final(section)
@@ -251,7 +255,7 @@ def estimate_error(problem, obj=None, check_factor=2):
     callback = original_inequality(problem)
     inequalities = np.empty(0) if callback is None else callback(dense, obj)
     violation = max(0.0, -float(np.min(inequalities, initial=0)))
-    for value, pair in zip(dense.p, dense.bounds):
+    for value, pair in zip(dense.p, dense.bounds, strict=True):
         lower, upper = pair
         violation = max(
             violation,
@@ -325,6 +329,8 @@ def solve_adaptive(
     if any(n > cap for n in problem.nodes):
         raise ValueError("max_nodes must not be smaller than the initial mesh")
     history = []
+    result = None
+    converged = False
     for iteration in range(refinements + 1):
         initial_parameters = problem.p.copy()
         result = problem.solve(obj, **solve_options)
@@ -362,11 +368,14 @@ def solve_adaptive(
             problem.time_update()
         refined = refine(problem, nodes)
         problem.__dict__.update(refined.__dict__)
+    if result is None:
+        raise RuntimeError("adaptive solver did not produce a result")
     result.mesh_converged = bool(converged)
     result.mesh_history = history
     if not converged:
         warnings.warn(
-            "adaptive solve stopped before meeting the mesh tolerance; inspect mesh_history",
+            "adaptive solve stopped before meeting the mesh tolerance; "
+            "inspect mesh_history",
             RuntimeWarning,
             stacklevel=2,
         )

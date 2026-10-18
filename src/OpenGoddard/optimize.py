@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # Copyright (c) 2017 Interstellar Technologies Inc. All Rights Reserved.
 # Authors : Takahiro Inagawa, Kazuki Sakaki
 #
@@ -29,7 +28,7 @@ OpenGoddard.optimize - Optimal Trajectories module with PseudoSpectral Method
 
 import warnings
 from collections.abc import Callable
-from typing import Any
+from typing import Any, cast, override
 
 import numpy as np
 from numpy.typing import NDArray
@@ -86,7 +85,7 @@ class Problem:
         unit_time (float) : canonical unit of time
         p ((N,) ndarray) : inner variables for optimization
         dynamics (function) : function list, list of function of dynamics
-        knot_states_smooth (list of True/False): list of states are smooth on phase knots
+        knot_states_smooth (list of True/False): state continuity at phase knots
         cost (function) : cost function
         running_cost (function, optional): Physical-time integrand at every node.
         cost_derivative (function, optional): Complete objective gradient in ``p``.
@@ -787,7 +786,7 @@ class Problem:
 
             provider = Derivatives(self, obj, derivatives)
             for constraint, evaluate in zip(
-                constraints, (provider.equality, provider.inequality)
+                constraints, (provider.equality, provider.inequality), strict=True
             ):
 
                 def constraint_jacobian(obj, evaluate=evaluate):
@@ -826,15 +825,18 @@ class Problem:
         self.result = None
         self.result_history = []
         for attempt in range(attempts):
-            result = optimize.minimize(
-                wrap(self._objective),
-                self.p,
-                bounds=self.bounds,
-                constraints=constraints,
-                jac=jac,
-                hess=hessian,
-                method=solver,
-                options=options,
+            result = cast(
+                optimize.OptimizeResult,
+                optimize.minimize(
+                    wrap(self._objective),
+                    self.p,
+                    bounds=self.bounds,
+                    constraints=constraints,
+                    jac=jac,
+                    hess=hessian,
+                    method=solver,
+                    options=options,
+                ),
             )
             self.p = result.x.copy()
             self.time_update()
@@ -882,13 +884,13 @@ class Problem:
         return remesh(self, mesh)
 
     def estimate_error(self, obj=None, check_factor=2):
-        """Estimate between-node ODE and sampled path residuals; see mesh.estimate_error."""
+        """Estimate between-node ODE/path residuals; see mesh.estimate_error."""
         from .mesh import estimate_error
 
         return estimate_error(self, obj, check_factor)
 
     def solve_adaptive(self, obj=None, **options):
-        """Refine until mesh tolerance or limits are reached; see mesh.solve_adaptive."""
+        """Refine to mesh tolerance or limits; see mesh.solve_adaptive."""
         from .mesh import solve_adaptive
 
         return solve_adaptive(self, obj, **options)
@@ -908,7 +910,8 @@ class Problem:
         # transcriptions differ from LGL and are not implemented by this solver.
         if method != "LGL":
             raise ValueError(
-                "Problem supports only method='LGL'; use method_LG/method_LGR for quadrature"
+                "Problem supports only method='LGL'; "
+                "use method_LG/method_LGR for quadrature"
             )
         self.nodes = [integer(n, "nodes", 2) for n in nodes]
         self.number_of_states = [
@@ -953,7 +956,9 @@ class Problem:
         self.p = np.zeros(self.number_of_variables)
         self.p[-self.number_of_section :] = times[1:]
         self.bounds = [(None, None)] * self.number_of_variables
-        self.dynamics: list[Callable | None] = [None] * self.number_of_section
+        self.dynamics: list[
+            Callable[[Problem, Any, int], NDArray[np.float64]] | None
+        ] = [None] * self.number_of_section
         self.knot_states_smooth = [True] * (self.number_of_section - 1)
         self.cost: Callable[[Problem, Any], float] | None = None
         self.running_cost: Callable[[Problem, Any], NDArray[np.float64]] | None = None
@@ -966,6 +971,7 @@ class Problem:
         self.result_history: list[optimize.OptimizeResult] = []
         self.time_update()
 
+    @override
     def __repr__(self):
         s = "---- parameter ----" + "\n"
         s += "nodes = " + str(self.nodes) + "\n"
@@ -1030,5 +1036,5 @@ class Problem:
         plt.ylabel("value")
         for section in range(self.number_of_section):
             for line in self.div[section]:
-                plt.axvline(line, color="C%d" % ((section + 1) % 6), alpha=0.5)
+                plt.axvline(line, color=f"C{(section + 1) % 6}", alpha=0.5)
         plt.grid()
