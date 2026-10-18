@@ -1,11 +1,16 @@
-if __name__ == "__main__":
-    import subprocess
-    import os
-    cmd_api = "sphinx-apidoc -f -o docs_sphinx/apis OpenGoddard"
-    cmd_cd = "cd docs_sphinx"
-    cmd_make = "make html"
+import os
+import subprocess
+from pathlib import Path
 
-    result = subprocess.run(cmd_api, shell=True, universal_newlines=True)
-    os.chdir("docs_sphinx")
-    result = subprocess.run(cmd_make, shell=True, universal_newlines=True)
-    os.chdir("..")
+if __name__ == "__main__":
+    root = Path(__file__).resolve().parent
+    subprocess.run(
+        ["sphinx-apidoc", "-f", "-o", "docs_sphinx/apis", "src/OpenGoddard"],
+        cwd=root,
+        check=True,
+        env={
+            **os.environ,
+            "SPHINX_APIDOC_OPTIONS": "members,undoc-members,show-inheritance,imported-members",
+        },
+    )
+    subprocess.run(["make", "html"], cwd=root / "docs_sphinx", check=True)

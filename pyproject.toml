@@ -1,0 +1,60 @@
+[build-system]
+requires = ["uv_build>=0.13.1,<0.14"]
+build-backend = "uv_build"
+
+[project]
+name = "OpenGoddard"
+version = "1.2.0"
+description = "Optimal Trajectories module with PseudoSpectral Method"
+readme = "README.rst"
+requires-python = ">=3.15"
+license = "MIT"
+license-files = ["LICENSE.txt"]
+authors = [{ name = "Interstellar Technologies Inc." }]
+keywords = ["optimization", "trajectory", "optimal control", "aerospace", "pseudospectral_method"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Education",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.15",
+]
+dependencies = [
+    "numpy>=2.5.4,<3",
+    "scipy>=1.18.1,<2",
+    "matplotlib>=3.11.2,<4",
+]
+
+[project.urls]
+Homepage = "https://github.com/istellartech/OpenGoddard"
+Repository = "https://github.com/istellartech/OpenGoddard"
+
+[project.optional-dependencies]
+autodiff = ["autograd>=1.9.1,<2"]
+
+[dependency-groups]
+dev = ["ruff>=0.17.1", "ty>=0.0.89"]
+
+[tool.uv]
+prerelease = "disallow"
+
+[tool.uv.build-backend]
+module-name = "OpenGoddard"
+source-include = ["examples/**", "docs_sphinx/**", "make_docs.py", "tests/**", "benchmarks/**"]
+
+[tool.ruff]
+target-version = "py315"
+extend-exclude = ["docs"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
+
+[tool.ruff.lint.per-file-ignores]
+# Examples expose state variables for users to adapt their equations.
+"examples/*.py" = ["F841"]
+
+[tool.ty.src]
+include = ["src", "examples", "make_docs.py", "tests", "benchmarks"]

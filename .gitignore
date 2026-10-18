@@ -70,8 +70,10 @@ target/
 # IPython Notebook
 .ipynb_checkpoints
 
-# pyenv
-.python-version
+# Local development tools
+.venv/
+.ruff_cache/
+.ty_cache/
 
 # celery beat schedule file
 celerybeat-schedule

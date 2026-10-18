@@ -37,6 +37,39 @@ Installation
 
   $ pip install OpenGoddard
 
+Python 3.15 or later is required. Runtime dependencies are NumPy, SciPy,
+and Matplotlib; prerelease dependencies are excluded from the development lock.
+
+Development
+===========
+Install uv, then run the following commands from the repository root::
+
+  uv sync --locked
+  uv run ruff check .
+  uv run ruff format --check .
+  uv run ty check
+  uv run python -m unittest discover -s tests
+  uv build
+
+Python is managed by uv using ``.python-version``. Project metadata and tool
+settings live in ``pyproject.toml``, and ``uv.lock`` records the resolved
+development environment. The package lives in ``src/OpenGoddard``; its import
+path remains ``OpenGoddard``. The build backend is ``uv_build``.
+
+Run examples from the repository root. Input data and figure output paths are
+resolved relative to each script::
+
+  uv run python examples/01_Brachistochrone_Problem.py
+
+For a small problem with an analytic solution and no plotting, run::
+
+  uv run python examples/12_Minimum_Energy_Transfer.py
+
+To update dependencies to newer stable releases and refresh the environment::
+
+  uv lock --upgrade
+  uv sync --locked
+
 Usage
 =====
 ::
@@ -54,6 +87,181 @@ Usage
 #. Set Problem.functions and knotting condition
 #. Solve
 #. Post process (visualization)
+
+Numerical conventions and solver results
+========================================
+
+States, controls, time arrays and their setters use physical units. ``p`` and
+``bounds`` hold dimensionless optimization variables. Changing a unit preserves
+existing physical guesses and bounds, including when a unit is changed twice.
+Times may start at a nonzero value; phase endpoints are constrained to be
+nondecreasing during optimization. Each phase needs at least two LGL nodes, at
+least one state and zero or more controls. Lists, tuples and NumPy vectors are
+accepted for problem dimensions and initial times.
+
+``cost(problem, obj)`` is the terminal (Mayer) cost. An optional
+``running_cost(problem, obj)`` returns the physical-time integrand at every node,
+concatenated in phase order. The objective is::
+
+  cost + sum((tf - ti) / 2 * dot(weights, integrand) for each phase)
+
+``cost`` may be omitted for a purely integral objective. If supplied,
+``cost_derivative`` must differentiate the complete objective with respect to
+the scaled vector ``p``. ``equality`` and ``inequality`` may be omitted;
+inequality residuals follow SciPy's convention: feasible values are >= 0.
+
+``solve()`` returns a SciPy ``OptimizeResult`` and stores it in ``problem.result``::
+
+  result = problem.solve(obj, maxiter=100, ftol=1e-9, disp=False)
+  if not result.success:
+      raise RuntimeError(result.message)
+
+SLSQP options such as ``eps`` are forwarded. Output is quiet unless ``disp=True``;
+an unsuccessful result emits ``RuntimeWarning``. ``maxIterator`` limits attempts
+after SLSQP's iteration-limit status; other failures stop immediately. Each
+solve resets this counter and saves its attempts in ``result_history``.
+Time arrays are refreshed before optimization callbacks, so time-dependent
+dynamics use the current phase times. Concurrent ``workers`` are unsupported
+because callbacks share a mutable problem instance.
+
+Only the LGL optimal-control transcription is implemented. ``method_LG`` and
+``method_LGR`` remain available as quadrature/differentiation utilities; passing
+``method="LG"`` or ``"LGR"`` to ``Problem`` now raises ``ValueError`` instead
+of silently using LGL. Solver success describes the discretized local NLP;
+check trajectories with increasing node counts to assess discretization error.
+See the `SciPy SLSQP reference
+<https://docs.scipy.org/doc/scipy/reference/optimize.minimize-slsqp.html>`_
+for stopping criteria and result fields.
+
+Compatibility notes
+===================
+
+Imports from ``OpenGoddard.optimize`` continue to work; the four legacy classes
+are also available directly from ``OpenGoddard``. Numerical rules, validation and
+helper classes are separated into internal modules. The historical executable
+demonstrations formerly in ``optimize.py`` are preserved in
+``examples/legacy_demo.py``. Importing examples does not start optimization.
+
+The corrected running-cost quadrature changes integral objective values:
+remove any manually included ``(tf - ti) / 2`` factors from existing integrands.
+Physical time arrays now remain in physical units after ``set_unit_time``;
+adjust custom code that relied on the old dimensionless arrays. Invalid indices,
+array shapes, units and bounds raise explicit exceptions, including under
+``python -O``. Negative indices follow normal Python indexing. CSV exports use
+the requested delimiter for headers and pad columns missing in a phase with NaN.
+
+Structured derivatives and automatic differentiation
+====================================================
+
+The default ``solve()`` still accepts legacy callbacks and uses SLSQP with
+finite differences. Opt in to structured derivatives to avoid differencing the
+complete collocation system. ``DynamicsModel`` evaluates physical, pointwise
+equations of motion::
+
+  from OpenGoddard import DynamicsModel, LinearCallback
+
+  def motion(x, u, t, obj, section, xp):
+      # Shapes: x=(states, nodes), u=(controls, nodes), t=(nodes,).
+      return xp.stack((x[1], u[0]))
+
+  problem.dynamics = [DynamicsModel(motion)]
+  result = problem.solve(obj, derivatives="structured", maxiter=300, ftol=1e-9)
+
+Each output column of ``motion`` must depend only on the same input column.
+Cross-node reductions or interpolation violate this contract. The library
+assembles exact LGL differentiation and phase-continuity blocks, differentiates
+the small local dynamics, and constructs CSR constraint Jacobians. SLSQP receives
+dense copies; ``solver="trust-constr"`` consumes the sparse matrices directly.
+Structured mode uses central differences and needs no additional dependency.
+Difference probes require callbacks defined in a neighborhood of the iterate.
+
+For automatic differentiation, install the optional extra::
+
+  uv sync --locked --extra autodiff
+
+Then select ``derivatives="autograd"``. Use the supplied ``xp`` inside the model,
+and use ``view.array_module`` for NumPy operations in cost/constraint callbacks.
+Construct residuals with ``view.condition()`` so tracing can flow through them.
+Avoid in-place mutation, conversion to Python floats, ordinary ``np.asarray``
+on traced values, and non-differentiable external calls. Existing callbacks are
+not silently converted or silently downgraded to finite differences.
+Autograd differentiates the complete objective, including quadrature durations;
+it does not use a manually supplied ``cost_derivative``.
+
+Declare callbacks affine in ``p`` with ``@LinearCallback`` when appropriate::
+
+  @LinearCallback
+  def equality(view, obj):
+      residuals = view.condition()
+      residuals.equal(view.states(0, 0)[0], 0)
+      residuals.equal(view.states(0, 0)[-1], 1)
+      return residuals()
+
+Their Jacobians are cached once per solve. This declaration is a mathematical
+contract: do not mark nonlinear callbacks as linear. Coefficients, units and
+``obj`` must remain constant during a solve. Models and callbacks in examples
+01, 03, 04, 05 and 12 demonstrate both derivative modes. Redundant inequalities
+at endpoints already fixed by equality constraints have been removed there to
+avoid degeneracy without changing the feasible trajectories.
+
+The alternative solver is opt-in::
+
+  result = problem.solve(obj, solver="trust-constr", derivatives="autograd",
+                         maxiter=600, gtol=1e-8)
+
+It uses matrix-free AD Hessian-vector products as well as sparse Jacobians.
+Without AD, SciPy's quasi-Newton Hessian approximation can allocate dense storage.
+Use ``gtol``, ``xtol`` and ``barrier_tol`` for trust-constr, rather than SLSQP's
+``ftol`` and ``eps``. Restarts use its iteration-limit status 0. Inspect
+``result.optimality`` and the trajectory errors as well as ``success``; solver
+and derivative choices can follow different local optimization paths.
+
+Adaptive meshes and accuracy checks
+===================================
+
+``problem.estimate_error(obj)`` checks the interpolated state derivative against
+the dynamics at independent Gauss points, rather than just the original
+collocation nodes. It also samples path constraints and box bounds on a denser
+LGL mesh. Its dimensionless relative defect is a residual indicator, not a
+rigorous bound on state error or continuous feasibility.
+
+``problem.refine([new_nodes_per_phase])`` returns an interpolated warm start.
+``solve_adaptive`` performs this refinement automatically::
+
+  result = problem.solve_adaptive(
+      obj, derivatives="autograd", tolerance=1e-5,
+      max_refinements=5, max_nodes=100, maxiter=600, ftol=1e-8,
+  )
+  if not result.success or not result.mesh_converged:
+      print(result.mesh_history)
+
+The original problem is updated to the final mesh. Phases with excessive ODE
+defects grow independently; sampled path violations or failed coarse solves
+grow all phases. Failed solves restart refinement from their pre-solve guess.
+Per-phase units, endpoint times and discontinuities are preserved. Nodal box
+bounds must be constant for each variable within a phase; express varying bounds
+as path callbacks instead.
+
+This implements p refinement (node counts), not automatic phase splitting.
+Gibbs oscillations near thrust switches may leave sampled path violations even
+when ODE defects are tiny. Node/refinement limits or a successful NLP solve alone
+do not imply ``mesh_converged``. Represent known discontinuities as separate
+phases when needed; automatic splitting would change section-dependent callbacks.
+
+Reproducible performance comparison
+===================================
+
+Run ``uv run --extra autodiff python benchmarks/compare_solvers.py`` to compare
+full finite differences, structured differences, AD, sparse trust-constr, and
+adaptive AD on existing examples 01, 03, 04, 05 and 12. The runner isolates cases
+in subprocesses, fixes BLAS thread counts, rotates mode order, repeats each case
+three times, records failures/timeouts, and checks between-node accuracy after
+timing. One-time imports and AD warmup are excluded; AD has no JIT compilation.
+
+``benchmarks/results.json`` contains timings, objectives, analytic errors where
+available, collocation/path/mesh residuals, solver status, versions and source
+hashes. ``benchmarks/REPORT.rst`` discusses the measured tradeoffs. These are
+local measurements, not a guarantee that a particular solver is always faster.
 
 License
 =======
@@ -101,6 +309,10 @@ OpenGoddardはオープンソースな連続時間の非線形最適制御問題
 ::
 
   $ pip install OpenGoddard
+
+Python 3.15以上が必要です。開発環境はリポジトリのルートで ``uv sync --locked``
+を実行して用意します。設定は ``pyproject.toml``、依存関係の固定は ``uv.lock``、
+ソースコードは ``src/OpenGoddard`` に配置しています。
 
 使い方
 =====
