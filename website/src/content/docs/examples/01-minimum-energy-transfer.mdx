@@ -1,0 +1,101 @@
+---
+title: 01. 最小操作量の移動
+description: 状態1個・制御1個の最小の例題。終端時刻と操作量の二乗積分を同時に最小化し、解析解 T=d, u=1 と比較する。
+sidebar:
+  order: 1
+---
+
+import ExampleMedia from '../../../components/ExampleMedia.astro';
+import ExampleSource from '../../../components/ExampleSource.astro';
+import RunCommand from '../../../components/RunCommand.astro';
+
+位置 $x$ を、速度 $u$ を直接操作して距離 $d$ だけ動かします。
+「早く着きたい」と「操作量を小さくしたい」という2つの要求を1つの目的関数にまとめると、
+その釣り合いで移動時間が決まります。OpenGoddard の `Problem` を組み立てる最小の手順を、
+解析解と照らし合わせながら確認する例題です。
+
+## この例題で学ぶこと
+
+- `Problem` の引数（初期時刻区間・ノード数・状態数・制御数）と、運動方程式・境界条件・目的関数の渡し方
+- 終端時刻 $t_f$ を最適化変数にする問題と、`cost`（終端項）と `running_cost`（積分項）の役割分担
+- `set_unit_time` / `set_unit_states` による単位スケーリングと、解析解による収束確認
+
+## 問題設定
+
+状態は位置 $x$ の1個、制御は $u$ の1個です。運動方程式は単に
+
+$$
+\dot{x} = u
+$$
+
+で、制御 $u$ はそのまま速度にあたります。時刻は $t_0 = 5$ から始まり（`Problem([5, 8], ...)` の初期時刻区間 $[5, 8]$）、
+境界条件と制約は次のとおりです。コードの既定値は $d = 2$ です。
+
+$$
+x(t_0) = 0, \qquad x(t_f) = d, \qquad 0 \le u \le 3, \qquad 5.1 \le t_f \le 15
+$$
+
+目的関数は所要時間 $T = t_f - t_0$ と操作量の二乗積分の和です。
+
+$$
+J = T + \int_{t_0}^{t_f} u^2\,dt
+$$
+
+一定の速度で進むなら $u = d/T$ なので $J = T + d^2/T$ となり、これを $T$ で最小化すると
+$T = d$、$u = 1$、$J = 2d$ が得られます。速度を一定にするのが最適であることは、
+同じ移動距離なら $\int u^2 dt$ は $u$ が一定のとき最小になる（コーシー・シュワルツの不等式）ことから分かります。
+`main()` はこの解析解（$d=2$ なら $T = 2$、$J = 4$）と数値解を比べ、
+`np.testing.assert_allclose` で $u \approx 1$ を検証します。
+
+## 数式とコードの対応
+
+| 数式 | コード（`main.py`） |
+| --- | --- |
+| $\dot{x}=u$ | `pointwise_dynamics` が `xp.stack((u[0],))` を返す |
+| $x(t_0)=0,\ x(t_f)=d$ | `equality` の `result.equal(state[0], 0)` と `result.equal(state[-1], target)` |
+| $0 \le u \le 3$ | `problem.set_controls_bounds(0, 0, 0, 3)` |
+| $5.1 \le t_f \le 15$ | `problem.set_time_final_bounds(0, 5.1, 15)` |
+| $T = t_f - t_0$（終端項） | `problem.cost = LinearCallback(lambda p, obj: p.time_final(0) - p.time_start(0))` |
+| $\int u^2 dt$（積分項） | `problem.running_cost = lambda p, obj: p.controls_all_section(0) ** 2` |
+| $d = 2$ | `main()` の `target = 2.0`。`problem.solve(target, ...)` で `equality` の第2引数に渡る |
+| 初期推定 | `Guess.linear(problem.time[0], 0, target)` と `Guess.constant(problem.time[0], target / 3)` |
+
+`Problem([5, 8], [8], [1], [1], maxIterator=2)` は、初期時刻区間 $[5, 8]$、
+1区間あたり8個のLGLノード、状態1個、制御1個という意味です。
+`running_cost` に渡した値はノード上の被積分関数で、OpenGoddard がガウス求積で積分して `cost` に加えます。
+`set_unit_time(3)` と `set_unit_states(0, 0, 2)` は、時間と位置をそれぞれ 3 と 2 で割った無次元量を
+ソルバーに渡すための設定で、問題の意味は変えません。
+
+## 計算結果
+
+左はレール上の物体と制御 $u$ の大きさ（赤い矢印、最大値で正規化）、右は位置 $x$ と制御 $u$ の時間履歴です。
+黒い縦線は動画の現在時刻を表します。
+
+<ExampleMedia id="minimum_energy_transfer" />
+
+### 読み取りのポイント
+
+- 時間軸は $t = 5$ から $t = 7$ までです。所要時間 $T = 2$ は解析解 $T = d$ と一致します。
+- 制御 $u$ は区間全体で 1 の水平な直線で、矢印の長さも動画を通して変わりません。
+- 位置 $x$ は 0 から 2 まで直線的に増えます。$\dot{x} = u = 1$ をそのまま積分した形です。
+- 制御の上限 3 も $t_f$ の上下限も効いていません。最適解は制約の内側で、
+  時間と操作量の釣り合いだけで決まっています。
+
+## 試してみる
+
+この例題は図を表示せず、所要時間と目的関数の値を解析解と並べて表示して終了します。
+
+<RunCommand id="minimum_energy_transfer" />
+
+`main.py` の値を書き換えて、解析解との対応を確かめてみましょう。
+
+- `main()` の `target` を 3 や 4 に変えると、表示される所要時間と目的関数はそれぞれ $d$ と $2d$ になるでしょうか。
+  $t_f$ の上限 15 があるため、$d$ を大きくしすぎると $T = d$ が許されなくなる点にも注意してください。
+- `set_controls_bounds(0, 0, 0, 3)` の上限を 0.5 に下げると、$u = 1$ が許されなくなります。
+  このとき解は $u = 0.5$、$T = 2d$ になるはずです（`assert_allclose` は失敗します）。
+- `Problem([5, 8], [8], ...)` のノード数 `[8]` を 4 や 16 に変えても、解は変わるでしょうか。
+  解が多項式で正確に表せる問題では、少ないノードでも解析解に一致します。
+
+## ソースコード
+
+<ExampleSource id="minimum_energy_transfer" />

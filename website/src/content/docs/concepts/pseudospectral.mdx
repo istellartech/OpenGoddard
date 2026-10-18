@@ -1,0 +1,116 @@
+---
+title: 擬スペクトル法の考え方
+description: LGLノード、多項式補間、微分行列、求積でOpenGoddardが最適制御問題をNLPに変換する仕組み。
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+OpenGoddardは **Legendre-Gauss-Lobatto（LGL）擬スペクトル法** を使う直接法のソルバーです。
+連続時間の最適制御問題を、有限個のノードでの状態・制御の値を未知数とする非線形計画問題（NLP）に
+変換し、SciPyの最適化ソルバーで解きます。このページでは、その変換の各段階をコードと対応づけて説明します。
+
+## 1. 時間を $[-1, 1]$ に写す
+
+phase（区間）の物理時間 $t \in [t_0, t_f]$ を、正規化時間 $\tau \in [-1, 1]$ に写します。
+
+$$
+t = \frac{t_f - t_0}{2}\,\tau + \frac{t_f + t_0}{2}, \qquad
+\frac{dx}{dt} = \frac{2}{t_f - t_0}\,\frac{dx}{d\tau}
+$$
+
+$t_0, t_f$ も最適化変数にできるので、終端時刻自由の問題（最短時間問題など）をそのまま扱えます。
+
+## 2. LGLノードで多項式補間する
+
+$N$ 個のLGLノード $\tau_0=-1 < \tau_1 < \dots < \tau_{N-1}=1$ は、両端と
+Legendre多項式の導関数 $P'_{N-1}(\tau)$ の根です。状態はノードでの値 $X_k = x(\tau_k)$ を通る
+$N-1$ 次のLagrange多項式で近似します。
+
+$$
+x(\tau) \approx \sum_{k=0}^{N-1} X_k\, \ell_k(\tau)
+$$
+
+ノードは区間の両端に集まっています。等間隔の点で高次の補間をすると端で大きく振動しますが
+（Runge現象）、LGLノードでは $N$ を増やすほど誤差が小さくなります。下の動画は
+$f(x)=1/(1+25x^2)$ を $N=4, 6, \dots, 24$ 点で補間した比較です。
+
+<figure class="example-video">
+  <video controls preload="metadata" playsinline poster="/OpenGoddard/media/concepts/lgl_interpolation.png">
+    <source src="/OpenGoddard/media/concepts/lgl_interpolation.mp4" type="video/mp4" />
+  </video>
+  <figcaption>
+    上：等間隔の点（赤）とLGLノード（青）での補間。下：微分行列 $D$ をノード値に掛けた導関数と厳密な導関数。
+    ノードは <code>Problem.method_LGL(n)</code> で計算しています。
+  </figcaption>
+</figure>
+
+## 3. 微分を行列の掛け算にする
+
+補間多項式の導関数をノードで評価すると、ノード値の線形結合になります。
+
+$$
+\dot{x}(\tau_i) \approx \sum_{k} D_{ik} X_k, \qquad D_{ik} = \ell'_k(\tau_i)
+$$
+
+この $N\times N$ 行列 $D$ が **微分行列** です。`Problem.method_LGL(n)` は
+ノード・求積重み・微分行列の3つを返します。
+
+## 4. 運動方程式を「ノードでの等式制約」にする（コロケーション）
+
+運動方程式 $\dot{x}=f(x,u,t)$ を各ノードで満たすことを要求します。
+
+$$
+\sum_{k} D_{ik} X_k - \frac{t_f - t_0}{2}\, f(X_i, U_i, t_i) = 0, \qquad i = 0, \dots, N-1
+$$
+
+OpenGoddardの実装（`Problem._equality_constraints`）はこの式そのものです。
+
+```py
+derivative = (state @ self.D[section].T).ravel()
+dx = vector(dynamics(self, obj, section), "dynamics", derivative.size)
+duration = (self.time_final(section) - self.time_start(section)) / self.unit_time
+blocks.append(derivative - duration / 2 * dx)
+```
+
+ユーザーが書く `DynamicsModel` の関数は、全ノードの $f(X_i, U_i, t_i)$ をまとめて返します。
+各列（ノード）が同じ列の入力だけに依存する「pointwise」な形にしておくと、
+`derivatives="structured"` や `"autograd"` で疎なヤコビアンを効率よく組み立てられます。
+
+## 5. 積分を重み付き和にする（求積）
+
+目的関数の積分項は、LGL求積重み $w_k$ を使った和で近似します。
+
+$$
+\int_{t_0}^{t_f} L\,dt \approx \frac{t_f - t_0}{2} \sum_{k} w_k\, L(X_k, U_k, t_k)
+$$
+
+`running_cost` はノードごとの $L$ を返すだけでよく、$\frac{t_f-t_0}{2}$ と $w_k$ はライブラリが掛けます。
+
+## 6. 複数の phase をつなぐ（knotting）
+
+制御が不連続に切り替わる時刻や、ロケットの段分離では、解が滑らかではありません。
+1本の多項式で近似すると精度が落ちるため、時間を複数の phase に分けて、それぞれを多項式で近似します。
+phase の境界（knot）では、状態の連続条件 $x(t_f^{(k)}) = x(t_0^{(k+1)})$ を等式制約として加えます。
+
+- `Problem(time_init=[0, 100, 200], nodes=[20, 20], ...)` のように初期時刻列とノード数を phase ごとに与えます。
+- `problem.knot_states_smooth = [True]` で境界の状態連続を有効にします。段分離で質量が不連続になる場合は
+  `False` にして、連続条件を `equality` に自分で書きます（[11. 2段ロケット上昇](../../examples/11-rocket-ascent-two-stage/)）。
+- 制御は境界で左右別の値を持てるので、bang-bang 制御の切り替えを表現できます（[08. Goddard問題・区間分割](../../examples/08-goddard-1knot/)）。
+
+## 7. NLPを解き、精度を確かめる
+
+未知数ベクトル $p$（全ノードの状態・制御と phase の時刻を正規化したもの）について、
+目的関数・等式制約・不等式制約が揃ったNLPを、SLSQP（既定）または `trust-constr` で解きます。
+
+<Aside type="caution" title="ソルバーの成功は「離散化したNLPの局所解」が見つかったという意味です">
+ノード間で運動方程式や経路制約が満たされているかは別に確かめる必要があります。
+`problem.estimate_error(obj)` はノードとは独立した点で微分の残差と経路制約を調べます。
+`problem.solve_adaptive(...)` は誤差が大きい phase のノード数や要素数を増やして解き直します。
+ノード数を増やしても解が変わらないことを確認するのが基本です。
+</Aside>
+
+## 参考文献
+
+- F. Fahroo and I. M. Ross, "Costate Estimation by a Legendre Pseudospectral Method", *J. Guidance, Control, and Dynamics*, 24(2), 2001. [doi:10.2514/2.4709](http://dx.doi.org/10.2514/2.4709)
+- I. M. Ross and F. Fahroo, "Pseudospectral Knotting Methods for Solving Nonsmooth Optimal Control Problems", *J. Guidance, Control, and Dynamics*, 27(3), 2004. [doi:10.2514/1.3426](http://dx.doi.org/10.2514/1.3426)
+- Q. Gong, F. Fahroo, and I. M. Ross, "Spectral Algorithm for Pseudospectral Methods in Optimal Control", *J. Guidance, Control, and Dynamics*, 31(3), 2008. [doi:10.2514/1.32908](http://dx.doi.org/10.2514/1.32908)

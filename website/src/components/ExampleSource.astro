@@ -1,0 +1,26 @@
+---
+// The example's main.py, read from the repository at build time.
+import { Code } from '@astrojs/starlight/components';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { findExample, githubTree, repoRoot } from '../lib/catalog';
+
+interface Props {
+  id: string;
+  /** Show the code expanded instead of inside a collapsible block. */
+  open?: boolean;
+}
+
+const { id, open = false } = Astro.props;
+const example = findExample(id);
+const path = `examples/${example.directory}/main.py`;
+const code = readFileSync(resolve(repoRoot, path), 'utf-8');
+---
+
+<details class="example-source" open={open}>
+  <summary><code>{path}</code> の全文（{code.split('\n').length}行）</summary>
+  <Code code={code} lang="py" title={path} />
+</details>
+<p>
+  <a href={`${githubTree}/${path}`}>GitHubで見る</a>
+</p>

@@ -221,11 +221,9 @@ class Dynamics:
         It is an example of the equation of motion of thrust and free fall.
         Thrust is controllable.
 
-        .. math::
-
-            \dot{x} &= v
-
-            \dot{v} &= T/m - g
+        $$
+        \dot{x} = v, \qquad \dot{v} = T/m - g
+        $$
 
         >>> def dynamics(prob, obj, section):
         >>>     x = prob.states(0, section)

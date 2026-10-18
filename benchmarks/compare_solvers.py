@@ -27,12 +27,19 @@ ROOT = Path(__file__).resolve().parents[1]
 MODES = ("baseline", "structured", "autograd", "sparse", "adaptive")
 
 
-def load_example(prefix):
+def example_entry(identifier):
+    with patch.object(sys, "path", [str(ROOT), *sys.path]):
+        from examples.catalog import find_example
+
+        return find_example(identifier)
+
+
+def load_example(identifier):
     import matplotlib.pyplot as plt
 
     from OpenGoddard import Problem
 
-    path = next((ROOT / "examples").glob(prefix + "_*.py"))
+    path = ROOT / "examples" / example_entry(identifier).script
     captured = []
 
     class Ready(Exception):
@@ -47,6 +54,8 @@ def load_example(prefix):
         patch.object(plt, "show"),
         patch.object(plt, "savefig"),
         patch.object(Path, "mkdir"),
+        patch.object(sys, "path", [str(path.parent), *sys.path]),
+        patch.object(sys, "argv", [str(path)]),
         contextlib.redirect_stdout(io.StringIO()),
         contextlib.suppress(Ready),
     ):
@@ -63,6 +72,7 @@ def worker(example, mode, output):
 
     from OpenGoddard.derivatives import Derivatives
 
+    example = example_entry(example).id
     problem, obj = load_example(example)
     problem.maxIterator = 1
     solver = "trust-constr" if mode == "sparse" else "SLSQP"
@@ -90,7 +100,10 @@ def worker(example, mode, output):
             result = problem.solve(obj, **options)
         elapsed = perf_counter() - start
     errors = problem.estimate_error(obj) if result.success else None
-    analytical = {"01": np.sqrt(np.pi), "12": 4.0}.get(example)
+    analytical = {
+        "brachistochrone": np.sqrt(np.pi),
+        "minimum_energy_transfer": 4.0,
+    }.get(example)
     result_data = {
         "example": example,
         "mode": mode,
@@ -121,7 +134,18 @@ def worker(example, mode, output):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--examples", nargs="+", default=["01", "03", "04", "05", "12"])
+    parser.add_argument(
+        "--examples",
+        nargs="+",
+        default=[
+            "brachistochrone",
+            "simple_rocket_2d",
+            "goddard_0knot",
+            "goddard_1knot",
+            "minimum_energy_transfer",
+        ],
+        help="stable example IDs (or current two-digit lesson numbers)",
+    )
     parser.add_argument("--modes", nargs="+", default=list(MODES), choices=MODES)
     parser.add_argument("--repeats", type=int, default=3)
     parser.add_argument("--timeout", type=float, default=120)
@@ -131,6 +155,10 @@ def main():
     if args.worker:
         worker(*args.worker)
         return
+    try:
+        args.examples = [example_entry(identifier).id for identifier in args.examples]
+    except ValueError as error:
+        parser.error(str(error))
     if args.repeats < 1:
         parser.error("--repeats must be positive")
     records = []
@@ -198,7 +226,7 @@ def save(output, records, args):
     hashes = {
         str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest()
         for folder in ("src/OpenGoddard", "examples", "benchmarks")
-        for p in (ROOT / folder).glob("*.py")
+        for p in (ROOT / folder).rglob("*.py")
     }
     metadata = {
         "python": sys.version,

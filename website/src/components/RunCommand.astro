@@ -1,0 +1,15 @@
+---
+import { Code } from '@astrojs/starlight/components';
+import { findExample } from '../lib/catalog';
+
+interface Props {
+  id: string;
+  args?: string;
+}
+
+const { id, args = '' } = Astro.props;
+const example = findExample(id);
+const command = `uv run python examples/${example.directory}/main.py${args ? ` ${args}` : ''}`;
+---
+
+<Code code={command} lang="sh" />

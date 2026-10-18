@@ -1,0 +1,90 @@
+---
+// Pre-rendered Matplotlib videos for one example (see scripts/build_media.py).
+import { Aside, TabItem, Tabs } from '@astrojs/starlight/components';
+import { mediaManifest, mediaUrl } from '../lib/catalog';
+
+interface Props {
+  id: string;
+  /** Show the static figures written by the example's own main(). */
+  figures?: boolean;
+}
+
+const { id, figures = true } = Astro.props;
+const manifest = mediaManifest(id);
+const videos = manifest?.videos ?? [];
+const failed = Object.entries(manifest?.solver ?? {}).filter(([, status]) => !status.success);
+---
+
+{
+  !manifest && (
+    <Aside type="caution" title="動画が未生成です">
+      リポジトリのルートで <code>uv run python website/scripts/build_media.py {id}</code>{' '}
+      を実行すると生成されます。
+    </Aside>
+  )
+}
+{
+  failed.map(([name, status]) =>
+    status.message.includes('Iteration limit') ? (
+      <Aside type="caution" title="反復回数の上限で停止した解です">
+        <code>{name}</code>: ソルバーは反復回数の上限で停止しました（<code>{status.message}</code>）。
+        表示している軌道は収束判定を満たした最適解とは限りません。ノード数や反復回数を変えて解が変わらないかを確かめてください。
+      </Aside>
+    ) : (
+      <Aside type="danger" title="この結果は収束していません">
+        <code>{name}</code>: ソルバーが失敗しました（<code>{status.message}</code>）。
+        動画は最適解ではなく、失敗時点の値を描いたものです。
+      </Aside>
+    ),
+  )
+}
+{
+  videos.length === 1 && (
+    <figure class="example-video">
+      <video controls preload="metadata" playsinline poster={mediaUrl(id, videos[0].poster)}>
+        <source src={mediaUrl(id, videos[0].video)} type="video/mp4" />
+      </video>
+    </figure>
+  )
+}
+{
+  videos.length > 1 && (
+    <Tabs syncKey={`media-${id}`}>
+      {videos.map((video) => (
+        <TabItem label={video.name}>
+          <figure class="example-video">
+            <video controls preload="none" playsinline poster={mediaUrl(id, video.poster)}>
+              <source src={mediaUrl(id, video.video)} type="video/mp4" />
+            </video>
+            <figcaption>
+              プリセット <code>{video.name}</code> の計算結果 ・{' '}
+              <a href={mediaUrl(id, `${video.name}.json`)}>JSONデータ</a>
+            </figcaption>
+          </figure>
+        </TabItem>
+      ))}
+    </Tabs>
+  )
+}
+{
+  manifest?.comparison && (
+    <figure class="example-figure">
+      <img src={mediaUrl(id, manifest.comparison)} alt={`${id}: 全プリセットの比較`} loading="lazy" />
+      <figcaption>全プリセットの重ね描き。条件を変えたときに解のどこが変わるかを比較できます。</figcaption>
+    </figure>
+  )
+}
+{
+  figures && manifest && manifest.figures.length > 0 && (
+    <details class="example-figures">
+      <summary>main.py が保存する図（{manifest.figures.length}枚）</summary>
+      <div class="figure-grid">
+        {manifest.figures.map((figure) => (
+          <a href={mediaUrl(id, figure)}>
+            <img src={mediaUrl(id, figure)} alt={figure} loading="lazy" />
+          </a>
+        ))}
+      </div>
+    </details>
+  )
+}

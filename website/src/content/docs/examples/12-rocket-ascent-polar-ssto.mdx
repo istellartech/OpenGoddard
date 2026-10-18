@@ -1,0 +1,119 @@
+---
+title: 12. 極座標・単段軌道投入
+description: 極座標の運動方程式で単段ロケットを地表から高度 400 km の円軌道へ投入し、最終質量を最大化する。
+sidebar:
+  order: 12
+---
+
+import ExampleMedia from '../../../components/ExampleMedia.astro';
+import ExampleSource from '../../../components/ExampleSource.astro';
+import RunCommand from '../../../components/RunCommand.astro';
+
+地表から打ち上げた単段ロケット（SSTO）を、高度 400 km の円軌道に投入します。
+鉛直上昇だけを扱った例題10・11と違い、ここでは地球中心からの距離 $R$ と角度 $\theta$ を使う
+**極座標**で平面内の運動を表し、推力の向き（半径方向成分と周方向成分）も最適化します。
+
+## この例題で学ぶこと
+
+- 極座標の状態 $(R, \theta, V_r, V_t, m)$ と、遠心力・コリオリ項を含む運動方程式の書き方
+- 「円軌道に入る」という終端条件を、半径・半径方向速度・周方向速度の3本の等式で表す方法
+- 推力ベクトルを2成分の制御 $(T_r, T_t)$ で表し、大きさの上限を不等式制約で課す方法
+- 最終質量の最大化を、符号を反転した目的関数として書くこと
+
+## 問題設定
+
+状態は地心距離 $R$、角度 $\theta$、半径方向速度 $V_r$、周方向速度 $V_t$、質量 $m$、
+制御は推力の半径方向成分 $T_r$ と周方向成分 $T_t$ です。
+
+$$
+\begin{aligned}
+\dot{R} &= V_r, \qquad \dot{\theta} = \frac{V_t}{R}, \\
+\dot{V}_r &= \frac{T_r - D_r}{m} - g + \frac{V_t^2}{R}, \\
+\dot{V}_t &= \frac{T_t - D_t}{m} - \frac{V_r V_t}{R}, \\
+\dot{m} &= -\frac{\sqrt{T_r^2 + T_t^2}}{g_0 I_{sp}}
+\end{aligned}
+$$
+
+$V_t^2/R$ は遠心力、$-V_rV_t/R$ は回転座標で現れるコリオリ項です。
+重力は $g = g_0 (R_e/R)^2$、空気密度は指数大気 $\rho = 1.225\,e^{-h/8500}$（$h = R - R_e$）、
+抗力は速度ベクトルの向きに働くので成分ごとに
+
+$$
+D_r = \tfrac12 \rho V_r \lvert V\rvert C_d A, \qquad D_t = \tfrac12 \rho V_t \lvert V\rvert C_d A, \qquad
+\lvert V\rvert = \sqrt{V_r^2 + V_t^2}
+$$
+
+です。`Rocket` クラスの値は $M_0 = 100\,\mathrm{t}$、推進剤 $M_p = 0.99 M_0$、$C_d = 0.6$、
+$A = 4\,\mathrm{m^2}$、$I_{sp} = 300\,\mathrm{s}$、最大推力 $T_{\max} = 1.5 M_0 g_0 \approx 1471\,\mathrm{kN}$、
+最大加速度 8 G です。
+
+境界条件は、地表で静止した状態から出発し、高度 $H = 400\,\mathrm{km}$ の円軌道に入ることです。
+
+$$
+R(0) = R_e,\ \theta(0) = 0,\ V_r(0) = V_t(0) = 0,\ m(0) = M_0; \qquad
+R(t_f) = R_e + H,\ V_r(t_f) = 0,\ V_t(t_f) = \sqrt{\frac{GM_e}{R_e + H}}
+$$
+
+円軌道では半径方向の速度がなく、周方向速度が円軌道速度（約 7.67 km/s）に等しくなります。
+到達角 $\theta(t_f)$ と終端時刻 $t_f$ は自由です。不等式制約と目的関数は次のとおりです。
+
+$$
+\sqrt{T_r^2 + T_t^2} \le T_{\max}, \quad 0 \le T_r, T_t \le T_{\max}, \quad
+\frac{\lvert \boldsymbol{T} - \boldsymbol{D}\rvert}{m} \le 8 g_0, \quad m \ge M_0 - M_p, \qquad
+J = -\frac{m(t_f)}{M_0}
+$$
+
+## 数式とコードの対応
+
+| 数式 | コード（`main.py`） |
+| --- | --- |
+| 運動方程式5本 | `dynamics` の `dx[0] = Vr` 〜 `dx[4] = -np.sqrt(Tr**2 + Tt**2) / g0 / Isp` |
+| 遠心力・コリオリ項 | `dx[2] = Tr / m - Dr / m - g + Vt**2 / R`、`dx[3] = Tt / m - Dt / m - (Vr * Vt) / R` |
+| $\rho = 1.225 e^{-h/8500}$ | `Rocket.air_density` の `rho0 * np.exp(-beta * h)` |
+| $g = g_0(R_e/R)^2$ | `g = obj.g0 * (obj.Re / R) ** 2` |
+| 抗力の成分 | `Dr = 0.5 * rho * Vr * np.sqrt(Vr**2 + Vt**2) * obj.Cd * obj.A` |
+| 初期条件 | `equality` の `result.equal(R[0], obj.Re, ...)` など5本 |
+| 円軌道投入 | `result.equal(R[-1], obj.Rtarget, ...)`、`Vr[-1]` を 0、`Vt[-1]` を `obj.Vtarget` |
+| $\lvert \boldsymbol T\rvert \le T_{\max}$ | `inequality` の `result.upper_bound(T, obj.Tmax, ...)` |
+| $0 \le T_r, T_t \le T_{\max}$ | `prob.set_controls_bounds_all_section(0, 0.0, obj.Tmax)` ほか |
+| 加速度上限 8 G | `result.upper_bound(a_mag, obj.MaxG * obj.g0)` |
+| $m \ge M_0 - M_p$ | `result.lower_bound(m[1:], (obj.M0 - obj.Mp), ...)` |
+| $J = -m(t_f)/M_0$ | `cost` の `return -m[-1] / prob.unit_states[0][4]` |
+
+`main()` では `unit_R = obj.Re`、`unit_V = np.sqrt(obj.GMe / obj.Re)`、`unit_t = unit_R / unit_V`、
+`unit_T = unit_m * unit_R / unit_t**2` を単位として与えています。
+距離 6371 km、質量 100 t、推力 1 MN といった桁の違う量を、ソルバー内部では 1 前後の数に揃えるためです。
+目的関数を `unit_states[0][4]`（$M_0$）で割っているのも、コメントにあるとおり値を 1 程度にするためです。
+擬スペクトル法のノード数は `n = [30]`、時刻の初期推定は `time_init = [0.0, 200]` です。
+
+## 計算結果
+
+左は打ち上げ地点を原点とした飛行経路です。極座標の解を
+$x = R\sin\theta$（ダウンレンジ）、$y = R\cos\theta - R_e$（打ち上げ地点からの高さ）に変換して描き、
+灰色の曲線は地球表面です。右は高度・速さ $\lvert V\rvert$・質量・推力成分 $T_r, T_t$ の時間履歴です。
+
+<ExampleMedia id="rocket_ascent_polar_ssto" />
+
+### 読み取りのポイント
+
+- 解は「上昇噴射 → 慣性飛行 → 軌道投入噴射」の3段構えになります。動画のデータでは最初の約 270 s は推力の大きさが $T_{\max}$ に張り付き、その後ほぼ 0 の慣性飛行が続き、終端直前（遠地点付近）の短い噴射で円軌道速度まで増速します。
+- 上昇噴射の初めは $T_r$ が大きく、まず上に上がって濃い大気を抜けます。その後 $T_t$ が増え、推力が周方向に倒れていきます（重力ターンに近い振る舞い）。
+- 慣性飛行中の $T_r, T_t$ や質量に見える小さな波打ちは、多項式近似による数値的な揺れです。
+- 速さは終端で円軌道速度 7.67 km/s に達し、高度は 400 km で頭打ちになります。$V_r$ が 0 に戻ることが円軌道投入の条件です。
+- 質量は 100 t から数 t まで減ります。最終質量のうち 1 t（$M_0 - M_p$）が構造で、それを上回る分が使い残した推進剤、つまりペイロードに回せる余裕です。目的関数はこの余裕を最大にしています。
+- 左図で、地球表面が曲がっているため、高度一定の円軌道も地表の曲線に沿って描かれます。
+
+## 試してみる
+
+<RunCommand id="rocket_ascent_polar_ssto" />
+
+`main.py` の値を書き換えて再実行し、変化を比べてみましょう。
+
+- `Rocket.__init__` の `self.Htarget = 400.0 * 1000` を 300 km や 600 km にすると、最終質量と到達角はどう変わるでしょうか。
+- `self.Isp = 300.0` を 350 や 450 にすると最終質量が大きく増えます。ロケット方程式 $\Delta V = g_0 I_{sp} \ln(m_0/m_f)$ と照らし合わせてみましょう。
+- `self.MaxG = 8.0` を 4 程度に下げると加速度制約が効く区間が現れ、推力が上限より下がる時間帯ができます。
+- `n = [30]` を 15 や 50 に変えて、結果と計算時間がどれだけ変わるかを確認してみましょう。
+
+## ソースコード
+
+<ExampleSource id="rocket_ascent_polar_ssto" />

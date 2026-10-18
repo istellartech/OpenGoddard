@@ -25,7 +25,7 @@ from pathlib import Path
 from time import perf_counter
 
 import numpy as np
-from compare_solvers import ROOT, load_example
+from compare_solvers import ROOT, example_entry, load_example
 
 MODES = ("previous-p", "p", "h", "hp")
 
@@ -171,6 +171,7 @@ def worker(example, mode, output, revision):
     from OpenGoddard._sampling import SampledPath, polynomial_extrema
     from OpenGoddard.derivatives import Derivatives
 
+    example = example_entry(example).id
     template, obj = load_example(example)
     with tempfile.TemporaryDirectory() as directory:
         if mode == "previous-p":
@@ -304,7 +305,9 @@ def save(path, records, args):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--examples", nargs="+", default=["04", "05"])
+    parser.add_argument(
+        "--examples", nargs="+", default=["goddard_0knot", "goddard_1knot"]
+    )
     parser.add_argument("--modes", nargs="+", choices=MODES, default=list(MODES))
     parser.add_argument("--repeats", type=int, default=3)
     parser.add_argument("--timeout", type=float, default=180)
@@ -317,6 +320,10 @@ def main():
     if args.worker:
         worker(*args.worker, args.baseline)
         return
+    try:
+        args.examples = [example_entry(identifier).id for identifier in args.examples]
+    except ValueError as error:
+        parser.error(str(error))
     if args.repeats < 1 or args.timeout <= 0:
         parser.error("positive repeats and timeout are required")
     environment = dict(

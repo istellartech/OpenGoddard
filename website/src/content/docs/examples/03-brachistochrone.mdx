@@ -1,0 +1,98 @@
+---
+title: 03. 最速降下
+description: 重力で滑り降りる球が水平距離 l に最短時間で到達する経路を求め、解析解のサイクロイドと比較する。
+sidebar:
+  order: 3
+---
+
+import ExampleMedia from '../../../components/ExampleMedia.astro';
+import ExampleSource from '../../../components/ExampleSource.astro';
+import RunCommand from '../../../components/RunCommand.astro';
+
+静止した球を摩擦のない坂に置き、重力だけで水平距離 $l$ 先まで最も早く到達させるには、
+坂をどんな形にすればよいでしょうか。変分法の古典問題である最速降下（brachistochrone）を、
+「坂の傾き」を制御とする最適制御問題として解きます。終点の深さは自由です。
+
+## この例題で学ぶこと
+
+- 経路の形を求める問題を、傾き角を制御とする最適制御問題に書き換える方法
+- 終点の一部の状態（深さ）を自由にしたとき、解に現れる終端条件
+- 数値解を解析解（サイクロイド）と重ねて検証する考え方
+
+## 問題設定
+
+水平位置 $x$、深さ $y$（**下向きが正**）、速さ $v$ を状態とし、
+制御 $\theta$ は進行方向が鉛直下向きからなす角です（$\theta = 0$ で真下、$\theta = \pi/2$ で水平）。
+
+$$
+\dot{x} = v\sin\theta, \qquad \dot{y} = v\cos\theta, \qquad \dot{v} = g\cos\theta
+$$
+
+3本目は、重力の接線成分 $g\cos\theta$ だけが球を加速することを表します。
+`Ball` クラスの値は $g = 1$、$l = 1$ です。境界条件と制約は次のとおりです。
+
+$$
+x(0) = y(0) = v(0) = 0, \qquad x(t_f) = l, \qquad
+y \ge 0, \qquad \theta \ge 0, \qquad t_f \ge 0.1
+$$
+
+$y(t_f)$ と $v(t_f)$ には条件を課しません。目的関数は到達時刻 $J = t_f$ です。
+
+解析解はサイクロイド $x = a(\phi - \sin\phi)$、$y = a(1 - \cos\phi)$ です。
+終点の深さが自由な場合、最適な軌道は終点で水平（$\theta(t_f) = \pi/2$）になり、
+これは $\phi = \pi$ にあたるので $a = l/\pi$ と決まります。このとき
+最大深さは $y(t_f) = 2a = 2l/\pi \approx 0.637$、到達時刻は $t_f = \pi\sqrt{a/g} = \sqrt{\pi} \approx 1.772$ です。
+
+## 数式とコードの対応
+
+| 数式 | コード（`main.py`） |
+| --- | --- |
+| $\dot{x}=v\sin\theta,\ \dot{y}=v\cos\theta,\ \dot{v}=g\cos\theta$ | `pointwise_dynamics` の `xp.stack((x[2] * xp.sin(theta), x[2] * xp.cos(theta), obj.g * xp.cos(theta)))` |
+| $x(0)=y(0)=v(0)=0$ | `equality` の `result.equal(x[0], 0.0)` など3本 |
+| $x(t_f)=l$ | `result.equal(x[-1], obj.l)` |
+| $y \ge 0$ | `inequality` の `result.lower_bound(y[1:], 0)`（始点は等式で固定済みなので除く） |
+| $\theta \ge 0$ | `result.lower_bound(theta, 0)` |
+| $t_f \ge 0.1$ | `result.lower_bound(tf, 0.1)` |
+| $J = t_f$ | `cost` が `prob.time_final(-1)` を返す |
+| $\partial J / \partial t_f$ | `cost_derivative` が `t_f` の位置に `prob.unit_time` を入れる |
+| ノード数・初期推定 | `n = [20]`、`theta_init` は一定 30°、`x_init` は 0→$l$、`y_init` は 0→$l/\sqrt{3}$ の直線 |
+
+`cost_derivative` は目的関数の勾配を明示的に与える関数です。ソルバー内部の $t_f$ は
+`unit_time` で割った無次元量なので、勾配にはその係数が掛かります。
+`inequality` には、$\theta \le \pi/2$ と傾いた壁 $y \le x\tan\theta_0 + h$ の制約がコメントアウトされた形で残っています
+（`Ball` の `h` と `theta0` はそのためのパラメータです）。
+
+## 計算結果
+
+左は数値解の軌道上を動く球と、破線で描いた解析解のサイクロイド（$a = l/\pi$）です。
+深さ方向は下向きに描いています。右は速さ $v$ と角度 $\theta$ の時間履歴で、黒い縦線は動画の現在時刻を表します。
+
+<ExampleMedia id="brachistochrone" />
+
+### 読み取りのポイント
+
+- 数値解の軌道は破線のサイクロイドに重なります。終点の深さは約 0.637、到達時刻は約 1.772 で、
+  どちらも解析解 $2l/\pi$、$\sqrt{\pi}$ と一致します。
+- $\theta$ は 0（真下）から始まり、終点でちょうど 90°（水平）になります。
+  終点の深さを自由にしたことから導かれる終端条件が、数値解にも現れています。
+- 速さ $v$ はエネルギー保存 $v = \sqrt{2gy}$ に従うので、深いところほど速く、終点で約 1.128 になります。
+  最初に真下へ落ちて速度を稼ぎ、その速度で水平に進むのが最速の理由です。
+- サイクロイドでは $\theta = \phi/2$、$t = \sqrt{a/g}\,\phi$ なので、$\theta$ は時間に対して直線的に増えます。
+
+## 試してみる
+
+<RunCommand id="brachistochrone" />
+
+求解後に時間履歴と軌道の図を表示し、このフォルダの `output/` に保存します。
+`main.py` の値を変えて、解析解との関係を確かめてみましょう。
+
+- `Ball` の `l` を 2 に変えると、サイクロイドは相似に拡大されます。最大深さ $2l/\pi$ と
+  到達時刻 $\pi\sqrt{l/(\pi g)}$ がどう変わるか確かめてみましょう。
+- `Ball` の `g` を変えても軌道の形は変わらず、時間だけが $1/\sqrt{g}$ 倍になるはずです。
+- `n = [20]` を `[8]` に減らすと、軌道や $\theta$ の精度はどうなるでしょうか。
+- `inequality` のコメントアウトされた `result.upper_bound(y, x * np.tan(obj.theta0) + obj.h)` を有効にすると、
+  傾いた壁より深く潜れない条件が加わります。解のどの部分が壁に沿うかを観察してみましょう。
+
+## ソースコード
+
+<ExampleSource id="brachistochrone" />

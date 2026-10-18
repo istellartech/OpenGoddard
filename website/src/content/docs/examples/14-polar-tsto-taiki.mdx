@@ -1,0 +1,144 @@
+---
+title: 14. 大樹からの2段軌道投入
+description: 北海道大樹町からの2段ロケットを、標準大気と Cd–マッハ数表のCSVデータ、高度によるIsp補正を入れて高度 561 km の円軌道へ投入する。
+sidebar:
+  order: 14
+---
+
+import ExampleMedia from '../../../components/ExampleMedia.astro';
+import ExampleSource from '../../../components/ExampleSource.astro';
+import RunCommand from '../../../components/RunCommand.astro';
+
+例題13の2段ロケットを、より実機に近いモデルにした例題です。北海道大樹町（北緯約 42.5°）から
+軌道傾斜角 96.7° の方向へ打ち上げ、高度 561 km の円軌道に投入します。
+大気と抗力係数は `data/` のCSV表から補間し、ノズル出口の外気圧に応じて推力と比推力も補正します。
+
+## この例題で学ぶこと
+
+- 表形式のデータ（標準大気、$C_d$–マッハ数）を補間関数にして運動方程式に組み込む方法
+- 地球の自転による初期速度、高度で変わる比推力と最大推力の扱い
+- 段分離で「1段目の乾燥質量だけを捨てる」質量の管理と、ペイロード質量の最大化
+
+## 問題設定
+
+状態 $(R, \theta, V_r, V_t, m)$、制御 $(T_r, T_t)$、運動方程式の形は例題12・13と同じです。
+
+$$
+\dot{V}_r = \frac{T_r - D_r}{m} - g + \frac{V_t^2}{R}, \qquad
+\dot{V}_t = \frac{T_t - D_t}{m} - \frac{V_r V_t}{R}, \qquad
+\dot{m} = -\frac{\sqrt{T_r^2 + T_t^2}}{g_0\, I_{sp,i}(h)}
+$$
+
+違いは、抗力と比推力の中身がデータと高度で決まることです。
+
+### CSVデータの使い方
+
+- `data/US_standard_atmosphere.csv`：米国標準大気1976の表（高度 0〜86 km、0.1 km刻み）。
+  高度 $h$ から圧力 $P(h)$、密度 $\rho(h)$、音速 $a(h)$ を `scipy.interpolate.interp1d` で線形補間します。
+  表より下では地表の値、86 km より上では $P = \rho = 0$（抗力 0）、音速は最上段の値を使います。
+- `data/Cd.csv`：マッハ数と抗力係数の表（マッハ数 0〜約 4.5）。範囲外は線形外挿します。
+
+これらを使って、抗力は次のように計算されます（直径 1.8 m なので $A \approx 2.54\,\mathrm{m^2}$）。
+
+$$
+M = \frac{\lvert V\rvert}{a(h)}, \qquad
+D_r = \tfrac12 \rho(h)\, V_r \lvert V\rvert\, C_d(M)\, A, \qquad
+D_t = \tfrac12 \rho(h)\, V_t \lvert V\rvert\, C_d(M)\, A
+$$
+
+### 推力と比推力の高度補正
+
+基準の比推力は1段目が海面値 261 s、2段目が真空値 322 s、最大推力は 33.3 tf（約 327 kN）と 4.2 tf（約 41 kN）です。
+1段目はノズル出口面積 $A_{e,1}$（スロート径 53.9 mm、開口比 20、9基クラスタ）に外気圧の減少分が働き、推力が増えます。
+コードでは各段の推力増分 $\Delta T_i$ を
+
+$$
+\Delta T_1 = \bigl(P(H_0) - P(h)\bigr) A_{e,1}, \qquad \Delta T_2 = P(h)\, A_{e,2}
+$$
+
+とし、基準の質量流量 $\dot{m}_{\mathrm{ref},i} = T_{\max,i}/(I_{sp,i}\, g_0)$ を使って
+
+$$
+I_{sp,i}(h) = I_{sp,i} + \frac{\Delta T_i}{\dot{m}_{\mathrm{ref},i}\, g_0}, \qquad
+\sqrt{T_r^2 + T_t^2} \le T_{\max,i} + \Delta T_i
+$$
+
+のように比推力と推力上限を補正しています。1段目は高度が上がるほど $I_{sp}$ が最大で約 33 s 増えます。
+
+### 初期条件・質量・終端条件
+
+打ち上げ地点の地表速度は、赤道の自転速度 1674.36 km/h に $\cos(42.506^\circ)$ を掛けた値です。
+これを傾斜角 96.7° の方向に射影した $V_0 = V_{\mathrm{taiki}} \cos(-96.7^\circ) \approx -40\,\mathrm{m/s}$ を初期の周方向速度にします。
+傾斜角が 90° を超える（逆行気味の）軌道なので、自転はわずかに逆向きに働きます。
+
+質量は構造効率 $\beta$（乾燥質量の割合）から決めます。乾燥質量 1300 kg と 220 kg、$\beta$ = 10% と 15% から
+各段の初期質量は 13000 kg と約 1467 kg、2段目にペイロード 100 kg を加えて
+$M_{0,2} \approx 1567\,\mathrm{kg}$、全備質量 $M_{\mathrm{init}} \approx 14567\,\mathrm{kg}$ です。
+
+$$
+R(0) = R_e + 10\,\mathrm{m},\ \theta(0) = 0,\ V_r(0) = 0,\ V_t(0) = V_0,\ m(0) = M_{\mathrm{init}}; \qquad
+R(t_f) = R_e + 561\,\mathrm{km},\ V_r(t_f) = 0,\ V_t(t_f) = \sqrt{\tfrac{GM_e}{R(t_f)}}
+$$
+
+段分離時刻 $t_s$ では例題13と同じく位置・速度を連続にし、質量は $m(t_s^+) = M_{0,2}$ とします。
+1段目の質量は $m \ge M_{\mathrm{dry},1} + M_{0,2}$ に制限されるので、分離で捨てる質量は1段目の乾燥質量（燃え残りがあればそれも）です。
+そのほか、$R \ge R_e$、動圧 $q = \tfrac12 \rho \lvert V\rvert^2 \le 500\,\mathrm{kPa}$、加速度 20 G 以下、
+2段目の質量 $m \ge 220\,\mathrm{kg}$ を課し、目的関数は例題13と同じく最終質量の最大化 $J = -m(t_f)/M_{0,1}$ です。
+
+## 数式とコードの対応
+
+| 数式 | コード（`main.py`） |
+| --- | --- |
+| 標準大気の補間 | `Rocket.airDensity = interpolate.interp1d(stdAltitude, stdDensity, ...)`（`airPressure`、`airSound` も同様） |
+| $C_d(M)$ | `Rocket.Cd = interpolate.interp1d(CdLog[:, 0], CdLog[:, 1], fill_value="extrapolate")` |
+| $M = \lvert V\rvert/a(h)$ | `Mach = np.sqrt(Vr**2 + Vt**2) / obj.airSound(R - obj.Re)` |
+| 抗力 | `Dr = 0.5 * rho * Vr * np.sqrt(Vr**2 + Vt**2) * Cd * obj.A[section]` |
+| $\Delta T_i$ | `dThrust = [(obj.airPressure(obj.H0) - obj.airPressure(R - obj.Re)) * obj.Ae[0], obj.airPressure(R - obj.Re) * obj.Ae[1]]` |
+| $I_{sp,i}(h)$ | `Isp = obj.Isp[section] + dThrust[section] / (obj.refMdot[section] * g0)` |
+| $\dot m$ | `dx[4] = -np.sqrt(Tr**2 + Tt**2) / (Isp * g0)` |
+| 自転による $V_0$ | `self.V0 = self.Vt_taiki * np.cos(-self.inclination * np.pi / 180.0)` |
+| 初期条件 | `equality` の `result.equal(R0[0], obj.Re + obj.H0, ...)`、`result.equal(m0[0], obj.Minit, ...)` など |
+| 段分離の接続 | `result.equal(m1[0], obj.M0[1], ...)`、`result.equal(R1[0], R0[-1], ...)` ほか位置・速度 |
+| 円軌道投入 | `result.equal(R1[-1], obj.Rtarget, ...)`、`Vr[-1]` を 0、`Vt[-1]` を `obj.Vtarget` |
+| 推力上限 | `inequality` の `result.upper_bound(T0, obj.ThrustMax[0] + dThrust0, ...)` と `T1` |
+| 質量の下限 | `result.lower_bound(m0, obj.Mdry[0] + obj.M0[1], ...)`、`result.lower_bound(m1, obj.Mdry[1], ...)` |
+| 動圧・加速度 | `result.upper_bound(q, obj.MaxQ, ...)`、`result.upper_bound(a_mag0, obj.MaxG * obj.g0)` |
+| $J$ | `cost` の `return -m1[-1] / prob.unit_states[1][4]` |
+
+CSVの読み込みはクラス定義の中で一度だけ行われ、パスは `Path(__file__).resolve().parent / "data/..."` なので
+どのディレクトリから実行しても読めます。
+ノード数は `n = [20, 30]`、時刻の初期推定は `time_init = [0.0, 200, 800]`、`max_iteration = 90` です。
+この例題では状態・制御の上下限を `set_*_bounds` ではなく、すべて `inequality` の中で与えています。
+実行後は `display_func` がペイロード（`m[-1] - obj.Mdry[1]`）と1段目燃焼終了時刻（MECO）を表示し、
+`output/` に図のほか高度・速度・質量・推力の時系列CSVも保存します。
+
+## 計算結果
+
+左は打ち上げ地点を原点とした飛行経路（ダウンレンジ・高さ、灰色の曲線は地球表面）、
+右は高度・速さ・質量・推力成分の時間履歴です。縦の点線が段分離（phase の境界）です。
+
+<ExampleMedia id="polar_tsto_taiki" />
+
+### 読み取りのポイント
+
+- 質量は点線で $M_{\mathrm{dry},1}$ 以上の段差を持って $M_{0,2} \approx 1567\,\mathrm{kg}$ に落ちます。高度・速度は連続です。
+- 初期の周方向速度が $V_0 \approx -40\,\mathrm{m/s}$ なので、速さ $\lvert V\rvert$ は 0 ではなく約 40 m/s から始まります。
+- 1段目の推力は高度とともに少し増えます（外気圧が下がり $\Delta T_1$ が増えるため）。`main.py` が保存する図 `TSTO_dforce.png` と `TSTO_Isp.png` で、推力増分と比推力の変化を直接確認できます。
+- 高度 86 km を超えると表の密度が 0 になり、抗力は完全に消えます。大気圏を抜けた後は真空中の軌道力学だけで経路が決まります。
+- 実行時に表示される `payload` は、最終質量から2段目の乾燥質量 220 kg を引いた値です。搭載ペイロード 100 kg と使い残した推進剤の合計にあたります。
+
+## 試してみる
+
+<RunCommand id="polar_tsto_taiki" />
+
+この例題は求解に数分かかります。`main.py` の値を書き換えて再実行し、変化を比べてみましょう。
+
+- `Rocket.__init__` の `self.Mpayload = 100.0` を増やすと、終端条件を満たせる限界がどこにあるかを探ってみましょう。
+- `self.Htarget = 561.0 * 1000` を 400 km にすると、表示される `payload` はどれだけ増えるでしょうか。
+- `self.inclination = 96.7` を 90 や 45 にすると $V_0$ の符号と大きさが変わり、自転の助けがどれほど効くかを比べられます。
+- `self.Isp = [261.0 + 0.0, 322.0 + 0.0]` の `+ 0.0` を書き換えて、比推力の改善がペイロードに与える効果を確かめましょう。
+- `n = [20, 30]` を減らすと計算は速くなりますが、段分離付近の推力の形がどう変わるかに注意しましょう。
+
+## ソースコード
+
+<ExampleSource id="polar_tsto_taiki" />

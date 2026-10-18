@@ -113,7 +113,7 @@ class Problem:
 
     def method_LG(self, n):
         """Legendre-Gauss Pseudospectral method
-        Gauss nodes are roots of :math:`P_n(x)`.
+        Gauss nodes are roots of $P_n(x)$.
 
         Args:
             n (int) : number of nodes
@@ -135,7 +135,7 @@ class Problem:
 
     def method_LGR(self, n):
         """Legendre-Gauss-Radau Pseudospectral method
-        Gauss-Radau nodes are roots of :math:`P_n(x) + P_{n-1}(x)`.
+        Gauss-Radau nodes are roots of $P_n(x) + P_{n-1}(x)$.
 
         Args:
             n (int) : number of nodes
@@ -157,7 +157,7 @@ class Problem:
 
     def method_LGL(self, n):
         """Legendre-Gauss-Lobatto Pseudospectral method
-        Gauss-Lobatto nodes are roots of :math:`P'_{n-1}(x)` and -1, 1.
+        Gauss-Lobatto nodes are roots of $P'_{n-1}(x)$, plus -1 and 1.
 
         Args:
             n (int) : number of nodes

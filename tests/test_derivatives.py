@@ -166,7 +166,7 @@ class DerivativeTests(unittest.TestCase):
     def test_sparse_trust_constr_and_structured_slsqp(self):
         example = (
             Path(__file__).resolve().parents[1]
-            / "examples/12_Minimum_Energy_Transfer.py"
+            / "examples/01_minimum_energy_transfer/main.py"
         )
         namespace = runpy.run_path(str(example))
         for solver in ("SLSQP", "trust-constr"):

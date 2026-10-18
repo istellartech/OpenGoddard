@@ -1,0 +1,35 @@
+.example-video video {
+  width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  background: #000;
+}
+
+.example-video,
+.example-figure {
+  margin: 1rem 0;
+}
+.example-video figcaption,
+.example-figure figcaption {
+  font-size: var(--sl-text-sm);
+  color: var(--sl-color-gray-3);
+  margin-top: 0.4rem;
+}
+.example-figure img,
+.figure-grid img {
+  width: 100%;
+  height: auto;
+  border-radius: 0.4rem;
+  background: #fff;
+}
+.figure-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+.example-figures summary,
+.example-source summary {
+  cursor: pointer;
+  font-weight: 600;
+}

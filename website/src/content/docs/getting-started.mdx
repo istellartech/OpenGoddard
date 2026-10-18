@@ -1,0 +1,132 @@
+---
+title: はじめに
+description: OpenGoddardのインストール、最初の例題の実行、最適制御問題の組み立て方。
+---
+
+import { Steps } from '@astrojs/starlight/components';
+import ExampleMedia from '../../components/ExampleMedia.astro';
+
+OpenGoddardは、連続時間の非線形最適制御問題を**擬スペクトル法**で非線形計画問題（NLP）に変換し、
+SciPyのSLSQPなどで解くPythonライブラリです。依存はNumPy・SciPy・Matplotlibだけです。
+
+## インストール
+
+Python 3.15以上が必要です。
+
+```sh
+pip install OpenGoddard
+```
+
+例題を動かす場合は、リポジトリを取得して [uv](https://docs.astral.sh/uv/) で環境を作ります。
+
+```sh
+git clone https://github.com/istellartech/OpenGoddard.git
+cd OpenGoddard
+uv sync --locked
+```
+
+## 最初の例題を実行する
+
+解析解がわかっている小さな問題 [01. 最小操作量の移動](../examples/01-minimum-energy-transfer/) から始めます。
+
+```sh
+uv run python examples/01_minimum_energy_transfer/main.py
+```
+
+```text
+Duration: 2.000000 (exact: 2.0)
+Objective: 4.000000 (exact: 4.0)
+```
+
+数値解が解析解（所要時間 $T=d$、目的関数 $2d$）と一致することを確認できます。
+次に、加速して停止する移動をプリセット付きで実行し、図を表示してみます。
+
+```sh
+uv run python examples/02_move_stop/main.py --preset speed_limit --plot
+```
+
+<ExampleMedia id="move_stop" figures={false} />
+
+## 問題の組み立て方
+
+最適制御問題は「状態 $x(t)$ と制御 $u(t)$ について、運動方程式と制約を満たしつつ目的関数 $J$ を
+最小化する」問題です。
+
+$$
+\min_{u(\cdot),\, t_f} J = \Phi(x(t_f), t_f) + \int_{t_0}^{t_f} L(x, u, t)\, dt
+\quad \text{s.t.} \quad
+\dot{x} = f(x, u, t),\quad g(x, u, t) = 0,\quad h(x, u, t) \ge 0
+$$
+
+OpenGoddardでは、それぞれを次のように書きます（[01の `main.py`](https://github.com/istellartech/OpenGoddard/blob/master/examples/01_minimum_energy_transfer/main.py) より）。
+
+<Steps>
+
+1. **運動方程式** $\dot{x}=f(x,u,t)$ を、ノードごとに独立な式として書き、`DynamicsModel` で包みます。
+
+   ```py
+   from OpenGoddard import DynamicsModel, Guess, LinearCallback, Problem
+
+   def pointwise_dynamics(x, u, time, obj, section, xp):
+       return xp.stack((u[0],))          # x' = u
+
+   dynamics = DynamicsModel(pointwise_dynamics)
+   ```
+
+2. **境界条件** $g=0$ を `problem.condition()` に積み、配列で返します。
+   パラメータ `p` について線形なら `@LinearCallback` を付けるとヤコビアンがキャッシュされます。
+
+   ```py
+   @LinearCallback
+   def equality(problem, target):
+       state = problem.states_all_section(0)
+       result = problem.condition()
+       result.equal(state[0], 0)          # x(t0) = 0
+       result.equal(state[-1], target)    # x(tf) = d
+       return result()
+   ```
+
+3. **Problem** を作ります。引数は phase ごとの初期時刻列、LGLノード数、状態数、制御数です。
+
+   ```py
+   problem = Problem([5, 8], [8], [1], [1], maxIterator=2)
+   ```
+
+4. **スケーリングと初期推定**。状態・制御・時刻は物理単位のまま扱い、単位はソルバー内部の正規化に使われます。
+
+   ```py
+   problem.set_unit_time(3)
+   problem.set_unit_states(0, 0, 2)
+   problem.set_states(0, 0, Guess.linear(problem.time[0], 0, target))
+   problem.set_controls(0, 0, Guess.constant(problem.time[0], target / 3))
+   ```
+
+5. **上下限と目的関数**。`cost` は終端項 $\Phi$、`running_cost` は被積分関数 $L$ をノードごとに返します。
+
+   ```py
+   problem.set_controls_bounds(0, 0, 0, 3)
+   problem.set_time_final_bounds(0, 5.1, 15)
+   problem.dynamics = [dynamics]
+   problem.equality = equality
+   problem.cost = LinearCallback(lambda p, obj: p.time_final(0) - p.time_start(0))
+   problem.running_cost = lambda p, obj: p.controls_all_section(0) ** 2
+   ```
+
+6. **解いて確認**。`solve()` はSciPyの `OptimizeResult` を返します。
+
+   ```py
+   result = problem.solve(target, maxiter=100, ftol=1e-11)
+   if not result.success:
+       raise RuntimeError(result.message)
+   ```
+
+</Steps>
+
+`solve()` の第1引数（ここでは `target`）は、各コールバックの第2引数 `obj` としてそのまま渡されます。
+物理パラメータをまとめたオブジェクトを渡すのが一般的です。
+
+## 次に読むもの
+
+- [擬スペクトル法の考え方](../concepts/pseudospectral/)：ノード・補間・微分行列で何が起きているか
+- [例題一覧](../examples/02-move-stop/)：番号順に、移動 → 最速降下 → ロケット → 軌道遷移へ進みます
+- [APIリファレンス](../api/OpenGoddard/)：`Problem` などのメソッドの詳細

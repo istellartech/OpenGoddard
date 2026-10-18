@@ -1,0 +1,111 @@
+---
+title: 07. Goddard問題・単一区間
+description: 空気抵抗と逆二乗重力のもとで、決まった推進剤量で到達高度を最大にする推力履歴を1つの phase で求める。
+sidebar:
+  order: 7
+---
+
+import ExampleMedia from '../../../components/ExampleMedia.astro';
+import ExampleSource from '../../../components/ExampleSource.astro';
+import RunCommand from '../../../components/RunCommand.astro';
+
+鉛直に打ち上げるロケットが、決まった量の推進剤で**どこまで高く上がれるか**を考える、
+最適制御の古典的な例題（Goddard問題）です。
+「全力で噴けばよい」と思いがちですが、低空で速度を上げすぎると空気抵抗で損をします。
+その結果、最適な推力は「最大推力 → 中間推力 → 推力ゼロ」という3つの区間を持ちます。
+この例題ではそれを**1つの phase** で解き、次の [08. Goddard問題・区間分割](../08-goddard-1knot/)
+と比較する土台にします。
+
+## この例題で学ぶこと
+
+- 質量が変化する系（ロケット方程式）を状態に含める方法
+- 終端時刻を自由にして、終端の状態（高度）を最大化する問題の書き方
+- 推力が不連続に切り替わる解を、1つの多項式で近似したときに現れる波打ち
+
+## 問題設定
+
+すべて無次元量です。状態は高度 $h$・速度 $v$・質量 $m$、制御は推力 $T$ です。
+
+$$
+\dot{h} = v, \qquad
+\dot{v} = \frac{T - D(h, v)}{m} - g(h), \qquad
+\dot{m} = -\frac{T}{c}
+$$
+
+抗力は高度とともに指数関数的に薄くなる大気、重力は逆二乗則です。
+
+$$
+D(h, v) = D_c\, v^2 \exp\!\left(-H_c \frac{h - h_0}{h_0}\right), \qquad
+g(h) = g_0 \left(\frac{h_0}{h}\right)^2
+$$
+
+`Rocket` クラスの値は $g_0 = 1$, $h_0 = 1$, $m_0 = 1$, $H_c = 500$,
+$D_c = 0.5 \times 620 \times m_0 / g_0 = 310$, $c = 0.5\sqrt{g_0 h_0} = 0.5$,
+最大推力 $T_{\max} = 3.5\, g_0 m_0 = 3.5$, 終端質量 $m_f = 0.6\, m_0$ です。
+
+境界条件は「地表で静止した状態から出発し、推進剤を使い切って最高点（速度0）に達する」ことです。
+
+$$
+h(0) = 1, \quad v(0) = 0, \quad m(0) = 1, \qquad v(t_f) = 0, \quad m(t_f) = 0.6
+$$
+
+経路制約は $h \ge h_0$, $v \ge 0$, $m_f \le m \le m_0$, $0 \le T \le T_{\max}$,
+$t_f \ge 0.1$ で、終端時刻 $t_f$ は自由です。目的関数は終端高度の最大化を符号反転で表します。
+
+$$
+J = -h(t_f) \quad \to \quad \min
+$$
+
+## 数式とコードの対応
+
+| 数式 | コード（`main.py`） |
+| --- | --- |
+| $\dot{h}=v,\ \dot{v}=(T-D)/m-g,\ \dot{m}=-T/c$ | `pointwise_dynamics` が `xp.stack((v, (thrust - drag) / mass - gravity, -thrust / obj.c))` を返す |
+| $D = D_c v^2 e^{-H_c(h-h_0)/h_0}$ | `drag = obj.Dc * v**2 * xp.exp(-obj.Hc * (h - obj.H0) / obj.H0)` |
+| $g = g_0 (h_0/h)^2$ | `gravity = obj.g0 * (obj.H0 / h) ** 2` |
+| 初期条件・終端条件 | `equality` の `result.equal(h[0], obj.H0)` ほか5本（`v[-1]`, `m[-1]` を含む） |
+| $h \ge h_0,\ v \ge 0,\ m \ge m_f$ | `inequality` の `result.lower_bound(h[1:], obj.H0)`, `lower_bound(v[1:-1], 0.0)`, `lower_bound(m[:-1], obj.Mf)` |
+| $0 \le T \le T_{\max},\ m \le m_0$ | `result.lower_bound(T, 0.0)`, `upper_bound(T, obj.T_max)`, `upper_bound(m[1:], obj.M0)` |
+| $t_f$ 自由（$t_f \ge 0.1$） | `result.lower_bound(tf, 0.1)` |
+| $J = -h(t_f)$ | `cost` が `-h[-1]` を返す |
+| 1つの phase | `Problem([0.0, 0.3], [50], [3], [1], 30)` と `prob.knot_states_smooth = []` |
+
+`h[1:]` や `v[1:-1]` のように添字をずらしているのは、等式で固定した端点に
+不等式を重ねて掛けないためです。制約は `inequality` 関数の中で `lower_bound` /
+`upper_bound` として書かれており、変数の上下限（`set_states_bounds`）ではなく
+一般の不等式制約としてソルバーに渡されます。
+
+## 計算結果
+
+左は鉛直に上昇するロケット（▲）と、相対的な推力の大きさを表すオレンジの炎、
+右は速度・質量・推力の時間履歴です。黒い縦線は動画の現在時刻を表します。
+高度の増加は $h$ = 1 → 約 1.0128 とわずかなので、左の場面は地面を描かずに縦軸を拡大しています。
+右の一番上のグラフが高度 $h$ の履歴です。
+
+<ExampleMedia id="goddard_0knot" />
+
+### 読み取りのポイント
+
+- 推力は最初 $T_{\max} = 3.5$ で、$t \approx 0.02$ から 2〜3 程度の**中間推力**に下がります。
+  空気が濃い低空で速度を上げすぎると抗力 $D \propto v^2$ の損失が大きいため、
+  推力を絞って速度を抑えながら上昇します。この中間推力の区間を**特異弧**（singular arc）と呼びます。
+- $t \approx 0.075$ で質量が $m_f = 0.6$ に達し（推進剤切れ）、以後は推力ゼロの慣性上昇（coast）です。
+  速度は重力でほぼ直線的に減り、$t_f \approx 0.199$ で 0 になったときの高度が最高点 $h(t_f) \approx 1.0128$ です。
+- 推力のグラフは、特異弧の中や推力ゼロへの切り替え付近で波打っています。
+  50ノードの1つの多項式で「急に落ちる」形を表そうとするため、切り替えの前後に振動が出ます。
+  これが次の例題で区間を分ける動機です。
+
+## 試してみる
+
+<RunCommand id="goddard_0knot" />
+
+`main.py` の値を書き換えて、次の点を観察してみましょう。
+
+- `n = [50]` を `[30]` や `[80]` に変えると、推力の波打ちや最高高度 `max altitude` はどう変わるでしょうか。
+- `Rocket.__init__` の `self.Vc = 620`（抗力の大きさ）を小さくすると、中間推力の区間が短くなり、
+  「最大推力 → 推力ゼロ」の bang-bang 制御に近づくはずです。
+- `self.Mc = 0.6` を `0.7` にすると推進剤が減ります。燃焼時間と最高高度を比べてみましょう。
+
+## ソースコード
+
+<ExampleSource id="goddard_0knot" />

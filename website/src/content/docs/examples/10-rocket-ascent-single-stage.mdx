@@ -1,0 +1,117 @@
+---
+title: 10. 単段ロケット上昇
+description: 指数大気の抗力と逆二乗重力のもとで、5トンの単段ロケットを鉛直に打ち上げ、到達高度を最大にする推力履歴を求める。
+sidebar:
+  order: 10
+---
+
+import ExampleMedia from '../../../components/ExampleMedia.astro';
+import ExampleSource from '../../../components/ExampleSource.astro';
+import RunCommand from '../../../components/RunCommand.astro';
+
+[07. Goddard問題](../07-goddard-0knot/) と同じ構造の問題を、**物理単位**（m, kg, s, N）で解きます。
+地球の重力定数・半径、指数大気、比推力 $I_{sp}$ といった実際のロケットらしいパラメータを使い、
+単位の大きく異なる量をスケーリングしてソルバーに渡す方法を学びます。
+
+## この例題で学ぶこと
+
+- 地心距離 $R$ を状態にとり、逆二乗重力と高度依存の空気密度を書く方法
+- 比推力 $I_{sp}$ から推進剤の消費率を表す方法
+- 地球半径や周回速度を基準にした単位系（`set_unit_*`）で数値の大きさを揃える方法
+- 変数の上下限を `set_states_bounds_all_section` などで与える書き方
+
+## 問題設定
+
+状態は地心距離 $R$・速度 $v$（上向き）・質量 $m$、制御は推力 $T$ です。
+
+$$
+\dot{R} = v, \qquad
+\dot{v} = \frac{T - D}{m} - \frac{\mu}{R^2}, \qquad
+\dot{m} = -\frac{T}{g_0 I_{sp}}
+$$
+
+抗力と空気密度は次のモデルです（高度 $R - R_e$ のスケールハイト 8500 m）。
+
+$$
+D = \frac{1}{2}\rho v^2 C_D A, \qquad \rho = 1.225\, \exp\!\left(-\frac{R - R_e}{8500}\right)\ \text{kg/m}^3
+$$
+
+`Rocket` クラスの値は $\mu = 3.986004418\times 10^{14}$ m³/s², $R_e = 6371$ km, $g_0 = 9.80665$ m/s²,
+$m_0 = 5000$ kg, $C_D = 0.2$, $A = 10$ m², $I_{sp} = 300$ s,
+最大推力は初期重量の2倍 $T_{\max} = 2 m_0 g_0 \approx 98.07$ kN です。
+
+境界条件は「地表で静止状態から出発し、推進剤を使い切って最高点で速度0」です。
+
+$$
+R(0) = R_e, \quad v(0) = 0, \quad m(0) = m_0, \qquad v(t_f) = 0, \quad m(t_f) = 0.4\, m_0 = 2000\ \text{kg}
+$$
+
+変数の範囲は $R \ge R_e$, $v \ge 0$, $2000 \le m \le 5000$, $0 \le T \le T_{\max}$, $t_f \ge 10$ s です。
+目的関数は終端高度の最大化で、地球半径で割って無次元化しています。
+
+$$
+J = -\frac{R(t_f)}{R_e} \quad \to \quad \min
+$$
+
+コード中の `Mc = 0.4` のコメントは「推進剤質量の割合」ですが、実際には終端質量を
+$m_0 \times 0.4$ にする条件として使われており、推進剤は初期質量の 60%（3000 kg）です。
+
+## 数式とコードの対応
+
+| 数式 | コード（`main.py`） |
+| --- | --- |
+| $\dot{R}=v$ | `dynamics` の `dx[0] = v` |
+| $\dot{v}=(T-D)/m-\mu/R^2$ | `dx[1] = (T - drag) / m - g`（`g = obj.GMe / R**2`） |
+| $\dot{m}=-T/(g_0 I_{sp})$ | `dx[2] = -T / g0 / Isp` |
+| $D=\tfrac12\rho v^2 C_D A$ | `drag = 0.5 * rho * v**2 * obj.Cd * obj.area` |
+| $\rho(h)$ | `Rocket.air_density` の `rho0 * np.exp(-beta * h)`（`beta = 1 / 8500.0`） |
+| 初期条件・終端条件 | `equality` の `result.equal(R[0], obj.Re)` ほか、`result.equal(m[-1], obj.M0 * obj.Mc)` |
+| $R \ge R_e,\ v \ge 0$ | `prob.set_states_bounds_all_section(0, obj.Re, None)`, `(1, 0.0, None)` |
+| $2000 \le m \le 5000$ | `prob.set_states_bounds_all_section(2, obj.M0 * obj.Mc, obj.M0)` |
+| $0 \le T \le T_{\max}$ | `prob.set_controls_bounds_all_section(0, 0.0, obj.max_thrust * obj.M0 * obj.g0)` |
+| $t_f \ge 10$ s | `prob.set_time_final_bounds(0, 10.0, None)` |
+| $J=-R(t_f)/R_e$ | `cost` が `-R[-1] / obj.Re` を返す |
+
+単位系は、長さ $R_e$、速度 $\sqrt{\mu/R_e}$（約 7.9 km/s）、質量 $m_0$、
+時間 $R_e/\sqrt{\mu/R_e}$、推力 $m_0 R_e / t^2$ を基準にしています（`unit_R`, `unit_v`, `unit_m`,
+`unit_t`, `unit_T`）。ソルバーの内部では各変数がおおむね 1 程度の大きさになり、
+$R \approx 6.4\times10^6$ m と $v \approx 10^2$ m/s が混在しても条件が悪くなりません。
+
+この例題は旧形式の API（`Dynamics(prob, section)` に `dx[i]` を代入し、`Condition()` で制約を組む）で
+書かれています。`inequality` の中身はすべてコメントアウトされ、範囲の制約は上の
+`set_*_bounds` に移されています。`cost_derivative` も定義されていますが、使われていません。
+
+## 計算結果
+
+左は鉛直に上昇するロケット（▲、縦軸は高度 km）と、相対的な推力の大きさを表すオレンジの炎、
+右は速度・質量・推力の時間履歴です。黒い縦線は動画の現在時刻を表します。
+
+<ExampleMedia id="rocket_ascent_single_stage" />
+
+### 読み取りのポイント
+
+- 最初の約 20〜30 秒は最大推力（約 98 kN）で加速します。
+- その後、推力は 65〜85 kN 程度に下がります。濃い大気の中で速度を上げすぎると抗力の損失が大きいため、
+  07 と同じく推力を絞る特異弧です。グラフ上の振動は、不連続に近い推力の変化を
+  50ノードの多項式1本で近似しているためで、物理的な意味はありません。
+- 約 115 秒で質量が 2000 kg に達して推進剤が尽き、以降は推力0の慣性上昇です。
+  速度は最大約 770 m/s から重力でほぼ直線的に減り、約 189 秒で 0 になります。
+  このときの到達高度は約 65 km です。
+- 終端の最後のノードで推力が約 20 kN に跳ねて見えますが、質量はすでに下限なので数値的なものです。
+
+## 試してみる
+
+<RunCommand id="rocket_ascent_single_stage" />
+
+`main.py` の値を書き換えて、次の点を観察してみましょう。
+
+- `self.max_thrust = 2`（推力重量比）を `3` や `1.5` に変えると、最大推力区間と特異弧の長さはどう変わるでしょうか。
+- `self.Cd = 0.2` を `0` にすると抗力がなくなります。推力を絞る区間が消え、最大推力 → 推力ゼロの
+  bang-bang 制御に近づくか確かめてみましょう。
+- `self.Isp = 300.0` を変えると、同じ推進剤量での到達高度はどれだけ変わるでしょうか。
+- `n = [50]` を変えると、推力の振動の様子と最高高度 `max altitude` がどう変わるでしょうか。
+  区間を分けて振動を抑える方法は [08. Goddard問題・区間分割](../08-goddard-1knot/) を参照してください。
+
+## ソースコード
+
+<ExampleSource id="rocket_ascent_single_stage" />

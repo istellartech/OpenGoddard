@@ -1,0 +1,66 @@
+---
+// Cards for every lesson in examples/catalog.py, with the generated poster.
+import { examples, mediaManifest, mediaUrl } from '../lib/catalog';
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const cards = examples().map((example) => {
+  const manifest = mediaManifest(example.id);
+  const poster = manifest?.videos[0]?.poster;
+  return {
+    ...example,
+    href: `${base}/examples/${example.number}-${example.id.replaceAll('_', '-')}/`,
+    image: poster ? mediaUrl(example.id, poster) : undefined,
+  };
+});
+---
+
+<div class="gallery not-content">
+  {
+    cards.map((card) => (
+      <a class="gallery-card" href={card.href}>
+        {card.image ? <img src={card.image} alt="" loading="lazy" /> : <div class="gallery-blank" />}
+        <span class="gallery-number">{card.number}</span>
+        <span class="gallery-title">{card.title}</span>
+      </a>
+    ))
+  }
+</div>
+
+<style>
+  .gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+    gap: 1rem;
+    margin-top: 1.5rem;
+  }
+  .gallery-card {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    overflow: hidden;
+    text-decoration: none;
+    color: var(--sl-color-white);
+    background: var(--sl-color-black);
+    transition: border-color 0.15s;
+  }
+  .gallery-card:hover {
+    border-color: var(--sl-color-accent);
+  }
+  .gallery-card img,
+  .gallery-blank {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    background: #fff;
+  }
+  .gallery-number {
+    font-size: var(--sl-text-xs);
+    color: var(--sl-color-gray-3);
+    padding: 0.5rem 0.75rem 0;
+  }
+  .gallery-title {
+    font-weight: 600;
+    padding: 0 0.75rem 0.75rem;
+  }
+</style>

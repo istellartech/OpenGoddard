@@ -54,10 +54,10 @@ select = ["E4", "E7", "E9", "F", "I"]
 
 [tool.ruff.lint.per-file-ignores]
 # Examples expose state variables for users to adapt their equations.
-"examples/*.py" = ["F841"]
+"examples/**/*.py" = ["F841"]
 
 [tool.ty.src]
-include = ["src", "examples", "make_docs.py", "tests", "benchmarks"]
+include = ["src", "examples", "make_docs.py", "tests", "benchmarks", "website/scripts"]
 
 [[tool.ty.overrides]]
 include = ["src/**"]

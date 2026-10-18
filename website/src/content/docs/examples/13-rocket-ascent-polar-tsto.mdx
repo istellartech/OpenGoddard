@@ -1,0 +1,119 @@
+---
+title: 13. 極座標・2段軌道投入
+description: 2段ロケットを2つの phase で表し、段分離で質量だけが不連続に変わる接続条件を課して高度 500 km の円軌道へ投入する。
+sidebar:
+  order: 13
+---
+
+import ExampleMedia from '../../../components/ExampleMedia.astro';
+import ExampleSource from '../../../components/ExampleSource.astro';
+import RunCommand from '../../../components/RunCommand.astro';
+
+例題12の極座標モデルを2段ロケットに拡張し、高度 500 km の円軌道に投入します。
+1段目と2段目の燃焼をそれぞれ1つの phase で表し、段分離の瞬間に
+**位置と速度は連続、質量だけが不連続に減る**という接続条件を自分で書くのがこの例題の要点です。
+
+## この例題で学ぶこと
+
+- 機体の性質（$I_{sp}$、最大推力、抗力係数）が phase ごとに変わる問題の書き方
+- 自動の状態連続条件を外し（`knot_states_smooth = [False]`）、接続条件を等式制約で個別に与える方法
+- 段分離時刻（phase の境界時刻）も最適化変数として決まること
+
+## 問題設定
+
+状態 $(R, \theta, V_r, V_t, m)$、制御 $(T_r, T_t)$ と運動方程式は例題12と同じです。
+ただし、$i$ 段目（$i = 1, 2$）の燃焼中は、その段の値を使います。
+
+$$
+\dot{V}_r = \frac{T_r - D_r}{m} - g + \frac{V_t^2}{R}, \qquad
+\dot{V}_t = \frac{T_t - D_t}{m} - \frac{V_r V_t}{R}, \qquad
+\dot{m} = -\frac{\sqrt{T_r^2 + T_t^2}}{g_0 I_{sp,i}}
+$$
+
+抗力 $D = \tfrac12 \rho \lvert V\rvert^2 C_{d,i} A_i$ は速度の向きに働き、密度は指数大気
+$\rho = 1.225\,e^{-h/8500}$ です（$h$ は数値的な安全のため −100 m 未満にならないよう `np.maximum` で切り詰めています）。
+`Rocket` クラスの主な値は次のとおりです。
+
+| | 1段目 | 2段目 |
+| --- | --- | --- |
+| 初期質量 `M0` | 20000 kg | 1000 kg |
+| 乾燥質量 `Mdry` | 2000 kg | 200 kg |
+| $I_{sp}$ | 300 s | 350 s |
+| 最大推力 $1.5 M_{0,i} g_0$ | 約 294 kN | 約 14.7 kN |
+| $C_d$、$A$ | 0.2、3.14 m² | 0.2、3.14 m² |
+
+境界条件は、地表で静止した状態から出発し、高度 500 km の円軌道（速度約 7.62 km/s）に入ることです。
+
+$$
+R(0) = R_e,\ \theta(0) = 0,\ V_r(0) = V_t(0) = 0,\ m(0) = 20000; \qquad
+R(t_f) = R_e + 500\,\mathrm{km},\ V_r(t_f) = 0,\ V_t(t_f) = \sqrt{\tfrac{GM_e}{R(t_f)}}
+$$
+
+段分離時刻 $t_s$（phase 0 と phase 1 の境界）では、次の接続条件を課します。
+
+$$
+R(t_s^+) = R(t_s^-),\quad \theta(t_s^+) = \theta(t_s^-),\quad
+V_r(t_s^+) = V_r(t_s^-),\quad V_t(t_s^+) = V_t(t_s^-),\qquad m(t_s^+) = 1000\,\mathrm{kg}
+$$
+
+質量だけは連続条件の代わりに「2段目の初期質量に等しい」という条件を課すので、
+$m(t_s^-)$ から $1000\,\mathrm{kg}$ へ不連続に下がります。これが段分離で1段目を捨てることに対応します。
+
+その他の制約と目的関数は次のとおりです。
+
+$$
+R \ge R_e, \quad \sqrt{T_r^2 + T_t^2} \le T_{\max,i}, \quad \frac{\lvert \boldsymbol T - \boldsymbol D\rvert}{m} \le 8 g_0, \quad
+2000 \le m \le 20000\ (\text{1段目}), \quad 1 \le m \le 1000\ (\text{2段目}), \qquad
+J = -\frac{m(t_f)}{M_{0,1}}
+$$
+
+## 数式とコードの対応
+
+| 数式 | コード（`main.py`） |
+| --- | --- |
+| 段ごとの $I_{sp}$、$C_d$、$A$ | `dynamics` の `Isp = obj.Isp[section]`、`obj.Cd[section] * obj.A[section]` |
+| 2つの phase に同じ運動方程式 | `prob.dynamics = [dynamics, dynamics]` |
+| 自動の状態連続を外す | `prob.knot_states_smooth = [False]` |
+| 位置・速度の連続 | `equality` の `result.equal(R1[0], R0[-1], ...)`、`theta1[0]`、`Vr1[0]`、`Vt1[0]` も同様 |
+| $m(t_s^+) = 1000$ | `result.equal(m1[0], obj.M0[1], unit=unit_m)` |
+| 円軌道投入 | `result.equal(R1[-1], obj.Rtarget, ...)`、`Vr[-1]` を 0、`Vt[-1]` を `obj.Vtarget` |
+| 段ごとの推力上限 | `inequality` の `result.upper_bound(T0, obj.Tmax[0], ...)`、`result.upper_bound(T1, obj.Tmax[1], ...)` |
+| 質量の範囲 | `prob.set_states_bounds(4, 0, obj.Mdry[0], obj.M0[0])`、`prob.set_states_bounds(4, 1, 1.0, obj.M0[1])` |
+| 加速度上限 8 G | `result.upper_bound(a_mag0, obj.MaxG * obj.g0)` ほか |
+| $J = -m(t_f)/M_{0,1}$ | `cost` の `return -m1[-1] / prob.unit_states[1][4]` |
+
+`prob.states(4, 0)` は phase 0（1段目）の質量、`prob.states(4, 1)` は phase 1（2段目）の質量です。
+`R0[-1]` が phase 0 の最後のノード、`R1[0]` が phase 1 の最初のノードなので、`R1[0] = R0[-1]` が境界での連続条件になります。
+`knot_states_smooth` を `True`（既定値）のままにすると、ライブラリがすべての状態に連続条件を自動で加え、
+質量のジャンプと矛盾してしまいます。
+ノード数は `n = [20, 20]`、時刻の初期推定は `time_init = [0.0, 100, 200]` で、段分離時刻も終端時刻も最適化の中で動きます。
+制御の上下限 `set_controls_bounds` は推力成分の負の値も許しています。
+
+## 計算結果
+
+左は打ち上げ地点を原点とした飛行経路（ダウンレンジ・高さ、灰色の曲線は地球表面）、
+右は高度・速さ・質量・推力成分の時間履歴です。縦の点線が段分離（phase の境界）です。
+
+<ExampleMedia id="rocket_ascent_polar_tsto" />
+
+### 読み取りのポイント
+
+- 質量のグラフは点線の位置で階段状に落ちます。手元の実行では、1段目は約 187 s で乾燥質量の下限 2000 kg まで燃え尽き、そこで 1000 kg に切り替わりました。
+- 一方、高度・速さのグラフは点線をまたいでも連続です。等式制約で位置と速度をつないだ結果です。段分離時点で高度は約 100 km、周方向速度は約 5.4 km/s で、残りの増速を2段目が担います。
+- 推力のグラフも点線で大きく変わります。最大推力が約 294 kN から約 14.7 kN に下がるためで、制御は phase ごとに独立した変数なので不連続になってかまいません。
+- 2段目は推力が小さい代わりに $I_{sp}$ が高く、長い時間をかけて円軌道速度まで加速します。手元の実行では最終質量は約 460 kg、終端時刻は約 730 s でした。
+
+## 試してみる
+
+<RunCommand id="rocket_ascent_polar_tsto" />
+
+`main.py` の値を書き換えて再実行し、変化を比べてみましょう。
+
+- `Rocket.__init__` の `self.Isp = [300.0, 350.0]` で2段目を 450 s にすると、最終質量はどれだけ増えるでしょうか。
+- `self.Htarget = 500.0 * 1000` を 300 km にすると、段分離時刻や2段目の燃焼時間はどう変わるでしょうか。
+- `self.Mdry = [2000, 200]` の1段目を重くすると、分離直前の質量（質量グラフの段差の上端）がどう変わるかを確認しましょう。
+- `n = [20, 20]` を `[10, 30]` のように偏らせ、どちらの段の分解能が結果に効くかを調べてみましょう。
+
+## ソースコード
+
+<ExampleSource id="rocket_ascent_polar_tsto" />

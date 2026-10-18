@@ -75,6 +75,9 @@ target/
 .ruff_cache/
 .ty_cache/
 
+# Generated example figures and trajectory exports
+/examples/*/output/
+
 # celery beat schedule file
 celerybeat-schedule
 

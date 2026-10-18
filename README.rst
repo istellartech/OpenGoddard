@@ -5,6 +5,20 @@ OpenGoddard - Trajectory Optimization for Python
 OpenGoddard is a open source python library designed for solving general-purpose optimal control problems.
 OpenGoddard is based on the pseudospectral optimal control theory.
 
+Documentation
+=============
+**https://istellartech.github.io/OpenGoddard/** (Japanese) — tutorials that relate
+equations, code and results, videos of all 15 examples, and the API reference
+generated from the docstrings.
+
+Quick start::
+
+  git clone https://github.com/istellartech/OpenGoddard.git
+  cd OpenGoddard
+  uv sync --locked
+  uv run python examples/01_minimum_energy_transfer/main.py
+  uv run python examples/02_move_stop/main.py --preset speed_limit --plot
+
 What sort of problems does OpenGoddard solve?
 =============================================
 Generally speaking, it can adapt to open-loop nonlinear optimal control problems such as aerospace, robot, industry, energy, chemistry etc.
@@ -13,10 +27,25 @@ In the field of aerospace, for example, it is possible to generate the optimum t
 Examples
 ========
 
-1. Brachistochrone problem
-2. Goddard problem (optimal rocket ascent problem)
-3. Launch vehicle trajectory optimization
-4. Low thrust spacecraft trajectory transition problem
+The 15 lesson folders in ``examples/`` are numbered in learning order.
+Each contains its implementation in ``main.py`` and a ``README.rst``:
+
+* 01–02: simple transfers, moving and stopping
+* 03–05: brachistochrone problems, depth constraints, and spherical geometry
+* 06–09: simple rockets, Goddard ascent, and vertical soft landing
+* 10–14: single-stage and multistage launch vehicle trajectory optimization
+* 15: low-thrust spacecraft orbit transfer
+
+Parameter-driven learning examples are described in
+`examples/README.rst <examples/README.rst>`_. Start with the
+small analytic transfer, then explore moving and stopping, constrained
+brachistochrones, and vertical soft landing before the larger rocket examples.
+Each new lesson separates immutable parameters, problem construction, solving,
+plotting, and JSON export for future animation or GUI clients::
+
+  uv run python examples/02_move_stop/main.py --preset speed_limit --plot
+  uv run python examples/09_soft_landing/main.py --preset variable_mass --plot
+  uv run python examples/04_constrained_descent/main.py --output /tmp/descent.json
 
 .. image:: docs_sphinx/images/result.png
 
@@ -59,11 +88,11 @@ path remains ``OpenGoddard``. The build backend is ``uv_build``.
 Run examples from the repository root. Input data and figure output paths are
 resolved relative to each script::
 
-  uv run python examples/01_Brachistochrone_Problem.py
+  uv run python examples/03_brachistochrone/main.py
 
 For a small problem with an analytic solution and no plotting, run::
 
-  uv run python examples/12_Minimum_Energy_Transfer.py
+  uv run python examples/01_minimum_energy_transfer/main.py
 
 To update dependencies to newer stable releases and refresh the environment::
 
@@ -140,7 +169,7 @@ Imports from ``OpenGoddard.optimize`` continue to work; the four legacy classes
 are also available directly from ``OpenGoddard``. Numerical rules, validation and
 helper classes are separated into internal modules. The historical executable
 demonstrations formerly in ``optimize.py`` are preserved in
-``examples/legacy_demo.py``. Importing examples does not start optimization.
+``examples/legacy/main.py``. Importing examples does not start optimization.
 
 The corrected running-cost quadrature changes integral objective values:
 remove any manually included ``(tf - ti) / 2`` factors from existing integrands.
@@ -318,6 +347,17 @@ OpenGoddard - 連続時間の非線形最適制御問題のためのpythonライ
 OpenGoddardはオープンソースな連続時間の非線形最適制御問題を解くpythonライブラリです。
 数値解法としては擬スペクトル法を採用しています。
 
+ドキュメント
+==========
+**https://istellartech.github.io/OpenGoddard/** に、数式・コード・計算結果を対応づけた解説、
+15例題の動画、docstringから自動生成したAPIリファレンスをまとめています。
+
+最初の例題の実行::
+
+  uv sync --locked
+  uv run python examples/01_minimum_energy_transfer/main.py
+  uv run python examples/02_move_stop/main.py --preset speed_limit --plot
+
 どんな問題が解けるか？
 ===================
 一般的に、航空宇宙、ロボット、産業、エネルギー、化学などなどのオープンループな非線形最適制御問題に適応できます。
@@ -326,10 +366,20 @@ OpenGoddardはオープンソースな連続時間の非線形最適制御問題
 例
 ====
 
-1. 最速降下問題
-2. ゴダード問題（ロケットの最適上昇制御問題）
-3. ロケットの最適軌道生成
-4. 低推力軌道遷移問題
+``examples/`` の15例を学習順序で番号付けし、1例題1フォルダに統一しています。
+各フォルダの ``main.py`` が実装と実行入口、``README.rst`` が説明です。
+
+* 01〜02：簡単な移動、加速して停止する移動
+* 03〜05：最速降下、深さ制限、球面への拡張
+* 06〜09：単純なロケット、Goddard上昇、鉛直軟着陸
+* 10〜14：単段・多段ロケットの上昇と軌道投入
+* 15：低推力による軌道遷移
+
+パラメータを変えて比較する新しい教材は
+`examples/README.rst <examples/README.rst>`_ にまとめています。
+加速・停止の移動、深さ制限付き最速降下、月面への鉛直軟着陸を追加し、
+既存例と合わせた学習順序、数式、条件変更の例、GUI・アニメーション向けの
+JSON出力形式を説明しています。
 
 .. image:: docs_sphinx/images/result.png
 
