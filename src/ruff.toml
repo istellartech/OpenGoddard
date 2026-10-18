@@ -1,0 +1,5 @@
+# Share the strict source checks between CI, CLI, and language servers.
+extend = "../pyproject.toml"
+
+[lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "NPY"]

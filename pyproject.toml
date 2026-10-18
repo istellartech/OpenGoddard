@@ -58,3 +58,9 @@ select = ["E4", "E7", "E9", "F", "I"]
 
 [tool.ty.src]
 include = ["src", "examples", "make_docs.py", "tests", "benchmarks"]
+
+[[tool.ty.overrides]]
+include = ["src/**"]
+
+[tool.ty.overrides.rules]
+all = "error"
