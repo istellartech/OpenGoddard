@@ -3,6 +3,7 @@ __pycache__/
 .ruff_cache/
 dist/
 .env
+.claude
 
 # Generated example figures and trajectory exports
 /examples/output/
