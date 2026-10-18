@@ -20,7 +20,7 @@ class MeshTests(unittest.TestCase):
         p.set_controls(0, 0, p.time[0])
         p.set_controls_bounds(0, 0, 0, 10)
         p.knot_states_smooth = [False]
-        setattr(p, "metadata", {"vehicle": "test"})
+        vars(p)["metadata"] = {"vehicle": "test"}
         fine = p.refine([8, 9])
         for section in range(2):
             np.testing.assert_allclose(
@@ -32,7 +32,7 @@ class MeshTests(unittest.TestCase):
         self.assertAlmostEqual(fine.states(0, 1)[0] - fine.states(0, 0)[-1], 10)
         self.assertEqual(fine.bounds[fine.index_controls(0, 0)], (0, 10))
         self.assertEqual(fine.knot_states_smooth, [False])
-        self.assertEqual(getattr(fine, "metadata"), getattr(p, "metadata"))
+        self.assertEqual(vars(fine)["metadata"], vars(p)["metadata"])
         self.assertEqual(p.nodes, [4, 5])
         with self.assertRaises(ValueError):
             p.refine([4])

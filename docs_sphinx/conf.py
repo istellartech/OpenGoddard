@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 #
 # OpenGoddard documentation build configuration file, created by
 # sphinx-quickstart on Sun Mar  5 11:48:11 2017.

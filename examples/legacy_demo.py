@@ -21,7 +21,7 @@ if __name__ == "__main__":
 
     prob = Problem(time_init, n, num_states, num_controls, max_iteration)
 
-    print("t0 = %.1f\nnodes = " % (prob.t0))
+    print(f"t0 = {prob.t0:.1f}\nnodes = ")
     print(n)
     print("number of states = ")
     print(num_states)
@@ -43,7 +43,7 @@ if __name__ == "__main__":
 
     prob = Problem(time_init, n, num_states, num_controls, max_iteration)
 
-    print("t0 = %.1f\nnodes = " % (prob.t0))
+    print(f"t0 = {prob.t0:.1f}\nnodes = ")
     print(n)
     print("number of states = ")
     print(num_states)
@@ -198,7 +198,7 @@ if __name__ == "__main__":
 
     def display_func():
         h = prob.states_all_section(0)
-        print("max altitude: {0:.5f}".format(h[-1]))
+        print(f"max altitude: {h[-1]:.5f}")
 
     prob.solve(obj, display_func)
 
@@ -491,7 +491,7 @@ if __name__ == "__main__":
 
     def display_func():
         tf = prob.time_final(-1)
-        print("tf: {0:.5f}".format(tf))
+        print(f"tf: {tf:.5f}")
 
     prob.solve(obj, display_func)
 

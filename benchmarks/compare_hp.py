@@ -129,7 +129,7 @@ def validate_ivp(p, obj):
             control_poly = BarycentricInterpolator(times, control, axis=1, rng=0)
             state_poly = BarycentricInterpolator(times, state, axis=1, rng=0)
 
-            def rhs(t, x):
+            def rhs(t, x, *, control_poly=control_poly, nc=nc, section=section):
                 u = control_poly(t).reshape(nc, 1)
                 return p.dynamics[section].physical(
                     x[:, None], u, np.array([t]), obj, section
@@ -265,7 +265,8 @@ def save(path, records, args):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, indent=2))
     lines = [
-        "Example | Mode | NLP | Common mesh | Seconds median | Objective | Nodes | ODE defect | Path violation | IVP state error",
+        "Example | Mode | NLP | Common mesh | Seconds median | Objective | "
+        "Nodes | ODE defect | Path violation | IVP state error",
         "--- | --- | --- | --- | --- | --- | --- | --- | --- | ---",
     ]
     for example in args.examples:
@@ -278,7 +279,8 @@ def save(path, records, args):
             timed = [r for r in group if "seconds" in r]
             if not timed:
                 lines.append(
-                    f"{example} | {mode} | 0/{len(group)} | — | timeout/error | — | — | — | — | —"
+                    f"{example} | {mode} | 0/{len(group)} | — | "
+                    "timeout/error | — | — | — | — | —"
                 )
                 continue
             r = timed[-1]
@@ -289,7 +291,13 @@ def save(path, records, args):
                 else f"{r['ivp']['max_relative_state_error']:.3g}"
             )
             lines.append(
-                f"{example} | {mode} | {sum(r['success'] for r in group)}/{len(group)} | {sum(r.get('common_converged', False) for r in group)}/{len(group)} | {seconds:.4f} | {r['objective']:.12g} | {r['nodes']} | {r['quality']['max_error']:.3g} | {max(r['dense_path_violation'], r['quality']['path_violation']):.3g} | {ivp}"
+                f"{example} | {mode} | "
+                f"{sum(r['success'] for r in group)}/{len(group)} | "
+                f"{sum(r.get('common_converged', False) for r in group)}"
+                f"/{len(group)} | {seconds:.4f} | {r['objective']:.12g} | "
+                f"{r['nodes']} | {r['quality']['max_error']:.3g} | "
+                f"{max(r['dense_path_violation'], r['quality']['path_violation']):.3g}"
+                f" | {ivp}"
             )
     path.with_suffix(".txt").write_text("\n".join(lines) + "\n")
 

@@ -109,7 +109,7 @@ class DerivativeTests(unittest.TestCase):
                 )
                 weights = np.linspace(-0.3, 0.5, jacobian().shape[0])
 
-                def gradient():
+                def gradient(jacobian=jacobian, weights=weights):
                     return jacobian().T @ weights
 
             operator = derivatives.hessian(kind, weights)
@@ -157,9 +157,11 @@ class DerivativeTests(unittest.TestCase):
                 raise ImportError("not installed")
             return original_import(name, *args, **kwargs)
 
-        with patch("builtins.__import__", side_effect=unavailable):
-            with self.assertRaisesRegex(ImportError, r"OpenGoddard\[autodiff\]"):
-                Derivatives(self.problem(), None, "autograd")
+        with (
+            patch("builtins.__import__", side_effect=unavailable),
+            self.assertRaisesRegex(ImportError, r"OpenGoddard\[autodiff\]"),
+        ):
+            Derivatives(self.problem(), None, "autograd")
 
     def test_sparse_trust_constr_and_structured_slsqp(self):
         example = (

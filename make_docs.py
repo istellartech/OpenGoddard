@@ -10,7 +10,9 @@ if __name__ == "__main__":
         check=True,
         env={
             **os.environ,
-            "SPHINX_APIDOC_OPTIONS": "members,undoc-members,show-inheritance,imported-members",
+            "SPHINX_APIDOC_OPTIONS": (
+                "members,undoc-members,show-inheritance,imported-members"
+            ),
         },
     )
     subprocess.run(["make", "html"], cwd=root / "docs_sphinx", check=True)

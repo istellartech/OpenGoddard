@@ -17,7 +17,7 @@ import statistics
 import subprocess
 import sys
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from importlib.metadata import version
 from pathlib import Path
 from time import perf_counter
@@ -48,11 +48,9 @@ def load_example(prefix):
         patch.object(plt, "savefig"),
         patch.object(Path, "mkdir"),
         contextlib.redirect_stdout(io.StringIO()),
+        contextlib.suppress(Ready),
     ):
-        try:
-            runpy.run_path(str(path), run_name="__main__")
-        except Ready:
-            pass
+        runpy.run_path(str(path), run_name="__main__")
     plt.close("all")
     return captured[0]
 
@@ -188,7 +186,9 @@ def main():
                     record["repetition"] = repetition
                     records.append(record)
                     print(
-                        f"{example} {mode} rep={repetition + 1} success={record['success']} seconds={record.get('seconds', 'timeout/error')}",
+                        f"{example} {mode} rep={repetition + 1} "
+                        f"success={record['success']} "
+                        f"seconds={record.get('seconds', 'timeout/error')}",
                         flush=True,
                     )
                     save(args.output, records, args)
@@ -204,7 +204,7 @@ def save(output, records, args):
         "python": sys.version,
         "platform": platform.platform(),
         "processor": platform.processor(),
-        "created_utc": datetime.now(timezone.utc).isoformat(),
+        "created_utc": datetime.now(UTC).isoformat(),
         "blas_threads": 1,
         "repeats": args.repeats,
         "timeout_seconds": args.timeout,
@@ -214,7 +214,9 @@ def save(output, records, args):
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(metadata, indent=2))
     rows = [
-        "Example | Mode | Success | Nodes | Median seconds | Objective | Collocation residual | Between-node defect | Sampled path violation | Mesh converged",
+        "Example | Mode | Success | Nodes | Median seconds | Objective | "
+        "Collocation residual | Between-node defect | Sampled path violation | "
+        "Mesh converged",
         "--- | --- | --- | --- | --- | --- | --- | --- | --- | ---",
     ]
     for example in args.examples:
@@ -227,7 +229,8 @@ def save(output, records, args):
             valid = [r for r in cases if "seconds" in r]
             if not valid:
                 rows.append(
-                    f"{example} | {mode} | 0/{len(cases)} | — | timeout/error | — | — | — | — | —"
+                    f"{example} | {mode} | 0/{len(cases)} | — | "
+                    "timeout/error | — | — | — | — | —"
                 )
                 continue
             item = valid[-1]
@@ -236,7 +239,11 @@ def save(output, records, args):
             defect = "—" if mesh is None else f"{mesh['max_error']:.3g}"
             path = "—" if mesh is None else f"{mesh['path_violation']:.3g}"
             rows.append(
-                f"{example} | {mode} | {sum(r['success'] for r in cases)}/{len(cases)} | {item['nodes']} | {seconds:.4f} | {item['objective']:.10g} | {item['equality_violation']:.3g} | {defect} | {path} | {item['mesh_converged']}"
+                f"{example} | {mode} | "
+                f"{sum(r['success'] for r in cases)}/{len(cases)} | "
+                f"{item['nodes']} | {seconds:.4f} | {item['objective']:.10g} | "
+                f"{item['equality_violation']:.3g} | {defect} | {path} | "
+                f"{item['mesh_converged']}"
             )
     output.with_suffix(".txt").write_text("\n".join(rows) + "\n")
 
