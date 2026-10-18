@@ -1,39 +1,21 @@
 ---
 title: OpenGoddard
-description: 擬スペクトル法で連続時間の非線形最適制御問題を解くPythonライブラリ。例題・動画・APIリファレンス。
+description: 擬スペクトル法による非線形最適制御のPythonライブラリ。
 template: splash
 hero:
-  tagline: 擬スペクトル法で、ロケットの上昇軌道から最速降下まで、連続時間の非線形最適制御問題を解くPythonライブラリ。数式・コード・計算結果を対応づけて学べます。
+  tagline: 擬スペクトル法による非線形最適制御のPythonライブラリ
   actions:
     - text: はじめに
       link: /OpenGoddard/getting-started/
       icon: right-arrow
-    - text: 例題を見る
+    - text: 例題
       link: /OpenGoddard/examples/01-minimum-energy-transfer/
       variant: secondary
-    - text: APIリファレンス
+    - text: API
       link: /OpenGoddard/api/OpenGoddard/
       variant: minimal
 ---
 
-import { Card, CardGrid } from '@astrojs/starlight/components';
 import ExampleGallery from '../../components/ExampleGallery.astro';
-
-<CardGrid>
-  <Card title="15の例題を動画で" icon="seti:video">
-    簡単な移動から最速降下、ロケットの軌道投入、低推力の軌道遷移まで。解の動きとグラフを同じ時刻で再生します。
-  </Card>
-  <Card title="数式とコードの対応" icon="document">
-    運動方程式・境界条件・目的関数が `main.py` のどこに書かれているかを表で示します。解析解がある例題は数値解と重ねて表示します。
-  </Card>
-  <Card title="擬スペクトル法" icon="star">
-    LGLノードでの多項式近似と微分行列で、最適制御問題を非線形計画問題に変換します。
-  </Card>
-  <Card title="APIリファレンス" icon="open-book">
-    ソースコードのdocstringから自動生成しています。
-  </Card>
-</CardGrid>
-
-## 例題
 
 <ExampleGallery />

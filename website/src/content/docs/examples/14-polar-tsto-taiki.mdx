@@ -1,6 +1,6 @@
 ---
 title: 14. 大樹からの2段軌道投入
-description: 大樹町からの2段ロケットを、CSVの標準大気・Cd表と高度による推力・Isp補正を入れて高度 561 km の円軌道へ投入する。
+description: 標準大気・Cd 表と高度依存の推力・Isp を入れ、大樹町から2段ロケットを高度 561 km の円軌道へ投入する。
 sidebar:
   order: 14
 ---
@@ -9,24 +9,19 @@ import ExampleMedia from '../../../components/ExampleMedia.astro';
 import ExampleSource from '../../../components/ExampleSource.astro';
 import RunCommand from '../../../components/RunCommand.astro';
 
-[13](../13-rocket-ascent-polar-tsto/) の2段ロケットを実機に近づけた例題です。北海道大樹町（北緯約 42.5°）から
-軌道傾斜角 96.7° で打ち上げ、高度 561 km の円軌道に投入します。大気と抗力係数は CSV の表から補間し、
-外気圧に応じて推力と比推力を補正します。
+[13](../13-rocket-ascent-polar-tsto/) の2段ロケットに実データの大気・抗力係数と外気圧による推力・比推力補正を加える。北海道大樹町から軌道傾斜角 96.7° で打ち上げ、高度 561 km の円軌道へ投入する。
 
 ## 問題
 
-状態 $(R, \theta, V_r, V_t, m)$、制御 $(T_r, T_t)$、運動方程式の形は12・13と同じです。違いは抗力と比推力の中身です。
+状態・制御・運動方程式の形は13と同じで、抗力と比推力の中身が異なる。
 
-**データ。** `data/US_standard_atmosphere.csv`（0〜86 km）から圧力 $P(h)$、密度 $\rho(h)$、音速 $a(h)$ を線形補間します。
-86 km より上では $P = \rho = 0$ で抗力は消えます。`data/Cd.csv` からマッハ数 $M$ に対する $C_d(M)$ を補間します（範囲外は外挿）。
+`data/US_standard_atmosphere.csv`（0〜86 km）から $P(h)$、$\rho(h)$、音速 $a(h)$ を線形補間する。86 km より上では抗力は 0 になる。`data/Cd.csv` から $C_d(M)$ を補間する（範囲外は外挿）。
 
 $$
 M = \frac{\lvert V\rvert}{a(h)},\qquad D_{r,t} = \tfrac12 \rho(h)\, V_{r,t} \lvert V\rvert\, C_d(M)\, A
 $$
 
-**推力と比推力。** 外気圧の変化がノズル出口面積 $A_{e,i}$ に働く分を推力増分 $\Delta T_i$ とし、
-基準の質量流量 $\dot{m}_{\mathrm{ref},i} = T_{\max,i}/(I_{sp,i} g_0)$ で比推力に換算します。
-1段目の基準は海面値（261 s、33.3 tf）、2段目は真空値（322 s、4.2 tf）です。
+ノズル出口面積 $A_{e,i}$ に働く外気圧の差を推力増分 $\Delta T_i$ とし、基準質量流量 $\dot{m}_{\mathrm{ref},i} = T_{\max,i}/(I_{sp,i} g_0)$ で比推力に換算する。1段目の基準は海面値、2段目は真空値である。
 
 $$
 \Delta T_1 = \bigl(P(H_0) - P(h)\bigr) A_{e,1},\quad \Delta T_2 = P(h) A_{e,2},\qquad
@@ -34,12 +29,11 @@ I_{sp,i}(h) = I_{sp,i} + \frac{\Delta T_i}{\dot{m}_{\mathrm{ref},i}\, g_0},\qqua
 \dot{m} = -\frac{\sqrt{T_r^2+T_t^2}}{g_0 I_{sp,i}(h)}
 $$
 
-**境界条件と制約。** 地表は自転で動いており、その傾斜角方向の成分 $V_0 = V_{\mathrm{taiki}} \cos(-96.7^\circ) \approx -40$ m/s を初期の周方向速度にします。
-各段の初期質量は乾燥質量（1300 kg、220 kg）と構造効率（10%、15%）から決め、2段目にペイロード 100 kg を加えます。
+初期周方向速度 $V_0 = V_{\mathrm{taiki}} \cos(-96.7^\circ)$ は地球自転の軌道面内成分である。各段の初期質量は乾燥質量（1300 kg、220 kg）と構造効率から決め、2段目にペイロード 100 kg を加える。
 
 $$
 \begin{aligned}
-&R(0)=R_e+10\,\mathrm{m},\ \theta(0)=V_r(0)=0,\ V_t(0)=V_0,\ m(0)=M_{\mathrm{init}};\qquad
+&R(0)=R_e+10\,\mathrm{m},\ \theta(0)=V_r(0)=0,\ V_t(0)=V_0,\ m(0)=M_{0,1}+M_{0,2};\qquad
 R(t_f)=R_e+561\,\mathrm{km},\ V_r(t_f)=0,\ V_t(t_f)=\sqrt{GM_e/R(t_f)} \\
 &(R,\theta,V_r,V_t)(t_s^+) = (R,\theta,V_r,V_t)(t_s^-),\qquad m(t_s^+) = M_{0,2} \\
 &\sqrt{T_r^2+T_t^2} \le T_{\max,i} + \Delta T_i,\quad q \le 500\,\mathrm{kPa},\quad \lvert \boldsymbol{T}-\boldsymbol{D}\rvert/m \le 20 g_0,\quad
@@ -53,38 +47,28 @@ $$
 | --- | --- |
 | 標準大気の補間 | `airDensity = interpolate.interp1d(stdAltitude, stdDensity, ...)`（`airPressure`、`airSound` も同様） |
 | $C_d(M)$ | `Cd = interpolate.interp1d(CdLog[:, 0], CdLog[:, 1], fill_value="extrapolate")` |
-| $M$ と抗力 | `Mach = np.sqrt(Vr**2 + Vt**2) / obj.airSound(R - obj.Re)`、`Cd = obj.Cd(Mach)` |
 | $\Delta T_i$ | `dThrust = [(obj.airPressure(obj.H0) - obj.airPressure(R - obj.Re)) * obj.Ae[0], obj.airPressure(R - obj.Re) * obj.Ae[1]]` |
 | $I_{sp,i}(h)$ | `Isp = obj.Isp[section] + dThrust[section] / (obj.refMdot[section] * g0)` |
 | 推力上限 | `result.upper_bound(T0, obj.ThrustMax[0] + dThrust0, ...)`（`T1` も同様） |
-| 自転による $V_0$ | `self.V0 = self.Vt_taiki * np.cos(-self.inclination * np.pi / 180.0)` |
-| 段分離 | `result.equal(m1[0], obj.M0[1], ...)`、`result.equal(R1[0], R0[-1], ...)` ほか |
+| $V_0$ | `self.V0 = self.Vt_taiki * np.cos(-self.inclination * np.pi / 180.0)` |
 
-CSV はクラス定義の中で `Path(__file__)` 基準に一度だけ読み込みます。状態と制御の範囲はすべて `inequality` で与えています。
-求解は13と同じく `ftol=1e-6, maxiter=3000` の1回の長い SLSQP 実行です（再起動でヘッセ行列の推定を捨てないため）。
+CSV はクラス定義内で一度だけ読み込む。求解は13と同じく `ftol=1e-6, maxiter=3000` の1回の SLSQP 実行で、数分かかる。
 
 ## 結果
 
-1段目の推力が基準の最大推力を超える区間と、分離での質量の段差に注目してください。
+飛行の流れは13と同じで、1段目の推力が高度とともに基準値を超える。
 
 <ExampleMedia id="polar_tsto_taiki" />
 
-- 周方向速度は 0 ではなく約 −40 m/s から始まります。傾斜角が 90° を超えるので、自転はわずかに逆向きに働きます。
-- 1段目の推力は基準の約 327 kN を超える時間帯があります。外気圧が下がって上限 $T_{\max,1} + \Delta T_1$ が増えるためです。
-- 1段目は質量の下限まで燃え尽き、分離で乾燥質量 1300 kg だけ質量が落ちます。
-- 2段目で遠地点 561 km の楕円軌道に乗り、長い慣性飛行の後に小さな水平噴射で円軌道に入ります。
-- 最終質量は約 343 kg です。表示される `payload` は最終質量から2段目の乾燥質量 220 kg を引いた値です。
-- 慣性飛行中は推進剤を使わないので、最終質量は慣性飛行の長さにほとんど依存しません。そのため慣性飛行の長さと $t_f$ は計算環境によって変わります。
+- 傾斜角が 90° を超えるため、$V_t(0)$ は約 −40 m/s と負になる。外気圧の低下で上限 $T_{\max,1} + \Delta T_1$ が増え、1段目の推力は基準の最大推力を超える。
+- 最終質量は約 343 kg である。表示される `payload` は最終質量から2段目乾燥質量 220 kg を引いた値である。
+- 最終質量は慣性飛行の長さにほとんど依存しないため、慣性飛行の長さと $t_f$ は計算環境によって変わる。
 
 ## 試す
 
 <RunCommand id="polar_tsto_taiki" />
 
-求解には数分かかります。
-
-- `self.inclination = 96.7` を 90 や 45 にすると、$V_0$ の符号と大きさ、最終質量はどう変わるか。
-- `self.Htarget` を 400 km にすると、`payload` はどれだけ増えるか。
-- 保存される `TSTO_dforce.png` と `TSTO_Isp.png` で、高度による推力増分と比推力の変化を確かめる。
+- `self.inclination` を 90 や 45 に変え、$V_0$ と最終質量の変化を確認する。
 
 ## ソースコード
 

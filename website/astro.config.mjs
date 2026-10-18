@@ -36,7 +36,7 @@ export default defineConfig({
         }),
       ],
       sidebar: [
-        { label: 'はじめに', items: ['index', 'getting-started', 'concepts/pseudospectral'] },
+        { label: 'ガイド', items: ['getting-started', 'concepts/pseudospectral'] },
         { label: '例題', items: [{ autogenerate: { directory: 'examples' } }] },
         { label: 'APIリファレンス', items: [pydocsSidebarGroup] },
       ],

@@ -47,7 +47,8 @@ plotting, and JSON export for future animation or GUI clients::
   uv run python examples/09_soft_landing/main.py --preset variable_mass --plot
   uv run python examples/04_constrained_descent/main.py --output /tmp/descent.json
 
-.. image:: docs_sphinx/images/result.png
+.. image:: https://istellartech.github.io/OpenGoddard/media/rocket_ascent_polar_tsto/solution.png
+   :alt: Two-stage orbit insertion (example 13)
 
 Features
 ========
@@ -381,7 +382,8 @@ OpenGoddardはオープンソースな連続時間の非線形最適制御問題
 既存例と合わせた学習順序、数式、条件変更の例、GUI・アニメーション向けの
 JSON出力形式を説明しています。
 
-.. image:: docs_sphinx/images/result.png
+.. image:: https://istellartech.github.io/OpenGoddard/media/rocket_ascent_polar_tsto/solution.png
+   :alt: Two-stage orbit insertion (example 13)
 
 
 特徴

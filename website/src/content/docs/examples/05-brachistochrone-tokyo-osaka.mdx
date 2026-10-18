@@ -1,6 +1,6 @@
 ---
 title: 05. 東京・大阪の最速降下
-description: 東京と大阪を結ぶ600 kmのトンネルを重力だけで最速で走り抜ける経路を、最速降下問題として求める。
+description: 東京と大阪を結ぶ600 kmのトンネルを重力だけで最短時間で走る経路を求める。
 sidebar:
   order: 5
 ---
@@ -9,13 +9,11 @@ import ExampleMedia from '../../../components/ExampleMedia.astro';
 import ExampleSource from '../../../components/ExampleSource.astro';
 import RunCommand from '../../../components/RunCommand.astro';
 
-東京から大阪まで 600 km のトンネルを掘り、摩擦のない車両を重力だけで走らせます。03の最速降下を実寸に拡大し、
-終点を出発点と同じ高さに固定した問題です。位置が $10^5$ m 単位になるため、単位スケーリングが欠かせません。
+03の最速降下を実寸に拡大し、終点を出発点と同じ高さに固定する。位置が $10^5$ m 規模になるため、単位スケーリングを用いる。
 
 ## 問題
 
-状態と制御は03と同じです（$y$ は下向き正、$\theta$ は鉛直下向きから測る）。`Ball` の値は $g = 9.8$ m/s²、
-$l = 600\,000$ m です。重力は一様で、地球の曲率や摩擦は考えません。
+$g = 9.8$ m/s²、$l = 600\,000$ m とする。重力は一様とし、地球の曲率と摩擦は無視する。
 
 $$
 \dot{x} = v\sin\theta,\quad \dot{y} = v\cos\theta,\quad \dot{v} = g\cos\theta,\qquad
@@ -26,41 +24,33 @@ $$
 0 \le x \le l,\quad y \ge 0,\quad 0 \le \theta \le \pi,\qquad J = t_f
 $$
 
-同じ高さに戻るので、エネルギー保存から $v(t_f) = 0$ です。解析解はサイクロイドの1周分（$\phi = 2\pi$）で、
-$a = l/(2\pi) \approx 95.5$ km、最大深さ $2a \approx 191$ km、到達時刻 $t_f = 2\pi\sqrt{a/g} \approx 620$ s です。
+解析解はサイクロイドの1周分で、$a = l/(2\pi) \approx 95.5$ km、最大深さ $2a \approx 191$ km、$t_f = 2\pi\sqrt{a/g} \approx 620$ s である。
 
 ## コードとの対応
 
 | 数式 | `main.py` |
 | --- | --- |
 | 運動方程式 | `dynamics` の `dx[0] = v * np.sin(theta)`、`dx[1] = v * np.cos(theta)`、`dx[2] = g * np.cos(theta)` |
-| 境界条件 | `equality` の `result.equal(...)` 5本（終点は `x[-1]` と `y[-1]`） |
-| 不等式制約 | `inequality` の `lower_bound` / `upper_bound`（$x$、$y$、$\theta$） |
+| 境界条件・不等式制約 | `equality` の `result.equal(...)` 5本、`inequality` の `lower_bound` / `upper_bound` |
 | $J = t_f$ | `cost` が `prob.time_final(-1)` を返し、`cost_derivative` が勾配を与える |
 | スケーリング | `unit_x = 300000`、`unit_y = 100000`、`unit_t = 100`、`unit_v = unit_x / unit_t` |
-| 初期推定 | `n = [30]`、$\theta$ は 0→$\pi$ の直線、$y$ は中央で `obj.h`（300 km）に達する山形 |
-| 求解 | `prob.solve(obj, display_func, maxiter=2000)` |
-
-スケーリングにより、ソルバーは 600 km と数 km/s をどちらも1程度の無次元量として扱えます。
-`maxiter=2000` は、SLSQP を途中で再起動せず1回の長い実行で収束させるための設定です。
+| 初期推定・求解 | `n = [30]`、$\theta$ は 0→$\pi$ の直線、`prob.solve(obj, display_func, maxiter=2000)` |
 
 ## 結果
 
-東京〜大阪のトンネル（km 単位）の軌道と、速さ・$\theta$ の時間履歴をサイクロイド（解析解）と比べています。
+軌道・速さ・$\theta$ をサイクロイドと比較する。到達時刻は約 620 s で解析解と一致する。
 
 <ExampleMedia id="brachistochrone_tokyo_osaka" />
 
-- 軌道はサイクロイドに重なる左右対称の形で、中央付近で最も深く約 190 km に達します。
-- 速さは最深部で最大約 1.9 km/s（$\sqrt{2gy}$）になり、大阪でほぼ 0 に戻ります。
-- $\theta$ は 0°（真下）から 90°（水平）を経て 180°（真上）まで、時間にほぼ比例して増えます。
-- 到達時刻は約 620 s（約10分）で、解析解と一致します。
+- 軌道は左右対称で、中央で最大深さ約 190 km、最大速さ約 1.9 km/s に達する。
+- $\theta$ は 0° から 180° まで時間にほぼ比例して増加する。
 
 ## 試す
 
 <RunCommand id="brachistochrone_tokyo_osaka" />
 
-- `Ball` の `l` を `400000` にすると、深さは $l$ に、時間は $\sqrt{l}$ に比例して約 506 s になるか。
-- `unit_x`・`unit_y`・`unit_t` をすべて 1 にすると、収束はどう変わるか。
+- `Ball` の `l` を `400000` にし、到達時刻が約 506 s となることを確認する。
+- `unit_x`・`unit_y`・`unit_t` をすべて 1 にし、収束への影響を確認する。
 
 ## ソースコード
 

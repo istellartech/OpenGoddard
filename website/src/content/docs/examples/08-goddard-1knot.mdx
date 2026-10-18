@@ -1,6 +1,6 @@
 ---
 title: 08. Goddard問題・区間分割
-description: Goddard問題を推力の切り替え時刻で2つの phase に分け、knot での状態の連続条件と制御の不連続を扱う。
+description: Goddard問題を推力の切り替え時刻で2つの phase に分け、knot で状態を連続させ推力の不連続を許す。
 sidebar:
   order: 8
 ---
@@ -9,55 +9,47 @@ import ExampleMedia from '../../../components/ExampleMedia.astro';
 import ExampleSource from '../../../components/ExampleSource.astro';
 import RunCommand from '../../../components/RunCommand.astro';
 
-[07](../07-goddard-0knot/) と同じ問題を、推力がゼロになる時刻で2つの phase に分けて解きます。
-phase の境界を knot と呼びます。物理モデルと目的関数は 07 と同じで、変わるのは時間軸の分け方と境界のつなぎ方だけです。
+[07](../07-goddard-0knot/) と同じ問題を、推力がゼロになる時刻で2つの phase に分けて解く。phase の境界を knot と呼ぶ。
 
 ## 問題
 
-運動方程式・境界条件・経路制約・目的関数 $J=-h(t_f)$ は 07 と同じです。
-時間区間を knot 時刻 $t_1$ で phase 0 $[0, t_1]$ と phase 1 $[t_1, t_f]$ に分けます。
-
-擬スペクトル法は各 phase を1本の多項式で近似するので、推力の不連続を phase の内部に含むと 07 のように振動します。
-切り替え時刻を境界に置けば、各 phase の中で推力は滑らかになります。knot では状態だけを連続させ、推力は自由にジャンプさせます。
+運動方程式・境界条件・経路制約・目的関数は 07 と同じ。時間区間を knot 時刻 $t_1$ で $[0, t_1]$ と $[t_1, t_f]$ に分け、knot では状態のみを連続とする。
 
 $$
 h(t_1^-) = h(t_1^+),\quad v(t_1^-) = v(t_1^+),\quad m(t_1^-) = m(t_1^+),\qquad t_1 = 0.075
 $$
 
-$t_1$ は 07 の解で推進剤が尽きる時刻付近に固定しています。
+各 phase は1本の多項式で近似されるため、推力の不連続を knot に置けば phase 内部の振動が消える。$t_1$ は 07 の解で推進剤が尽きる時刻付近に固定する。
 
 ## コードとの対応
 
 | 数式 | `main.py` |
 | --- | --- |
 | 2つの phase | `time_init = [0.0, 0.1, 0.3]`、`n = [25, 25]` |
-| 両 phase で同じ運動方程式 | `prob.dynamics = [dynamics, dynamics]` |
-| knot での $h, v, m$ の連続 | `prob.knot_states_smooth = [True]` |
-| $t_1 = 0.075$ | `result.equal(ts0, 0.075)`（`ts0 = prob.time_final(0)`） |
-| phase ごとの初期推定 | `Guess.linear(prob.time[0], 3.5, 3.5)` と `Guess.linear(prob.time[1], 0.0, 0.0)` を `np.hstack` |
-| $J=-h(t_f)$ の勾配 | `cost_derivative` が終端高度の添字に `-prob.unit_states[-1][0]` を置く |
+| 両 phase の運動方程式 | `prob.dynamics = [dynamics, dynamics]` |
+| knot での状態の連続 | `prob.knot_states_smooth = [True]` |
+| $t_1 = 0.075$ | `result.equal(ts0, 0.075)` |
+| phase ごとの推力の初期推定 | `Guess.linear(prob.time[0], 3.5, 3.5)` と `Guess.linear(prob.time[1], 0.0, 0.0)` を `np.hstack` |
+| $J$ の勾配 | `cost_derivative` が `-prob.unit_states[-1][0]` を設定 |
 
-`knot_states_smooth = [True]` の knot では、前の phase の最後のノードと次の phase の最初のノードが
-全状態で等しいという等式制約が自動で加わります。制御には付かないので、推力は不連続になれます。
+`knot_states_smooth = [True]` は、前の phase の最終ノードと次の phase の初期ノードで全状態が等しいという等式制約を加える。制御には課さないため、推力は knot で不連続になれる。
 
 ## 結果
 
-推力 $T$ のグラフで、07 の切り替え前後の波打ちがどう変わったかを見てください。
+軌道と推力・速度・質量の時間履歴を示す。
 
 <ExampleMedia id="goddard_1knot" />
 
-- phase 0 で推力は $T_{\max}$ から中間推力（約 2.1〜2.3）に下がり、knot の直前でまた上がります。
-- knot で推力は 0 にジャンプし、phase 1 では 0 のまま平らです。07 の切り替え前後の振動は消えます。
-- 速度は knot で最大（約 0.131）になって折れ曲がりますが、連続です。不連続なのは加速度（推力）だけです。
-- 最高高度は $h(t_f) \approx 1.0128$ で 07 とほぼ同じです。合計ノード数も同じ 50 です。
+- 推力は knot で 0 に跳び、phase 1 では振動なく 0 のままである。
+- 速度は knot で最大（約 0.131）となり、折れ曲がるが連続である。
+- 最高高度は $h(t_f) \approx 1.0128$ で、合計ノード数 50 の 07 と同等である。
 
 ## 試す
 
 <RunCommand id="goddard_1knot" />
 
-- `result.equal(ts0, 0.075)` を `0.06` や `0.09` にすると、推力の形と最高高度はどう変わるか。
-- この等式を消して knot 時刻も最適化変数にすると、ソルバーはどの $t_1$ を選ぶか。
-- `knot_states_smooth = [False]` にすると、状態が knot で飛ぶ非物理的な解が出ることを確かめる。
+- `result.equal(ts0, 0.075)` を削除し、knot 時刻も最適化変数とする。
+- `knot_states_smooth = [False]` とし、状態が knot で不連続になることを確認する。
 
 ## ソースコード
 

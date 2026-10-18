@@ -1,6 +1,6 @@
 ---
 title: 01. 最小操作量の移動
-description: 状態1個・制御1個の最小の例題。所要時間と操作量の二乗積分の和を最小化し、解析解 T=d, u=1 と比べる。
+description: 所要時間と操作量の二乗積分の和を最小化する、状態1個・制御1個の最小の例題である。
 sidebar:
   order: 1
 ---
@@ -9,53 +9,43 @@ import ExampleMedia from '../../../components/ExampleMedia.astro';
 import ExampleSource from '../../../components/ExampleSource.astro';
 import RunCommand from '../../../components/RunCommand.astro';
 
-速度 $u$ を直接操作して、位置 $x$ を距離 $d$ だけ動かします。「早く着きたい」と「操作量を小さくしたい」の
-釣り合いで移動時間が決まります。`Problem` を組み立てる最小の手順を、解析解と照らし合わせて確認します。
+速度 $u$ を操作して位置 $x$ を距離 $d$ だけ動かす。`Problem` を組み立てる最小の手順を解析解と照合する。
 
 ## 問題
-
-状態は位置 $x$、制御は $u$ です。時刻は $t_0 = 5$ から始まり、$t_f$ は自由です。既定値は $d = 2$ です。
 
 $$
 \dot{x} = u,\qquad x(t_0)=0,\quad x(t_f)=d,\qquad 0 \le u \le 3,\quad 5.1 \le t_f \le 15,\qquad
 J = (t_f - t_0) + \int_{t_0}^{t_f} u^2\,dt
 $$
 
-同じ距離なら $\int u^2 dt$ は $u$ が一定のとき最小なので、$u = d/T$ とおくと $J = T + d^2/T$ です。
-これを $T$ で最小化すると $T = d$、$u = 1$、$J = 2d$ になります。
+$t_0 = 5$、$d = 2$ とする。$u = d/T$ 一定のとき $J = T + d^2/T$ となり、最適解は $T = d$、$u = 1$、$J = 2d$ である。
 
 ## コードとの対応
 
 | 数式 | `main.py` |
 | --- | --- |
 | $\dot{x}=u$ | `pointwise_dynamics` が `xp.stack((u[0],))` を返す |
-| 境界条件 | `equality` の `result.equal(state[0], 0)`、`result.equal(state[-1], target)` |
+| 境界条件 | `result.equal(state[0], 0)`、`result.equal(state[-1], target)` |
 | $0 \le u \le 3$、$5.1 \le t_f \le 15$ | `set_controls_bounds(0, 0, 0, 3)`、`set_time_final_bounds(0, 5.1, 15)` |
-| $t_f - t_0$（終端項） | `problem.cost = LinearCallback(lambda p, obj: p.time_final(0) - p.time_start(0))` |
-| $\int u^2 dt$（積分項） | `problem.running_cost = lambda p, obj: p.controls_all_section(0) ** 2` |
+| $t_f - t_0$ | `problem.cost = LinearCallback(lambda p, obj: p.time_final(0) - p.time_start(0))` |
+| $\int u^2 dt$ | `problem.running_cost = lambda p, obj: p.controls_all_section(0) ** 2`（ガウス求積で積分） |
 | 区間・ノード数・状態数・制御数 | `Problem([5, 8], [8], [1], [1], maxIterator=2)` |
-| スケーリング | `set_unit_time(3)`、`set_unit_states(0, 0, 2)`（解は変えない） |
-
-`running_cost` はノード上の被積分関数で、OpenGoddard がガウス求積で積分して `cost` に加えます。
 
 ## 結果
 
-レール上を動く物体と、位置 $x$・制御 $u$ の時間履歴を解析解 $x = t - 5$、$u = 1$ と比べています。
+位置 $x$ と制御 $u$ を解析解 $x = t - 5$、$u = 1$ と比較する。
 
 <ExampleMedia id="minimum_energy_transfer" />
 
-- 物体は $t = 5$ から $7$ までで移動し、所要時間 $T = 2$ は解析解 $T = d$ と一致します。
-- $u$ は区間全体で 1 の一定値で、$x$ は直線的に増えます。目的関数は $J = 4$ です。
-- $u$ の上限 3 も $t_f$ の上下限も効いておらず、時間と操作量の釣り合いだけで解が決まっています。
+- 所要時間は $T = 2$、目的関数は $J = 4$ で、解析解と一致する。
+- $u$ の上限と $t_f$ の上下限はいずれも有効にならない。
 
 ## 試す
 
 <RunCommand id="minimum_energy_transfer" />
 
-所要時間と目的関数を解析解と並べて表示します。
-
-- `main()` の `target` を 3 に変えると、所要時間は 3、目的関数は 6 になるか。
-- `set_controls_bounds` の上限を 0.5 に下げると $u = 1$ が許されず、$u = 0.5$、$T = 2d$ になるはず（最後の `assert_allclose` は失敗します）。
+- `main()` の `target` を 3 にし、$T = 3$、$J = 6$ となることを確認する。
+- `set_controls_bounds` の上限を 0.5 にし、$u = 0.5$、$T = 2d$ となることを確認する（末尾の `assert_allclose` は失敗する）。
 
 ## ソースコード
 

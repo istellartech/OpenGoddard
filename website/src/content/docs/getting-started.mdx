@@ -1,22 +1,20 @@
 ---
 title: はじめに
-description: インストール、最初の例題の実行、最適制御問題の組み立て方、動画の見方。
+description: インストール、最初の例題、問題の記述方法、動画の見方。
 ---
 
-import { Steps } from '@astrojs/starlight/components';
-
-OpenGoddard は、連続時間の非線形最適制御問題を**擬スペクトル法**で非線形計画問題（NLP）に変換し、
-SciPy で解く Python ライブラリです。依存は NumPy・SciPy・Matplotlib だけです。
+OpenGoddard は、連続時間の非線形最適制御問題を擬スペクトル法で非線形計画問題に変換し、SciPy で解く。
+依存は NumPy・SciPy・Matplotlib のみである。
 
 ## インストール
 
-Python 3.15 以上が必要です。
+Python 3.15 以上が必要である。
 
 ```sh
 pip install OpenGoddard
 ```
 
-例題を動かすときは、リポジトリを取得して [uv](https://docs.astral.sh/uv/) で環境を作ります。
+例題を実行する場合は、リポジトリを取得して [uv](https://docs.astral.sh/uv/) で環境を構築する。
 
 ```sh
 git clone https://github.com/istellartech/OpenGoddard.git
@@ -25,95 +23,64 @@ uv sync --locked
 uv run python examples/01_minimum_energy_transfer/main.py
 ```
 
-```text
-Duration: 2.000000 (exact: 2.0)
-Objective: 4.000000 (exact: 4.0)
-```
+## 問題の記述
 
-数値解が解析解（所要時間 2、目的関数 4）と一致します。例題は番号順に、
-[01](../examples/01-minimum-energy-transfer/) の簡単な移動から
-[15](../examples/15-low-thrust-orbit-transfer/) の軌道遷移へ進みます。
-
-## 問題の組み立て方
-
-最適制御問題は、運動方程式と制約を満たしながら目的関数を最小にする状態 $x(t)$・制御 $u(t)$ を求める問題です。
+対象とする問題は次の形である。
 
 $$
 \min J = \Phi(x(t_f), t_f) + \int_{t_0}^{t_f} L(x, u, t)\, dt
 \quad \text{s.t.}\quad \dot{x} = f(x, u, t),\ \ g = 0,\ \ h \ge 0
 $$
 
-[01 の `main.py`](https://github.com/istellartech/OpenGoddard/blob/master/examples/01_minimum_energy_transfer/main.py)
-（$\dot{x}=u$、$x$ を 0 から 2 へ、$J = T + \int u^2 dt$）では次のように書きます。
+[例題01](../examples/01-minimum-energy-transfer/)（$\dot{x}=u$、$x: 0 \to 2$、$J = T + \int u^2 dt$）での記述を示す。
 
-<Steps>
+```py
+from OpenGoddard import DynamicsModel, Guess, LinearCallback, Problem
 
-1. **運動方程式** $f$ を、各ノードで独立に計算する関数として書きます。
+# 運動方程式 f：各ノードで独立に評価する
+def pointwise_dynamics(x, u, time, obj, section, xp):
+    return xp.stack((u[0],))
 
-   ```py
-   from OpenGoddard import DynamicsModel, Guess, LinearCallback, Problem
+# 境界条件 g = 0：変数について線形なので LinearCallback を付ける
+@LinearCallback
+def equality(problem, target):
+    state = problem.states_all_section(0)
+    result = problem.condition()
+    result.equal(state[0], 0)
+    result.equal(state[-1], target)
+    return result()
 
-   def pointwise_dynamics(x, u, time, obj, section, xp):
-       return xp.stack((u[0],))  # x' = u
+target = 2.0
+problem = Problem([5, 8], [8], [1], [1], maxIterator=2)  # 時刻、ノード数、状態数、制御数
+problem.set_unit_time(3)
+problem.set_unit_states(0, 0, 2)
+problem.set_states(0, 0, Guess.linear(problem.time[0], 0, target))
+problem.set_controls(0, 0, Guess.constant(problem.time[0], target / 3))
+problem.set_controls_bounds(0, 0, 0, 3)
+problem.set_time_final_bounds(0, 5.1, 15)
+problem.dynamics = [DynamicsModel(pointwise_dynamics)]
+problem.equality = equality
+problem.cost = LinearCallback(lambda p, obj: p.time_final(0) - p.time_start(0))  # Φ
+problem.running_cost = lambda p, obj: p.controls_all_section(0) ** 2          # L
 
-   dynamics = DynamicsModel(pointwise_dynamics)
-   ```
+result = problem.solve(target, maxiter=100, ftol=1e-11)  # SciPy の OptimizeResult
+```
 
-2. **境界条件** $g = 0$ を `condition()` に積みます。変数について線形なら `@LinearCallback` を付けます。
-
-   ```py
-   @LinearCallback
-   def equality(problem, target):
-       state = problem.states_all_section(0)
-       result = problem.condition()
-       result.equal(state[0], 0)       # x(t0) = 0
-       result.equal(state[-1], target) # x(tf) = 2
-       return result()
-   ```
-
-3. **Problem** を作り、単位・初期推定・上下限・目的関数を設定します。
-   引数は phase ごとの時刻、LGLノード数、状態数、制御数です。
-
-   ```py
-   problem = Problem([5, 8], [8], [1], [1], maxIterator=2)
-   problem.set_unit_time(3)
-   problem.set_unit_states(0, 0, 2)
-   problem.set_states(0, 0, Guess.linear(problem.time[0], 0, target))
-   problem.set_controls(0, 0, Guess.constant(problem.time[0], target / 3))
-   problem.set_controls_bounds(0, 0, 0, 3)
-   problem.set_time_final_bounds(0, 5.1, 15)
-   problem.dynamics = [dynamics]
-   problem.equality = equality
-   problem.cost = LinearCallback(lambda p, obj: p.time_final(0) - p.time_start(0))  # Φ
-   problem.running_cost = lambda p, obj: p.controls_all_section(0) ** 2          # L
-   ```
-
-4. **解く**。結果は SciPy の `OptimizeResult` です。`solve()` の第1引数はコールバックの `obj` に渡されます。
-
-   ```py
-   result = problem.solve(target, maxiter=100, ftol=1e-11)
-   if not result.success:
-       raise RuntimeError(result.message)
-   ```
-
-</Steps>
-
-上下限は不等式制約ではなく `set_states_bounds`・`set_controls_bounds`・`set_time_final_bounds` で与えると、
-ソルバーが直接扱えるので安定します。等式で固定した端点に同じ不等式を重ねるのは避けてください。
+`solve()` の第1引数はコールバックの `obj` に渡される。上下限は不等式制約ではなく
+`set_states_bounds`・`set_controls_bounds`・`set_time_final_bounds` で与える方が安定する。
+等式で固定した端点に同じ不等式を重ねてはならない。
 
 ## 動画の見方
 
-例題の動画は、`main.py` で求めた解を Matplotlib で描いたものです（[生成スクリプト](https://github.com/istellartech/OpenGoddard/tree/master/website/scripts)）。
+例題の動画は `main.py` の解を Matplotlib で描画したものである（[生成スクリプト](https://github.com/istellartech/OpenGoddard/tree/master/website/scripts)）。
 
-- **左**：物体や機体の動き。機体の図は模式図で、炎の長さは各段の最大推力に対する比です。
-  灰色の点は一定時間ごとの位置で、間隔が広いほど速く動いています。
-  地球規模の図では高度方向を拡大しており、倍率を図の右上に示します。
-- **右**：状態と制御の時間履歴。黒い縦線が現在時刻、背景色と縦の破線が区間（phase）、
-  灰色の斜線がエンジン停止です。黒の破線は解析解（あるもののみ）です。
-- **上部**：現在の区間名。エンジン停止中は「エンジン停止」と表示し、長い慣性飛行は早送りして倍率を右上に示します。
-- 最後の 1.5 秒は最終状態で止まります。各動画の下のリンクから数値データ（JSON）を取得できます。
+| 表示 | 意味 |
+| --- | --- |
+| 灰色の点・目盛り | 一定時間ごとの位置。間隔が広いほど速い |
+| 機体の図・炎 | 模式図。炎の長さは各段の最大推力に対する比 |
+| 黒の縦線 | 現在時刻 |
+| 背景色・縦の破線 | 区間（phase）とその境界 |
+| 灰色の斜線 | エンジン停止 |
+| 黒の破線 | 解析解 |
 
-## 次に読むもの
-
-- [擬スペクトル法の考え方](../concepts/pseudospectral/)
-- [APIリファレンス](../api/OpenGoddard/)
+地球規模の図は高度方向を拡大しており、倍率を図中に示す。長い慣性飛行は早送りし、倍率を右上に示す。

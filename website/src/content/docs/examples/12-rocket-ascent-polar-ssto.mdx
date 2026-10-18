@@ -9,12 +9,11 @@ import ExampleMedia from '../../../components/ExampleMedia.astro';
 import ExampleSource from '../../../components/ExampleSource.astro';
 import RunCommand from '../../../components/RunCommand.astro';
 
-単段ロケット（SSTO）を地表から高度 400 km の円軌道に投入します。地心距離 $R$ と角度 $\theta$ の
-極座標で平面内の運動を表し、推力の向きも半径方向・周方向の2成分として最適化します。
+単段ロケット（SSTO）を地表から高度 400 km の円軌道へ投入する。平面運動を極座標 $(R, \theta)$ で表し、推力の半径方向・周方向成分を最適化する。
 
 ## 問題
 
-状態は $(R, \theta, V_r, V_t, m)$、制御は推力成分 $(T_r, T_t)$ です。$V_t^2/R$ は遠心力、$-V_rV_t/R$ はコリオリ項です。
+状態 $(R, \theta, V_r, V_t, m)$、制御 $(T_r, T_t)$。$V_t^2/R$ は遠心力項、$-V_rV_t/R$ はコリオリ項である。
 
 $$
 \dot{R} = V_r,\quad \dot{\theta} = \frac{V_t}{R},\quad
@@ -23,9 +22,7 @@ $$
 \dot{m} = -\frac{\sqrt{T_r^2+T_t^2}}{g_0 I_{sp}}
 $$
 
-$g = g_0(R_e/R)^2$、$\rho = 1.225\,e^{-h/8500}$、抗力は速度の向きに $D_{r,t} = \tfrac12 \rho V_{r,t} \lvert V\rvert C_d A$ です
-（$M_0 = 100$ t、$C_d = 0.6$、$A = 4$ m²、$I_{sp} = 300$ s、$T_{\max} = 1.5 M_0 g_0$）。
-地表で静止状態から出発し、終端で円軌道に入ります。円軌道は「半径が目標値、半径方向速度 0、周方向速度が円軌道速度」の3本で表せます。
+$g = g_0(R_e/R)^2$、$\rho = 1.225\,e^{-h/8500}$、$D_{r,t} = \tfrac12 \rho V_{r,t} \lvert V\rvert C_d A$、$M_0 = 100$ t、$C_d = 0.6$、$A = 4$ m²、$I_{sp} = 300$ s、$T_{\max} = 1.5 M_0 g_0$。$\theta(t_f)$ と $t_f$ は自由である。
 
 $$
 \begin{aligned}
@@ -37,43 +34,31 @@ J = -m(t_f)/M_0
 \end{aligned}
 $$
 
-$\theta(t_f)$ と $t_f$ は自由です。
-
 ## コードとの対応
 
 | 数式 | `main.py` |
 | --- | --- |
 | 遠心力・コリオリ項 | `dx[2] = Tr / m - Dr / m - g + Vt**2 / R`、`dx[3] = Tt / m - Dt / m - (Vr * Vt) / R` |
-| 質量流量 | `dx[4] = -np.sqrt(Tr**2 + Tt**2) / g0 / Isp` |
-| 抗力 | `Dr = 0.5 * rho * Vr * np.sqrt(Vr**2 + Vt**2) * obj.Cd * obj.A` |
 | 円軌道投入 | `result.equal(R[-1], obj.Rtarget, ...)`、`Vr[-1]` を 0、`Vt[-1]` を `obj.Vtarget` |
 | 推力の大きさ・加速度 | `result.upper_bound(T, obj.Tmax, ...)`、`result.upper_bound(a_mag, obj.MaxG * obj.g0)` |
-| 成分の範囲 | `prob.set_controls_bounds_all_section(0, 0.0, obj.Tmax)`（`1` も同様） |
 | $J$ | `cost` が `-m[-1] / prob.unit_states[0][4]` を返す |
 
-`set_unit_*` で長さ $R_e$、速度 $\sqrt{GM_e/R_e}$、質量 $M_0$ を単位にし、桁の違う量を 1 前後に揃えています。
-求解は `ftol=1e-6, maxiter=3000` の1回の長い SLSQP 実行です。既定の `maxiter=25` で再起動を繰り返すと、
-そのたびにヘッセ行列の推定が捨てられて収束しませんでした。
+`set_unit_*` で長さ・速度・質量を $R_e$、$\sqrt{GM_e/R_e}$、$M_0$ で正規化する。求解は `ftol=1e-6, maxiter=3000` の1回の SLSQP 実行である。
 
 ## 結果
 
-推力が切れて長く慣性飛行し、遠地点で短く水平に噴射する流れに注目してください。
+上昇噴射、長い慣性飛行、遠地点での水平な円軌道化噴射の3段階になる。
 
 <ExampleMedia id="rocket_ascent_polar_ssto" />
 
-- 最初は最大推力で上昇し、推力の仰角は上向きから徐々に寝ていきます。濃い大気を抜けてから水平加速に推力を回す、重力ターンに近い形です。
-- 噴射を止めた後は長い慣性飛行で、$V_r$ が 0 になる高度 400 km が遠地点です。
-- 遠地点でほぼ水平に短く噴射し、周方向速度を円軌道速度（約 7.67 km/s）まで上げます。ホーマン遷移の2回目の噴射と同じ考え方です。
-- 最終質量は約 4.4 t で、構造 1 t を除いた残りがペイロードに回せる推進剤の余裕です。
-- 慣性飛行中は推進剤を使わないので、最終質量は慣性飛行の長さにほとんど依存しません。そのため慣性飛行の長さと $t_f$ は計算環境によって変わります。
+- 上昇中は最大推力で、推力方向は上向きから徐々に水平へ倒れる。慣性飛行の遠地点が高度 400 km になり、そこで周方向に短く噴射して円軌道速度（約 7.67 km/s）に達する。最終質量は約 4.4 t である。
+- 最終質量は慣性飛行の長さにほとんど依存しないため、慣性飛行の長さと $t_f$ は計算環境によって変わる。
 
 ## 試す
 
 <RunCommand id="rocket_ascent_polar_ssto" />
 
-- `self.Htarget` を 300 km や 600 km にすると、最終質量はどう変わるか。
-- `self.Isp` を 350 にして、ロケット方程式 $\Delta V = g_0 I_{sp} \ln(m_0/m_f)$ と照らし合わせる。
-- `self.MaxG` を 4 に下げると、推力が上限より下がる区間が現れるか。
+- `self.Htarget` を 300 km や 600 km に変え、最終質量の変化を確認する。
 
 ## ソースコード
 

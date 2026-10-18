@@ -1,6 +1,6 @@
 ---
 title: 07. Goddard問題・単一区間
-description: 空気抵抗と逆二乗重力のもとで、決まった推進剤量で到達高度を最大にする推力履歴を1つの phase で求める。
+description: 抗力と逆二乗重力のもとで到達高度を最大にする推力履歴を、1つの phase で求める。
 sidebar:
   order: 7
 ---
@@ -9,58 +9,50 @@ import ExampleMedia from '../../../components/ExampleMedia.astro';
 import ExampleSource from '../../../components/ExampleSource.astro';
 import RunCommand from '../../../components/RunCommand.astro';
 
-鉛直に上がるロケットが、決まった量の推進剤でどこまで高く上がれるかを求めます（Goddard問題）。
-低空で速く飛ぶと抗力で損をするため、最適推力は「最大推力 → 中間推力 → 推力ゼロ」になります。
-ここでは全体を1つの phase で解き、次の [08](../08-goddard-1knot/) と比べる土台にします。
+鉛直に上昇するロケットが、決まった推進剤量で到達高度を最大にする推力履歴を求める（Goddard問題）。全区間を1つの phase で解き、[08](../08-goddard-1knot/) と比較する基準とする。
 
 ## 問題
 
-無次元量で、状態は高度 $h$・速度 $v$・質量 $m$、制御は推力 $T$、終端時刻 $t_f$ は自由です。
+無次元量で、状態は高度 $h$・速度 $v$・質量 $m$、制御は推力 $T$。終端時刻 $t_f$ は自由。
 
 $$
-\dot{h} = v,\quad
-\dot{v} = \frac{T - D_c v^2 e^{-H_c (h-h_0)/h_0}}{m} - g_0\left(\frac{h_0}{h}\right)^2,\quad
-\dot{m} = -\frac{T}{c}
+\dot{h} = v,\quad \dot{v} = \frac{T - D_c v^2 e^{-H_c (h-h_0)/h_0}}{m} - g_0\left(\frac{h_0}{h}\right)^2,\quad \dot{m} = -\frac{T}{c}
 $$
 
 $$
-h(0)=1,\ v(0)=0,\ m(0)=1,\qquad v(t_f)=0,\ m(t_f)=m_f=0.6,\qquad
-0 \le T \le T_{\max},\quad J = -h(t_f) \to \min
+h(0)=1,\ v(0)=0,\ m(0)=1,\qquad v(t_f)=0,\ m(t_f)=0.6,\qquad
+0 \le T \le T_{\max},\quad J = -h(t_f)
 $$
 
-値は $g_0=h_0=m_0=1$、$H_c=500$、$D_c=310$、$c=0.5$、$T_{\max}=3.5$ です。
-経路制約として $h \ge h_0$、$v \ge 0$、$m_f \le m \le m_0$、$t_f \ge 0.1$ も課します。
+$g_0=h_0=m_0=1$、$H_c=500$、$D_c=310$、$c=0.5$、$T_{\max}=3.5$。経路制約 $h \ge h_0$、$v \ge 0$、$0.6 \le m \le 1$、$t_f \ge 0.1$ を課す。
 
 ## コードとの対応
 
 | 数式 | `main.py` |
 | --- | --- |
-| 運動方程式 | `pointwise_dynamics` が `xp.stack((v, (thrust - drag) / mass - gravity, -thrust / obj.c))` を返す |
+| 運動方程式 | `xp.stack((v, (thrust - drag) / mass - gravity, -thrust / obj.c))` |
 | 抗力・重力 | `drag = obj.Dc * v**2 * xp.exp(...)`、`gravity = obj.g0 * (obj.H0 / h) ** 2` |
-| 境界条件 | `equality` の `result.equal(...)` 5本（`v[-1]`, `m[-1]` を含む） |
-| 経路制約 | `inequality` の `lower_bound(h[1:], obj.H0)`、`upper_bound(T, obj.T_max)` など |
+| 境界条件 | `equality` の `result.equal(...)` 5本 |
+| 経路制約 | `lower_bound(h[1:], obj.H0)`、`upper_bound(T, obj.T_max)` など |
 | $J=-h(t_f)$ | `cost` が `-h[-1]` を返す |
-| 1つの phase | `Problem([0.0, 0.3], [50], [3], [1], 30)`、`knot_states_smooth = []` |
-
-`h[1:]` や `v[1:-1]` と添字をずらすのは、等式で固定した端点に不等式を重ねないためです。
+| 1つの phase | `n = [50]`、`knot_states_smooth = []` |
 
 ## 結果
 
-推力 $T$ のグラフで、推力の切り替わり方と波打ちを見てください。
+軌道と推力・速度・質量の時間履歴を示す。
 
 <ExampleMedia id="goddard_0knot" />
 
-- 推力は $T_{\max}$ で始まり、$t \approx 0.02$ から 2〜3 程度の中間推力に下がります。抗力 $D \propto v^2$ を抑えるため速度を上げすぎない、この区間が特異弧（singular arc）です。
-- $t \approx 0.077$ で質量が $m_f$ に達し、推力ゼロの慣性上昇に移ります。
-- 最高高度は $h(t_f) \approx 1.0128$、$t_f \approx 0.199$ です。
-- 推力は特異弧の中や推力ゼロへの切り替え前後で波打ちます。50ノードの1本の多項式で急な切り替えを表そうとするためで、これが 08 で区間を分ける動機です。
+- 推力は最大推力 → 中間推力（特異弧）→ 推力ゼロの順に変わる。特異弧では抗力を抑えるため速度を上げすぎない。
+- 推進剤は $t \approx 0.077$ で尽き、最高高度は $h(t_f) \approx 1.0128$。
+- 推力は推力ゼロへの切り替え前後で振動する。50ノードの1本の多項式で不連続な推力を近似するためである。
 
 ## 試す
 
 <RunCommand id="goddard_0knot" />
 
-- `n = [50]` を `[30]` や `[80]` に変えると、推力の波打ちと `max altitude` はどう変わるか。
-- `self.Vc = 620`（抗力の大きさ）を小さくすると、中間推力の区間が縮み bang-bang 制御に近づくか。
+- `n = [50]` を `[30]` や `[80]` に変え、推力の振動と `max altitude` を比較する。
+- `self.Vc`（抗力係数）を小さくし、特異弧が縮むことを確認する。
 
 ## ソースコード
 

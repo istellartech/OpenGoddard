@@ -25,8 +25,8 @@
 - 実装時には、既存docstring、数式、相互参照、公開APIの抽出結果について
   互換性を確認してから採用を確定する。Sphinxと同等の出力品質を未検証のまま
   前提にしない。
-- 現在の `docs_sphinx/`、生成済みの `docs/`、`make_docs.py` は既存構成である。
-  移行時にはAPI情報と既存URLの扱いを整理する。
+- 旧Sphinx構成（`docs_sphinx/`、`docs/`、`make_docs.py`）は削除済み。旧URLは
+  `website/public/` のリダイレクトで新しいAPIページへ転送する。
 
 ### 動く説明の方針
 

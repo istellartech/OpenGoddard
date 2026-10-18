@@ -1,6 +1,6 @@
 ---
 title: 10. 単段ロケット上昇
-description: 指数大気の抗力と逆二乗重力のもとで、5トンの単段ロケットを鉛直に打ち上げ、到達高度を最大にする推力履歴を求める。
+description: 指数大気と逆二乗重力のもとで、単段ロケットの到達高度を最大にする推力履歴を物理単位で求める。
 sidebar:
   order: 10
 ---
@@ -9,62 +9,51 @@ import ExampleMedia from '../../../components/ExampleMedia.astro';
 import ExampleSource from '../../../components/ExampleSource.astro';
 import RunCommand from '../../../components/RunCommand.astro';
 
-[07](../07-goddard-0knot/) と同じ構造の問題を、物理単位（m, kg, s, N）で解きます。
-地心距離・指数大気・比推力 $I_{sp}$ を使い、桁の大きく異なる量をスケーリングしてソルバーに渡します。
+[07](../07-goddard-0knot/) と同じ構造の問題を物理単位（m, kg, s, N）で解く。桁の異なる量はスケーリングしてソルバーに渡す。
 
 ## 問題
 
-状態は地心距離 $R$・速度 $v$（上向き）・質量 $m$、制御は推力 $T$、終端時刻 $t_f$ は自由です。
+状態は地心距離 $R$・速度 $v$・質量 $m$、制御は推力 $T$。$t_f$ は自由。
 
 $$
-\dot{R} = v,\quad
-\dot{v} = \frac{T - D}{m} - \frac{\mu}{R^2},\quad
-\dot{m} = -\frac{T}{g_0 I_{sp}},\qquad
-D = \tfrac{1}{2}\rho v^2 C_D A,\quad \rho = 1.225\, e^{-(R - R_e)/8500}
+\dot{R} = v,\quad \dot{v} = \frac{T - D}{m} - \frac{\mu}{R^2},\quad \dot{m} = -\frac{T}{g_0 I_{sp}},\qquad D = \tfrac{1}{2}\rho v^2 C_D A,\quad \rho = 1.225\, e^{-(R - R_e)/8500}
 $$
 
 $$
-R(0)=R_e,\ v(0)=0,\ m(0)=m_0,\qquad v(t_f)=0,\ m(t_f)=0.4\,m_0,\qquad
-J = -\frac{R(t_f)}{R_e} \to \min
+R(0)=R_e,\ v(0)=0,\ m(0)=m_0,\qquad v(t_f)=0,\ m(t_f)=0.4\,m_0,\qquad J = -\frac{R(t_f)}{R_e}
 $$
 
-$m_0 = 5000$ kg、$C_D = 0.2$、$A = 10$ m²、$I_{sp} = 300$ s、$T_{\max} = 2 m_0 g_0 \approx 98$ kN で、推進剤は 3000 kg です。
-範囲は $R \ge R_e$、$v \ge 0$、$0.4 m_0 \le m \le m_0$、$0 \le T \le T_{\max}$、$t_f \ge 10$ s です。
+$m_0 = 5000$ kg、$C_D = 0.2$、$A = 10$ m²、$I_{sp} = 300$ s、$T_{\max} = 2 m_0 g_0 \approx 98$ kN。範囲は $R \ge R_e$、$v \ge 0$、$0.4 m_0 \le m \le m_0$、$0 \le T \le T_{\max}$、$t_f \ge 10$ s。
 
 ## コードとの対応
 
 | 数式 | `main.py` |
 | --- | --- |
-| 運動方程式 | `dynamics` の `dx[1] = (T - drag) / m - g`、`dx[2] = -T / g0 / Isp` |
-| 抗力・密度 | `drag = 0.5 * rho * v**2 * obj.Cd * obj.area`、`air_density` の `rho0 * np.exp(-beta * h)` |
-| 境界条件 | `equality` の `result.equal(R[0], obj.Re)` ほか、`result.equal(m[-1], obj.M0 * obj.Mc)` |
-| 状態・推力の範囲 | `set_states_bounds_all_section(...)`、`set_controls_bounds_all_section(0, 0.0, ...)` |
-| $t_f \ge 10$ s | `prob.set_time_final_bounds(0, 10.0, None)` |
+| 運動方程式 | `dx[1] = (T - drag) / m - g`、`dx[2] = -T / g0 / Isp` |
+| 抗力・密度 | `drag = 0.5 * rho * v**2 * obj.Cd * obj.area`、`rho0 * np.exp(-beta * h)` |
+| 境界条件 | `result.equal(R[0], obj.Re)` ほか、`result.equal(m[-1], obj.M0 * obj.Mc)` |
+| 範囲 | `set_states_bounds_all_section(...)`、`set_controls_bounds_all_section(...)`、`set_time_final_bounds(0, 10.0, None)` |
 | $J=-R(t_f)/R_e$ | `cost` が `-R[-1] / obj.Re` を返す |
-| スケーリング | `unit_R = obj.Re`、`unit_v = np.sqrt(obj.GMe / obj.Re)` などを `set_unit_*` に渡す |
-| 求解の設定 | `prob.solve(obj, display_func, ftol=1e-12, maxiter=2000)` |
+| スケーリング | `unit_R = obj.Re`、`unit_v = np.sqrt(obj.GMe / obj.Re)` |
 
-スケーリングにより、$R \approx 6.4\times10^6$ m と $v \approx 10^2$ m/s が混在しても内部の変数はおおむね 1 程度になります。
-`maxiter=2000` は SLSQP を1回の長い実行にするためです。既定の `maxiter=25` で打ち切って再起動すると、
-そのたびに蓄えたヘッセ行列の推定が捨てられ、`ftol` を満たせません。
+`prob.solve(obj, display_func, ftol=1e-12, maxiter=2000)` は SLSQP を1回の長い実行とする。既定の `maxiter=25` で再起動を繰り返すとヘッセ行列の推定が毎回破棄され、`ftol` を満たせない。
 
 ## 結果
 
-推力のグラフで、最大推力・絞った推力・推力ゼロの3つの区間を見てください。
+軌道と推力・速度・質量の時間履歴を示す。
 
 <ExampleMedia id="rocket_ascent_single_stage" />
 
-- 最初の約 24 秒は最大推力で加速します。
-- その後、推力は 70〜90 kN 程度に下がります。濃い大気で速度を上げすぎないよう推力を絞る、07 と同じ特異弧です。細かな振動は1本の多項式による近似の影響です。
-- 約 114 秒で推進剤が尽き、推力ゼロの慣性上昇に移ります。速度はその直前に最大（約 0.78 km/s）になります。
-- 約 188 秒で速度が 0 になり、到達高度は約 65.5 km です。
+- 最初の約 24 s は最大推力で加速する。
+- 続いて推力を 70〜90 kN 程度に絞る。07 と同じ特異弧である。
+- 約 114 s で推進剤が尽きて慣性上昇に移り、約 188 s で到達高度約 65.5 km に達する。
 
 ## 試す
 
 <RunCommand id="rocket_ascent_single_stage" />
 
-- `self.Cd = 0.2` を `0` にすると、推力を絞る区間が消えて bang-bang 制御に近づくか。
-- `self.max_thrust = 2`（推力重量比）を `3` や `1.5` にすると、最大推力区間と特異弧の長さはどう変わるか。
+- `self.Cd` を `0` にし、推力を絞る区間が消えることを確認する。
+- `self.max_thrust`（推力重量比）を `3` や `1.5` にし、最大推力区間と特異弧の長さを比較する。
 
 ## ソースコード
 

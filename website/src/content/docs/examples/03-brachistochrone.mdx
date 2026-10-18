@@ -1,6 +1,6 @@
 ---
 title: 03. 最速降下
-description: 重力で滑り降りる球が水平距離 l に最短時間で到達する経路を求め、解析解のサイクロイドと比べる。
+description: 重力で滑る球が水平距離 l に最短時間で到達する経路を求め、サイクロイドと比較する。
 sidebar:
   order: 3
 ---
@@ -9,13 +9,11 @@ import ExampleMedia from '../../../components/ExampleMedia.astro';
 import ExampleSource from '../../../components/ExampleSource.astro';
 import RunCommand from '../../../components/RunCommand.astro';
 
-摩擦のない坂を重力だけで滑る球を、水平距離 $l$ 先へ最も早く届けるには坂をどんな形にすればよいか。
-変分法の古典問題である最速降下を、坂の傾きを制御とする最適制御問題として解きます。終点の深さは自由です。
+最速降下問題を、進行方向の角度を制御とする最適制御問題として解く。終点の深さは自由とする。
 
 ## 問題
 
-状態は水平位置 $x$、深さ $y$（下向きが正）、速さ $v$、制御は進行方向が鉛直下向きからなす角 $\theta$ です。
-`Ball` の値は $g = 1$、$l = 1$ です。
+$y$ は下向き正、$\theta$ は進行方向が鉛直下向きからなす角、$g = 1$、$l = 1$ である。
 
 $$
 \dot{x} = v\sin\theta,\quad \dot{y} = v\cos\theta,\quad \dot{v} = g\cos\theta,\qquad
@@ -23,9 +21,8 @@ x(0)=y(0)=v(0)=0,\quad x(t_f)=l,\qquad
 y \ge 0,\quad \theta \ge 0,\quad t_f \ge 0.1,\qquad J = t_f
 $$
 
-$y(t_f)$ と $v(t_f)$ は自由です。解析解はサイクロイド $x = a(\phi - \sin\phi)$、$y = a(1-\cos\phi)$ で、
-終点の深さが自由なら終点で水平（$\theta(t_f) = \pi/2$、$\phi = \pi$）となり $a = l/\pi$ です。
-このとき $y(t_f) = 2l/\pi \approx 0.637$、$t_f = \pi\sqrt{a/g} = \sqrt{\pi} \approx 1.772$ です。
+解析解はサイクロイド $x = a(\phi - \sin\phi)$、$y = a(1-\cos\phi)$ である。終点の深さが自由なので終点で水平となり、
+$a = l/\pi$、$y(t_f) = 2l/\pi \approx 0.637$、$t_f = \sqrt{\pi} \approx 1.772$ となる。
 
 ## コードとの対応
 
@@ -35,26 +32,24 @@ $y(t_f)$ と $v(t_f)$ は自由です。解析解はサイクロイド $x = a(\p
 | 境界条件 | `equality` の `result.equal(...)` 4本（終点は `result.equal(x[-1], obj.l)`） |
 | $y \ge 0$、$\theta \ge 0$、$t_f \ge 0.1$ | `inequality` の `result.lower_bound(y[1:], 0)` など |
 | $J = t_f$ | `cost` が `prob.time_final(-1)` を返す |
-| $\partial J/\partial t_f$ | `cost_derivative` が `prob.unit_time` を入れる（$t_f$ は無次元化されているため） |
+| $\partial J/\partial t_f$ | `cost_derivative` が `prob.unit_time` を入れる（$t_f$ の無次元化のため） |
 | ノード数・初期推定 | `n = [20]`、$\theta$ は一定 30°、$x$・$y$ は直線 |
 
 ## 結果
 
-数値解の球と、同じ終点へ直線の斜面（解析解）を滑る球を競争させ、軌道・速さ・$\theta$ をサイクロイドと比べています。
+数値解を、サイクロイドおよび同じ終点への直線斜面と比較する。
 
 <ExampleMedia id="brachistochrone" />
 
-- 数値解の軌道はサイクロイドに重なり、到達時刻は約 1.772（$\sqrt{\pi}$）、終点の深さは約 0.637（$2l/\pi$）です。
-- 直線の斜面は約 2.10 かかります。最初に真下へ落ちて速度を稼ぐほうが、距離は長くても速く着きます。
-- $\theta$ は 0（真下）から始まり、終点でちょうど 90°（水平）になります。終点の深さを自由にしたことによる終端条件です。
-- 速さはエネルギー保存 $v = \sqrt{2gy}$ に従い、サイクロイドでは $\theta$ が時間に比例して増えます。
+- 軌道はサイクロイドと一致し、到達時刻は約 1.772、終点の深さは約 0.637 である。
+- 直線斜面の到達時刻は約 2.10 で、数値解より遅い。$\theta$ は 0 から始まり終点で 90° になる。
 
 ## 試す
 
 <RunCommand id="brachistochrone" />
 
-- `Ball` の `l` を 2 にすると、軌道は相似に拡大され、到達時刻は $\sqrt{2}$ 倍になるか。
-- `inequality` のコメントアウトされた `result.upper_bound(y, x * np.tan(obj.theta0) + obj.h)` を有効にすると、傾いた壁より深く潜れなくなります。解のどこが壁に沿うか。
+- `Ball` の `l` を 2 にし、到達時刻が $\sqrt{2}$ 倍になることを確認する。
+- `inequality` のコメントアウトされた `result.upper_bound(y, x * np.tan(obj.theta0) + obj.h)` を有効にし、軌道が壁に沿う区間を確認する。
 
 ## ソースコード
 

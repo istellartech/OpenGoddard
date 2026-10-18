@@ -1,86 +1,67 @@
 ---
-title: 擬スペクトル法の考え方
-description: LGLノード、多項式補間、微分行列、求積で、OpenGoddard が最適制御問題をNLPに変換する仕組み。
+title: 擬スペクトル法
+description: OpenGoddard が最適制御問題を非線形計画問題に変換する仕組み。
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+OpenGoddard は Legendre-Gauss-Lobatto（LGL）擬スペクトル法による直接法である。
+状態と制御をノード上の値で表し、運動方程式をノードでの等式制約に置き換えて、非線形計画問題（NLP）として解く。
 
-OpenGoddard は **Legendre-Gauss-Lobatto（LGL）擬スペクトル法** の直接法です。
-状態と制御を有限個のノードの値で表し、運動方程式をノードでの等式制約に置き換えて、
-非線形計画問題（NLP）として SciPy で解きます。
+## 時間の正規化
 
-## 1. 時間を $[-1, 1]$ に写す
-
-各 phase（区間）の時刻 $t \in [t_0, t_f]$ を正規化時間 $\tau \in [-1, 1]$ に写します。
+各区間（phase）の時刻 $t \in [t_0, t_f]$ を $\tau \in [-1, 1]$ に写す。$t_0, t_f$ も最適化変数にできる。
 
 $$
-t = \frac{t_f - t_0}{2}\,\tau + \frac{t_f + t_0}{2}, \qquad
-\frac{dx}{dt} = \frac{2}{t_f - t_0}\,\frac{dx}{d\tau}
+t = \frac{t_f - t_0}{2}\,\tau + \frac{t_f + t_0}{2}
 $$
 
-$t_0, t_f$ も最適化変数にできるので、最短時間問題のような終端時刻自由の問題をそのまま扱えます。
+## 補間と微分行列
 
-## 2. LGLノードで補間し、微分を行列にする
-
-$N$ 個のLGLノード（両端 $\pm 1$ と $P'_{N-1}(\tau)$ の根）での値 $X_k$ を通る多項式で状態を近似します。
-その導関数をノードで評価すると、ノード値の線形結合になります。
+$N$ 個のLGLノード（$\pm 1$ と $P'_{N-1}(\tau)$ の根）での値 $X_k$ を通る多項式で状態を近似すると、
+ノードでの導関数はノード値の線形結合になる。
 
 $$
-x(\tau) \approx \sum_{k} X_k\, \ell_k(\tau), \qquad
 \dot{x}(\tau_i) \approx \sum_{k} D_{ik} X_k
 $$
 
-$D$ が**微分行列**です。`Problem.method_LGL(n)` がノード・求積重み・$D$ を返します。
-ノードが両端に集まっているので、等間隔の点と違い、$N$ を増やすほど補間誤差が小さくなります。
+$D$ を微分行列という。`Problem.method_LGL(n)` はノード、求積重み、$D$ を返す。
+ノードが区間の両端に集まるため、等間隔の点と異なり $N$ の増加とともに補間誤差が減少する。
 
 <figure class="example-video">
   <video controls preload="metadata" playsinline poster="/OpenGoddard/media/concepts/lgl_interpolation.png">
     <source src="/OpenGoddard/media/concepts/lgl_interpolation.mp4" type="video/mp4" />
   </video>
-  <figcaption>
-    f(τ) = 1/(1+25τ²) の補間（左上）、微分行列による導関数（左下）、ノード数と最大誤差（右）。
-    等間隔の点はノードを増やすと端で発散し（Runge現象）、LGLノードは収束します。
-  </figcaption>
+  <figcaption>f(τ) = 1/(1+25τ²) の補間、微分行列による導関数、ノード数と最大誤差</figcaption>
 </figure>
 
-## 3. 運動方程式をノードでの等式制約にする
+## コロケーションと求積
 
-各ノードで $\dot{x} = f(x, u, t)$ を満たすことを要求します（コロケーション）。
+各ノードで運動方程式を満たすことを等式制約とする。目的関数の積分はLGL求積重み $w_k$ による和で近似する。
 
 $$
-\sum_{k} D_{ik} X_k - \frac{t_f - t_0}{2}\, f(X_i, U_i, t_i) = 0
+\sum_{k} D_{ik} X_k = \frac{t_f - t_0}{2}\, f(X_i, U_i, t_i), \qquad
+\int_{t_0}^{t_f} L\,dt \approx \frac{t_f - t_0}{2}\sum_k w_k L_k
 $$
 
-`Problem._equality_constraints` の実装はこの式そのものです。
+`Problem._equality_constraints` の実装：
 
 ```py
 derivative = (state @ self.D[section].T).ravel()
-dx = vector(dynamics(self, obj, section), "dynamics", derivative.size)
-duration = (self.time_final(section) - self.time_start(section)) / self.unit_time
 blocks.append(derivative - duration / 2 * dx)
 ```
 
-目的関数の積分は、LGL求積重み $w_k$ による和 $\frac{t_f - t_0}{2}\sum_k w_k L(X_k, U_k, t_k)$ で近似します。
-`running_cost` はノードごとの $L$ を返すだけです。
+## 区間分割
 
-## 4. 区間に分ける（knotting）
+制御の切り替えや段分離を含む解を1本の多項式で表すと振動が生じる。時間を複数の区間に分け、境界で状態を接続する
+（[例題07](../../examples/07-goddard-0knot/) と [08](../../examples/08-goddard-1knot/) を参照）。
 
-制御が不連続に切り替わる点や段分離では解が滑らかでないため、1本の多項式では振動が出ます
-（[07](../../examples/07-goddard-0knot/) と [08](../../examples/08-goddard-1knot/) を比較）。
-時間を複数の phase に分け、境界（knot）で状態をつなぎます。
+- 区間ごとの時刻とノード数は `Problem(time_init, nodes, ...)` で与える。
+- `knot_states_smooth = [True]` で境界の状態を連続にする。質量が不連続な段分離では `False` とし、
+  接続条件を `equality` に記述する（[例題11](../../examples/11-rocket-ascent-two-stage/)）。
 
-- `Problem(time_init=[0, 100, 200], nodes=[20, 20], ...)` のように phase ごとに時刻とノード数を与えます。
-- `knot_states_smooth = [True]` で境界の状態を連続にします。段分離で質量が飛ぶ場合は `False` にして、
-  連続条件を `equality` に書きます（[11](../../examples/11-rocket-ascent-two-stage/)）。
-- 制御は境界の左右で別の値を持てるので、切り替えを表現できます。
+## 解の検証
 
-## 5. 解いて、確かめる
-
-<Aside type="caution" title="success は「離散化したNLPの局所解」が見つかったという意味です">
-ノードの間で運動方程式や制約が満たされているかは別に確かめます。
-`problem.estimate_error(obj)` はノードと独立な点で残差を調べ、`problem.solve_adaptive(...)` は
-誤差の大きい区間のノードや要素を増やして解き直します。ノード数を変えても解が変わらないことを確認するのが基本です。
-</Aside>
+`result.success` は離散化したNLPの局所解を示すにすぎない。`estimate_error(obj)` でノード間の残差を評価し、
+ノード数を変えても解が変わらないことを確認する。`solve_adaptive(...)` は誤差の大きい区間を自動で細分化する。
 
 ## 参考文献
 

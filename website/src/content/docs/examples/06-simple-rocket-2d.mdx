@@ -1,6 +1,6 @@
 ---
 title: 06. 単純な2次元ロケット
-description: 一定の大きさの加速度を持つ2次元の質点を、推力方向だけを操作して最短時間で目標の高さ・水平速度に到達させる。
+description: 一定加速度の質点を推力方向だけで操作し、目標の高さと水平速度へ最短時間で到達させる。
 sidebar:
   order: 6
 ---
@@ -9,56 +9,50 @@ import ExampleMedia from '../../../components/ExampleMedia.astro';
 import ExampleSource from '../../../components/ExampleSource.astro';
 import RunCommand from '../../../components/RunCommand.astro';
 
-推力の大きさが一定のロケットを、推力の向きだけで操作します。高さ $y = 1$ で鉛直速度 0・水平速度 1、
-つまり「決められた高度を水平に飛ぶ状態」に最短時間で入ります。軌道投入を極限まで単純化した問題です。
+推力の大きさが一定のロケットを推力の向き $\beta$ だけで操作し、高さ $y = 1$ を水平速度 1 で飛ぶ状態に最短時間で入れる。軌道投入を単純化した問題である。
 
 ## 問題
 
-状態は水平速度 $u$、鉛直速度 $v$、位置 $x$、$y$ の4個、制御は推力の向き $\beta$（水平から上向きが正）です。
-加速度の大きさは `Rocket` の $a = 1$ で一定、重力と質量変化はありません（無次元）。
+重力と質量変化はなく、加速度の大きさは $a = 1$ で一定（無次元）。$x(t_f)$ は自由。
 
 $$
 \dot{u} = a\cos\beta,\quad \dot{v} = a\sin\beta,\quad \dot{x} = u,\quad \dot{y} = v,\qquad
-u(0)=v(0)=x(0)=y(0)=0,
+u(0)=v(0)=x(0)=y(0)=0
 $$
 
 $$
 u(t_f)=1,\quad v(t_f)=0,\quad y(t_f)=1,\qquad -\tfrac{\pi}{2} \le \beta \le \tfrac{\pi}{2},\qquad J = t_f
 $$
 
-$x(t_f)$ は自由です。高さ 1 まで上がるには上向きに加速し、終点では鉛直速度を 0 に戻す必要があるので、
-推力は上向きから水平を通って下向きへ回転します。
-
 ## コードとの対応
 
 | 数式 | `main.py` |
 | --- | --- |
 | 運動方程式 | `pointwise_dynamics` の `xp.stack((obj.a * xp.cos(u[0]), obj.a * xp.sin(u[0]), x[0], x[1]))` |
-| 初期条件・終端条件 | `equality` の `result.equal(...)` 7本（終端は `u[-1]`、`v[-1]`、`y[-1]`） |
-| $-\pi/2 \le \beta \le \pi/2$ | `inequality` の `result.lower_bound(beta, -np.pi / 2)`、`result.upper_bound(beta, np.pi / 2)` |
-| $J = t_f$ | `cost` が `prob.time_final(-1)` を返す（`cost_derivative = None` で勾配は自動） |
-| ノード数・初期時刻区間 | `n = [20]`、`time_init = [0.0, 2.0]` |
-| 初期推定 | 境界条件を満たす多項式（$y$ は `3 * fraction**2 - 2 * fraction**3`） |
+| 境界条件 | `equality` の `result.equal(...)` 7本 |
+| $\beta$ の範囲 | `result.lower_bound(beta, -np.pi / 2)` ほか |
+| $J = t_f$ | `cost` が `prob.time_final(-1)` を返す（`cost_derivative = None`） |
+| 離散化 | `n = [20]`、`time_init = [0.0, 2.0]` |
+| 初期推定 | $y$ に `3 * fraction**2 - 2 * fraction**3` など境界条件を満たす多項式 |
 
-`pointwise_dynamics` の `x[0]` は水平速度 $u$、`u[0]` は角度 $\beta$ です。記号の対応に注意してください。
-初期推定を全変数 0 にすると特異になりやすいため、意味のある軌道から出発させています。
+`pointwise_dynamics` では `x[0]` が水平速度 $u$、`u[0]` が制御 $\beta$ である。
 
 ## 結果
 
-推力の向きを示すロケットが目標高度 $y = 1$ へ飛ぶ様子と、速度 $u$、$v$ と $\beta$ の時間履歴を示しています。
+ロケットの軌道と、$u$、$v$、$\beta$ の時間履歴を示す。
 
 <ExampleMedia id="simple_rocket_2d" />
 
-- 到達時刻は約 2.08 で、終点の $x$ はソルバーが決めた値（約 1.04）です。
-- $\beta$ は約 +77° から始まり、中央で 0°（水平）を通って約 −77° まで単調に回転します。
-- $v$ は中央で最大になって終点で 0 に戻り、$u$ は $\cos\beta$ が大きい中央で最も速く増えて終点で 1 に揃います。
+- 到達時刻は約 2.08、終点の $x$ は約 1.04。
+- $\beta$ は約 +77° から 0° を経て約 −77° まで単調に回転する。
+- $v$ は中央で最大となり、終点で 0 に戻る。
 
 ## 試す
 
 <RunCommand id="simple_rocket_2d" />
 
-- `Rocket` の `a` を 2 にすると、到達時刻と $\beta$ の振れ幅はどう変わるか。
-- 計算した $\tan\beta$ を時間に対してプロットすると、おおむね直線になるか（重力なし・一定加速度の最短時間問題の線形タンジェント則）。
+- `Rocket` の `a` を 2 にし、到達時刻と $\beta$ の振れ幅を比較する。
+- $\tan\beta$ が時間に対して線形（線形タンジェント則）であることを確認する。
 
 ## ソースコード
 

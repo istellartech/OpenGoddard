@@ -1,6 +1,6 @@
 ---
 title: 11. 2段ロケット上昇
-description: 鉛直上昇を2つの phase に分け、段分離で質量だけが不連続に減る接続条件を自分で書く。
+description: 鉛直上昇を2つの phase に分け、段分離での質量ジャンプを接続条件として書く。
 sidebar:
   order: 11
 ---
@@ -9,13 +9,11 @@ import ExampleMedia from '../../../components/ExampleMedia.astro';
 import ExampleSource from '../../../components/ExampleSource.astro';
 import RunCommand from '../../../components/RunCommand.astro';
 
-[10. 単段ロケット上昇](../10-rocket-ascent-single-stage/) の鉛直上昇モデルに段分離を加えます。
-分離の瞬間、質量は一気に減りますが、位置と速度は変わりません。この「一部の状態だけが跳ぶ」境界を、
-phase の境界（knot）での接続条件として書きます。
+[10. 単段ロケット上昇](../10-rocket-ascent-single-stage/) の鉛直上昇に段分離を加える。段分離では位置と速度が連続のまま質量だけが不連続に減る。これを phase 境界（knot）の接続条件として書く。
 
 ## 問題
 
-状態は地心距離 $R$、速度 $v$、質量 $m$、制御は推力 $T$ です。運動方程式は10と同じで、両方の phase に使います。
+状態 $(R, v, m)$、制御 $T$。両 phase で10と同じ運動方程式を使う。
 
 $$
 \dot{R} = v,\quad
@@ -24,7 +22,7 @@ $$
 \rho = 1.225\,e^{-(R-R_e)/8500}
 $$
 
-phase 0（1段目）を $[0, t_s]$、phase 1（2段目）を $[t_s, t_f]$ とし、分離時刻 $t_s$ も最適化変数です。
+phase 0 を $[0, t_s]$、phase 1 を $[t_s, t_f]$ とし、$t_s$ も最適化する。1200 kg は1段目の構造質量である。
 
 $$
 \begin{aligned}
@@ -35,9 +33,6 @@ J = -R(t_f)/R_e
 \end{aligned}
 $$
 
-1200 kg は1段目の構造質量（$3000 \times 0.4$）に当たる定数です。各段の推進剤量は制約していないので、
-1段目に残った推進剤はそのまま2段目へ持ち越されます。
-
 ## コードとの対応
 
 | 数式 | `main.py` |
@@ -46,33 +41,24 @@ $$
 | knot での自動連続を外す | `prob.knot_states_smooth = [False]` |
 | 位置・速度の連続 | `result.equal(R1[-1], R2[0])`、`result.equal(v1[-1], v2[0])` |
 | 質量のジャンプ | `result.equal(m1[-1], m2[0] + 1200)` |
-| 終端条件 | `result.equal(v[-1], 0.0)`、`result.equal(m[-1], obj.M0_2nd * obj.Mc)` |
-| 状態・制御・時刻の範囲 | `set_states_bounds_all_section`、`set_controls_bounds_all_section`、`set_time_final_bounds(0, 50.0, None)` |
-| $J=-R(t_f)/R_e$ | `cost` が `-R[-1] / obj.Re` を返す |
+| $J$ | `cost` が `-R[-1] / obj.Re` を返す |
 
-`knot_states_smooth = [True]` だと、ライブラリが knot で $R, v, m$ すべての連続を課すので質量のジャンプが表せません。
-`R1 = prob.states(0, 0)` が phase 0、`R2 = prob.states(0, 1)` が phase 1 の値で、`[-1]` と `[0]` が境界のノードです。
-推力にはもともと連続条件がないので、分離の前後で自由に変われます。
-求解は1回の長い SLSQP 実行（`ftol=1e-10, maxiter=2000`）です。
+`knot_states_smooth = [True]` では全状態の連続が課され、質量ジャンプを表せない。求解は `ftol=1e-10, maxiter=2000` の1回の SLSQP 実行である。
 
 ## 結果
 
-質量のグラフの段差と、そこで高度・速度がつながっていることを確認してください。
+分離時刻で質量だけが 1200 kg 落ち、高度と速度は連続になる。
 
 <ExampleMedia id="rocket_ascent_two_stage" />
 
-- 質量は分離時刻で約 3835 kg から約 2635 kg へ、ちょうど 1200 kg 垂直に落ちます。高度と速度は連続です。
-- 分離時刻は下限の $t_s = 50$ s に張り付きます。推進剤を持ち越せるので、不要な 1200 kg は早く捨てるほど有利です。
-- 1段目は分離前に推力をほぼ 0 まで絞り、2段目は最大推力から燃焼を始めます。
-- 推進剤が尽きた後は慣性上昇し、到達高度は約 217 km です（10 とは終端質量の条件も違います）。
+- 分離時刻は下限 $t_s = 50$ s に張り付く。推進剤を2段目へ持ち越せるので、構造質量は早く捨てるほど有利である。
+- 1段目は分離前に推力をほぼ 0 まで絞り、2段目は最大推力から燃焼する。推進剤が尽きた後は慣性上昇し、到達高度は約 217 km である。
 
 ## 試す
 
 <RunCommand id="rocket_ascent_two_stage" />
 
-- `set_time_final_bounds(0, 50.0, None)` の下限を 100 にすると、分離時刻と到達高度はどう変わるか。
-- `m2[0] + 1200` の 1200 を小さくする（構造を軽くする）と、到達高度はどれだけ上がるか。
-- `knot_states_smooth = [True]` にすると、手書きの質量ジャンプと矛盾してどうなるか。
+- `set_time_final_bounds(0, 50.0, None)` の下限を 100 にし、分離時刻と到達高度の変化を確認する。
 
 ## ソースコード
 

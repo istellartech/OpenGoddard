@@ -18,23 +18,21 @@ const guide = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/getting-started/#�
 
 {
   !manifest && (
-    <Aside type="caution" title="動画が未生成です">
+    <Aside type="caution" title="動画未生成">
       リポジトリのルートで <code>uv run python website/scripts/build_media.py {id}</code>{' '}
-      を実行すると生成されます。
+      を実行すると生成される。
     </Aside>
   )
 }
 {
   failed.map(([name, status]) =>
     status.message.includes('Iteration limit') ? (
-      <Aside type="caution" title="反復回数の上限で停止した解です">
-        <code>{name}</code>: ソルバーは反復回数の上限で停止しました（<code>{status.message}</code>）。
-        表示している軌道は収束判定を満たした最適解とは限りません。ノード数や反復回数を変えて解が変わらないかを確かめてください。
+      <Aside type="caution" title="反復回数の上限で停止">
+        <code>{name}</code>: <code>{status.message}</code>。収束判定を満たした解ではない。
       </Aside>
     ) : (
-      <Aside type="danger" title="この結果は収束していません">
-        <code>{name}</code>: ソルバーが失敗しました（<code>{status.message}</code>）。
-        動画は最適解ではなく、失敗時点の値を描いたものです。
+      <Aside type="danger" title="未収束">
+        <code>{name}</code>: <code>{status.message}</code>。動画は失敗時点の値を示す。
       </Aside>
     ),
   )

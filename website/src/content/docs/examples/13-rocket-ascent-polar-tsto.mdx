@@ -1,6 +1,6 @@
 ---
 title: 13. 極座標・2段軌道投入
-description: 2段ロケットを2つの phase で表し、段分離で質量だけを不連続にして高度 500 km の円軌道へ投入する。
+description: 2段ロケットを2つの phase で表し、高度 500 km の円軌道へ投入する。
 sidebar:
   order: 13
 ---
@@ -9,17 +9,11 @@ import ExampleMedia from '../../../components/ExampleMedia.astro';
 import ExampleSource from '../../../components/ExampleSource.astro';
 import RunCommand from '../../../components/RunCommand.astro';
 
-[12](../12-rocket-ascent-polar-ssto/) の極座標モデルを2段ロケットに広げ、高度 500 km の円軌道に投入します。
-各段の燃焼を1つの phase とし、段分離では位置と速度を連続、質量だけを2段目の初期質量に切り替えます。
+[12](../12-rocket-ascent-polar-ssto/) の極座標モデルを2段ロケットに拡張し、高度 500 km の円軌道へ投入する。各段の燃焼を1つの phase とし、段分離では位置・速度を連続、質量を2段目の初期質量に切り替える。
 
 ## 問題
 
-状態 $(R, \theta, V_r, V_t, m)$、制御 $(T_r, T_t)$、運動方程式は12と同じで、$i$ 段目の phase ではその段の値を使います。
-
-$$
-\dot{m} = -\frac{\sqrt{T_r^2+T_t^2}}{g_0 I_{sp,i}},\qquad
-D_{r,t} = \tfrac12 \rho V_{r,t} \lvert V\rvert C_{d,i} A_i
-$$
+状態・制御・運動方程式は12と同じで、$i$ 段目の phase ではその段の $I_{sp,i}$、$C_{d,i}$、$A_i$ を使う。
 
 | | 1段目 | 2段目 |
 | --- | --- | --- |
@@ -38,8 +32,6 @@ J = -m(t_f)/M_{0,1}
 \end{aligned}
 $$
 
-分離時刻 $t_s$ と $t_f$ は最適化変数です。
-
 ## コードとの対応
 
 | 数式 | `main.py` |
@@ -48,33 +40,25 @@ $$
 | knot での自動連続を外す | `prob.dynamics = [dynamics, dynamics]`、`prob.knot_states_smooth = [False]` |
 | 位置・速度の連続 | `result.equal(R1[0], R0[-1], unit=unit_R)`（`theta`、`Vr`、`Vt` も同様） |
 | 段分離後の質量 | `result.equal(m1[0], obj.M0[1], unit=unit_m)` |
-| 段ごとの推力上限 | `result.upper_bound(T0, obj.Tmax[0], ...)`、`result.upper_bound(T1, obj.Tmax[1], ...)` |
-| 質量の範囲 | `prob.set_states_bounds(4, 0, obj.Mdry[0], obj.M0[0])`、`prob.set_states_bounds(4, 1, 1.0, obj.M0[1])` |
 | $J$ | `cost` が `-m1[-1] / prob.unit_states[1][4]` を返す |
 
-`R0 = prob.states(0, 0)` は phase 0、`R1 = prob.states(0, 1)` は phase 1 の値です。
-質量は連続条件の代わりに $m(t_s^+) = 1000$ を課すので、分離で1段目の残りが捨てられます。
-求解は12と同じく `ftol=1e-6, maxiter=3000` の1回の長い SLSQP 実行です（再起動でヘッセ行列の推定を捨てないため）。
+求解は12と同じく `ftol=1e-6, maxiter=3000` の1回の SLSQP 実行である。
 
 ## 結果
 
-分離時刻の破線で質量が段差になり、高度・速度はつながっていることを確認してください。
+分離時刻で質量だけが不連続になり、その後は12と同じく慣性飛行と遠地点噴射で円軌道に入る。
 
 <ExampleMedia id="rocket_ascent_polar_tsto" />
 
-- 1段目は質量の下限 2000 kg まで燃え尽き、分離で質量は 1000 kg へ落ちます。推力の上限も約 294 kN から約 14.7 kN に変わります。
-- 2段目は低い高度で円軌道速度より速く加速し、高度 500 km に遠地点を持つ楕円軌道に乗ります。
-- 長い慣性飛行の後、遠地点で小さく水平に噴射して円軌道に入ります。ホーマン遷移に近い使い方です。
-- 最終質量は約 477 kg です。
-- 慣性飛行中は推進剤を使わないので、最終質量は慣性飛行の長さにほとんど依存しません。そのため慣性飛行の長さと $t_f$ は計算環境によって変わります。
+- 1段目は質量下限 2000 kg まで燃焼し、分離で 1000 kg に落ちる。推力上限も2段目の値に切り替わる。
+- 2段目は遠地点 500 km の楕円軌道に乗り、遠地点で小さく水平に噴射して円軌道に入る。最終質量は約 477 kg である。
+- 最終質量は慣性飛行の長さにほとんど依存しないため、慣性飛行の長さと $t_f$ は計算環境によって変わる。
 
 ## 試す
 
 <RunCommand id="rocket_ascent_polar_tsto" />
 
-- `self.Isp = [300.0, 350.0]` の2段目を 450 にすると、最終質量はどれだけ増えるか。
-- `self.Mdry` の1段目を重くすると、質量の段差の上端と分離時刻はどう変わるか。
-- `n = [20, 20]` を `[10, 30]` に偏らせ、どちらの段の分解能が結果に効くかを見る。
+- `self.Isp` の2段目を 450 にし、最終質量の増加を確認する。
 
 ## ソースコード
 

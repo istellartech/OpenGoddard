@@ -1,6 +1,6 @@
 ---
 title: 02. 加速して停止する移動
-description: 静止状態から距離 d だけ動いて止まる。最短時間と最小二乗操作量で、最適な加速度の形がどう変わるかを比べる。
+description: 静止状態から距離 d だけ移動して停止する問題を、最短時間と最小操作量の2つの目的関数で解く。
 sidebar:
   order: 2
 ---
@@ -9,12 +9,9 @@ import ExampleMedia from '../../../components/ExampleMedia.astro';
 import ExampleSource from '../../../components/ExampleSource.astro';
 import RunCommand from '../../../components/RunCommand.astro';
 
-物体を静止状態から距離 $d$ だけ動かして止めます。同じ運動方程式でも、目的関数と制約によって
-最適な加速度の形が変わります。解析解があるので、数値解と照合できます。
+物体を静止状態から距離 $d$ だけ動かして停止させる。目的関数と制約によって最適な加速度の形が変わる。
 
 ## 問題
-
-状態は位置 $x$ と速度 $v$、制御は加速度 $u$ です。
 
 $$
 \dot{x} = v,\quad \dot{v} = u,\qquad
@@ -24,11 +21,8 @@ $$
 
 | `objective` | 目的関数 | $t_f$ | 解析解 |
 | --- | --- | --- | --- |
-| `minimum_time` | $t_f$ | 自由 | 最大加速→最大減速（速度上限があれば間に定速）。$t_f = 2\sqrt{d/a_{\max}}$ |
-| `minimum_effort` | $\int_0^{t_f} u^2\,dt$ | 固定 | 制約が効かなければ $u$ は時間の1次関数。$J = 12d^2/t_f^3$ |
-
-加速度が切り替わる時刻を phase（区間）の境界にすると、各区間内で制御が滑らかになり、
-多項式近似の精度が上がります。境界の時刻も最適化変数です。
+| `minimum_time` | $t_f$ | 自由 | 最大加速→（定速）→最大減速。速度上限なしで $t_f = 2\sqrt{d/a_{\max}}$ |
+| `minimum_effort` | $\int_0^{t_f} u^2\,dt$ | 固定 | 制約が無効なら $u$ は時間の1次関数。$J = 12d^2/t_f^3$ |
 
 ## コードとの対応
 
@@ -38,27 +32,24 @@ $$
 | 境界条件 | `equality` の `c.equal(...)` 4本 |
 | $\lvert u\rvert \le a_{\max}$、$0 \le v \le v_{\max}$ | `set_controls_bounds`、`set_states_bounds` |
 | $J=t_f$ / $J=\int u^2 dt$ | `problem.cost` / `problem.running_cost` |
-| 区間の数と初期推定 | `phase_plan()`（解析解の切り替え構造） |
+| 区間の数と初期推定 | `phase_plan()`（加速度の切り替え時刻を phase 境界とする） |
 
 ## 結果
 
-プリセットはタブで切り替えられます。グラフの黒い破線は `phase_plan()` から計算した解析解です。
+各プリセットの数値解を解析解（黒破線）と比較する。いずれも数値解は解析解と一致する。
 
 <ExampleMedia id="move_stop" />
 
-- `default`：加速度は $+a_{\max}$ から $-a_{\max}$ に一度だけ切り替わり、速度は三角形です。
-- `speed_limit`：速度が上限 2 m/s に達すると加速度 0 の定速区間が入り、速度は台形になります。
-- `minimum_effort`：加速度は直線的に減り、急な切り替えがありません。
-- `limited_effort`：時間を短くすると、直線の両端が加速度上限で切り取られます。
-- どのプリセットでも、数値解は解析解に重なります。
+- `default`：加速度は $+a_{\max}$ から $-a_{\max}$ に1回切り替わり、速度は三角形になる。
+- `speed_limit`：速度上限 2 m/s で定速区間が入り、速度は台形になる。
+- `minimum_effort`：加速度は直線的に減少する。`limited_effort` では直線の両端が加速度上限で切り取られる。
 
 ## 試す
 
 <RunCommand id="move_stop" args="--preset speed_limit --plot" />
-<RunCommand id="move_stop" args="--preset minimum_effort --set duration=5.5 --plot" />
 
-- `duration` を短くすると、どこから加速度上限に当たるか。最短時間 $2\sqrt{d/a_{\max}}$ 以下にするとエラーになるのはなぜか。
-- `speed_limit` を変えると、所要時間はどれだけ延びるか。
+- `--preset minimum_effort --set duration=5.5` を実行し、加速度上限が有効になることを確認する。
+- `duration` を最短時間 $2\sqrt{d/a_{\max}}$ 以下にするとエラーになることを確認する。
 
 ## ソースコード
 
