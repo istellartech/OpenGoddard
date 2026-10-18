@@ -9,132 +9,67 @@ import ExampleMedia from '../../../components/ExampleMedia.astro';
 import ExampleSource from '../../../components/ExampleSource.astro';
 import RunCommand from '../../../components/RunCommand.astro';
 
-高度 100 m を毎秒 10 m で降下している月着陸機が、**高度0・速度0で同時に**接地する推力履歴を求めます。
-最小の推進剤で止まるには「しばらく自由落下し、最後に最大推力で一気に止める」のが最適です。
-このとき推力の切り替え時刻と燃焼時間は解析的に求まるので、数値解をそれと比べて確かめられます。
+高度 100 m を 10 m/s で降下する月着陸機が、高度0・速度0で同時に接地する推力履歴を求めます。
+最適解は「自由落下（coast） → 最大推力（burn）」で、切り替え時刻と燃焼時間は解析的に求まります。
+その解析解で2つの phase を初期化し、数値解と照合します。
 
-## この例題で学ぶこと
+## 問題
 
-- 「上向き正」の座標で、降下・着地の境界条件を符号に注意して書く方法
-- 制御に線形なコスト（力積）から bang-bang 制御（推力0 → 最大推力）が現れる理由
-- 解析解で coast / burn の2つの phase を初期化し、knot で状態を連続させる方法
-- 質量一定モデルと質量可変（ロケット方程式）モデルの書き分け
-
-## 問題設定
-
-高度 $h$ と速度 $v$ は上向きを正、地表を $h = 0$ とします。一定重力・大気なし・姿勢運動なしのモデルです。
-制御は推力 $T$ です。
+上向きを正、地表を $h=0$ とし、一定重力・大気なしとします。制御は推力 $T$ です。
 
 $$
-\dot{h} = v, \qquad \dot{v} = \frac{T}{m} - g, \qquad \dot{m} = -\frac{T}{v_e}
+\dot{h} = v,\quad \dot{v} = \frac{T}{m} - g,\quad \dot{m} = -\frac{T}{v_e},\qquad
+h(0)=h_0,\ v(0)=v_0,\ h(t_f)=v(t_f)=0,\qquad
+0 \le h \le h_0,\ v \le 0,\ 0 \le T \le T_{\max}
 $$
 
-既定（`variable_mass = false`）では $m = m_0$ を定数として状態を $h, v$ の2つにし、
-`variable_mass = true` では質量 $m$ も状態に加えます。既定値は
-$h_0 = 100$ m, $v_0 = -10$ m/s, $g = 1.62$ m/s², $m_0 = 1000$ kg, $T_{\max} = 4000$ N,
-$v_e = 3000$ m/s, 乾燥質量 $m_{\rm dry} = 700$ kg です。
+既定（`variable_mass = false`）では $m=m_0$ を定数とし、総力積 $\int_0^{t_f} T\,dt$ を最小化します。
+`variable_mass = true` では $m$ も状態にし（$m(0)=m_0$、$m_{\rm dry} \le m \le m_0$）、推進剤消費率 $1 - m(t_f)/m_0$ を最小化します。
+既定値は $h_0=100$ m、$v_0=-10$ m/s、$g=1.62$ m/s²、$m_0=1000$ kg、$T_{\max}=4000$ N、$v_e=3000$ m/s です。
 
-境界条件と制約は次のとおりです。
-
-$$
-h(0) = h_0, \quad v(0) = v_0, \quad h(t_f) = 0, \quad v(t_f) = 0, \qquad
-0 \le h \le h_0, \quad v \le 0, \quad 0 \le T \le T_{\max}
-$$
-
-質量可変モデルではさらに $m(0) = m_0$, $m_{\rm dry} \le m \le m_0$ です。目的関数はモデルで変わります。
-
-| モデル | 最小化するもの | 求解器に渡す値 |
-| --- | --- | --- |
-| 質量一定 | 総力積 $\displaystyle\int_0^{t_f} T\,dt$ | $\displaystyle\frac{1}{T_{\max}\sqrt{h_0/g}}\int_0^{t_f} T\,dt$ |
-| 質量可変 | 推進剤消費率 | $1 - m(t_f)/m_0$ |
-
-### 解析解（参照解）
-
-質量一定のとき、コストは $T$ に線形なので最適推力は 0 か $T_{\max}$ のどちらかになり、
-「自由落下（coast） → 最大推力（burn）」が最適です。減速度を $b = T_{\max}/m_0 - g$ とすると、
-切り替え時の降下速さ $s$ は、coast のエネルギー保存 $s^2 = v_0^2 + 2g(h_0 - h_s)$ と、
-burn での停止距離 $s^2 = 2 b h_s$ から $h_s$ を消去して得られます。
+コストが $T$ に線形なので、最適推力は 0 か $T_{\max}$ の bang-bang になります。
+質量一定なら減速度 $b = T_{\max}/m_0 - g$ として、切り替え時の降下速さ $s$ と各時間が閉じた形で求まります（`constant_mass_reference()`）。
 
 $$
-s = \sqrt{\frac{(v_0^2 + 2 g h_0)\, b}{b + g}}, \qquad
-t_{\rm coast} = \frac{s + v_0}{g}, \qquad
-t_{\rm burn} = \frac{s}{b}, \qquad
-I = T_{\max}\, t_{\rm burn}
+s = \sqrt{\frac{(v_0^2 + 2 g h_0)\, b}{b + g}},\qquad
+t_{\rm coast} = \frac{s + v_0}{g},\qquad
+t_{\rm burn} = \frac{s}{b},\qquad I = T_{\max} t_{\rm burn}
 $$
 
-既定値では $t_{\rm coast} \approx 3.63$ s, $t_{\rm burn} \approx 6.67$ s, 力積 $I \approx 26695$ N·s です。
-これが `constant_mass_reference()` です。
+質量可変では、`landing_reference()` が最大推力でのロケット方程式の厳密解 `burn_state()` を使い、速度0と高度0が同時になる燃焼時間を `brentq` で求めます。
 
-質量可変のときは、burn 中に質量が減って減速度が増えます。`burn_state()` が最大推力での
-ロケット方程式の厳密解（$\Delta v = -v_e \ln(1 - \dot{m} t/m_0)$ を含む）を与え、
-`landing_reference()` が「速度0になる時刻と高度0になる時刻が一致する」燃焼時間を
-`brentq` で求めます。推進剤が足りない場合や初期 coast が成り立たない場合はエラーにします。
+## コードとの対応
 
-## 数式とコードの対応
-
-| 数式 | コード（`main.py`） |
+| 数式 | `main.py` |
 | --- | --- |
-| $\dot{h}=v,\ \dot{v}=T/m-g$ | `pointwise_dynamics` の `acceleration = u[0] / mass - obj.gravity` |
-| $\dot{m}=-T/v_e$（質量可変のみ） | `xp.stack((x[1], acceleration, -u[0] / obj.exhaust_velocity))` |
-| $h(0)=h_0,\ v(0)=v_0$ | `equality` の `c.equal(problem.states(0, 0)[0], p.initial_altitude, ...)` など |
-| $h(t_f)=0,\ v(t_f)=0$ | `c.equal(problem.states(0, -1)[-1], 0, ...)`, `c.equal(problem.states(1, -1)[-1], 0, ...)` |
-| $0 \le h \le h_0,\ v \le 0$ | `set_states_bounds(0, section, 0, p.initial_altitude)`, `set_states_bounds(1, section, None, 0)` |
-| $0 \le T \le T_{\max}$ | `set_controls_bounds(0, section, 0, p.max_thrust)` |
-| $m_{\rm dry} \le m \le m_0$ | `set_states_bounds(2, section, p.dry_mass, p.initial_mass)` |
-| 質量一定のコスト | `problem.running_cost = lambda prob, obj: prob.controls_all_section(0) / (obj.max_thrust * time_scale)` |
-| 質量可変のコスト | `LinearCallback(lambda prob, obj: 1 - prob.states(2, -1)[-1] / obj.initial_mass)` |
+| 運動方程式 | `pointwise_dynamics` の `acceleration = u[0] / mass - obj.gravity`（質量可変なら `-u[0] / obj.exhaust_velocity` も） |
+| 境界条件 | `equality` の `c.equal(...)`（終端は `problem.states(0, -1)[-1]` など） |
+| 状態・推力の範囲 | `set_states_bounds(1, section, None, 0)`、`set_controls_bounds(0, section, 0, p.max_thrust)` |
+| 総力積（無次元化） | `problem.running_cost` が `prob.controls_all_section(0) / (obj.max_thrust * time_scale)` |
+| 推進剤消費率 | `problem.cost` が `1 - prob.states(2, -1)[-1] / obj.initial_mass` |
 | coast / burn の2 phase | `Problem([0, tc, tc + tb], [nodes] * 2, ...)`（`tc`, `tb` は `landing_reference()` から） |
-| 各 phase の長さ 0 より大 | `inequality` の `c.lower_bound(prob.time_final(section) - prob.time_start(section), 1e-5 * time_scale, ...)` |
 
-2つの phase は解析解の切り替え時刻で初期化しますが、**両方の phase で推力は 0〜$T_{\max}$ の間で自由**です。
-coast phase で推力を0に固定しているわけではなく、最適化の結果として 0 になります。
-`knot_states_smooth` は指定していないので既定値 `[True]` が使われ、knot で $h, v$（と $m$）は連続、
-推力は不連続に変化できます。初期推定は coast では自由落下の放物線、burn では最大推力での減速
-（質量可変なら `burn_state()`）です。
+推力はどちらの phase でも 0〜$T_{\max}$ で自由で、coast の推力0は最適化の結果です。
+`knot_states_smooth` は既定値のままなので、knot で状態は連続、推力は不連続になれます。
 
-時間・高度・速度・推力は `set_unit_time(sqrt(h0/g))` などで正規化しています。
-求解器の目的値（動画タイトルの `objective`）はこの無次元値なので、モードをまたいだ比較には
-出力の `diagnostics.impulse_Ns` や `diagnostics.propellant_used_kg` を使います。
+## 結果
 
-## 計算結果
-
-動画の上部のバッジは現在の phase（慣性降下・減速噴射）を色で示し、推力がゼロの間は「・エンジン停止」が付きます。
-左は月面に降下する着陸機の模式図で、黒い空と灰色の地面を描き、炎の長さは推力に比例します。
-点線は開始高度、左上の枠は時刻 $t$ と高度・速度・推力（`variable_mass` では質量も）の現在値です。
-右は高度・速度（上向き正）・推力（`variable_mass` では質量も）の時間履歴で、縦の破線が coast と burn の境界（knot）、
-灰色の斜線の範囲がエンジン停止、黒い縦線と点が現在時刻です。この例題は実時間で再生し、
-最後の 1.5 秒は着地した状態で止まります。
-タブでプリセットを切り替えられます。最後の図は全プリセットの重ね描きです。
+プリセットはタブで切り替えられます。推力が 0 から $T_{\max}$ に跳ぶ時刻と、速度の傾きの変化を見てください。
 
 <ExampleMedia id="soft_landing" />
 
-### 読み取りのポイント
+- `default`：約 3.63 s 自由落下した後、最大推力で約 6.67 s 減速して着地します。力積は解析解の約 26695 N·s と一致します。
+- `variable_mass`：$v_e$ が大きく消費は約 8.8 kg なので、軌道は `default` とほぼ重なります。軽くなる分だけ少し遅く点火します。
+- `lower_thrust`（$T_{\max}=3000$ N）：減速度が小さいので約 2.45 s と早く点火し、力積は約 30360 N·s に増えます。
+- `higher_start`（$h_0=200$ m）：約 6.85 s 落下して速くなってから点火し、力積は約 35456 N·s です。
 
-- `default`：$t \approx 3.63$ s までは推力0で、速度は $-10$ m/s から $-g$ の傾きで直線的に速くなります。
-  knot（高度約 53 m、降下速さ約 15.9 m/s）で推力が 0 から 4 kN に跳び、速度は傾き $b = 2.38$ m/s² で 0 に戻ります。
-  $t_f \approx 10.31$ s で着地し、数値解の力積 26694.66 N·s は解析解と一致します。
-- `variable_mass`：質量のグラフが加わります。$v_e = 3000$ m/s と大きいため消費量は約 8.84 kg と小さく、
-  coast 約 3.64 s・着地約 10.27 s と、軌道は `default` とほとんど重なります（比較図で青線が赤線に隠れます）。
-  燃焼中に軽くなる分だけ、わずかに遅く点火して早く着地します。
-- `lower_thrust`：最大推力が 3 kN になり減速度 $b = 1.38$ m/s² が小さいので、約 2.45 s（高度約 71 m）と早めに点火し、
-  長く（約 10.1 s）噴きます。着地は約 12.57 s、力積は約 30360 N·s に増えます。
-- `higher_start`：初期高度 200 m。約 6.85 s 自由落下して約 21.1 m/s まで加速し、高度約 93 m で点火します。
-  着地は約 15.71 s で、落下距離が長い分、重力に打ち勝つための力積（約 35456 N·s）が増えます。
-
-## 試してみる
-
-プリセットは `--preset`、個別のパラメータは `--set 名前=JSON値` で変更できます。
+## 試す
 
 <RunCommand id="soft_landing" args="--preset variable_mass --plot" />
 <RunCommand id="soft_landing" args="--set variable_mass=true --set exhaust_velocity=300 --plot" />
-<RunCommand id="soft_landing" args="--set initial_velocity=-15 --set max_thrust=3500 --plot" />
 
-- `exhaust_velocity` を 300 m/s に下げると、推進剤消費（`propellant_used_kg`）と点火時刻はどう変わるでしょうか。
-  質量が大きく減るほど、質量一定の解析解とのずれが大きくなります。
-- 質量可変モデルで `dry_mass` を `995` のように初期質量に近づけると、推進剤不足のエラーになります。
-  どのくらいの推進剤が必要かを `propellant_used_kg` から見積もってみましょう。
-- `max_thrust` を初期重量 $m_0 g = 1620$ N 以下にするとエラーになります。止まれない理由を運動方程式から考えてみましょう。
-- `--nodes 6` のようにノード数を減らしても、bang-bang 解は解析解とよく一致するでしょうか。
+- `exhaust_velocity=300` では消費が約 84 kg に増える。点火時刻は質量一定の解析解からどれだけずれるか。
+- `max_thrust` を初期重量 $m_0 g = 1620$ N 以下にするとエラーになる。止まれない理由を運動方程式から考える。
 
 ## ソースコード
 

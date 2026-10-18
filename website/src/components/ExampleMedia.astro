@@ -13,6 +13,7 @@ const { id, figures = true } = Astro.props;
 const manifest = mediaManifest(id);
 const videos = manifest?.videos ?? [];
 const failed = Object.entries(manifest?.solver ?? {}).filter(([, status]) => !status.success);
+const guide = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/getting-started/#動画の見方`;
 ---
 
 {
@@ -44,6 +45,9 @@ const failed = Object.entries(manifest?.solver ?? {}).filter(([, status]) => !st
       <video controls preload="metadata" playsinline poster={mediaUrl(id, videos[0].poster)}>
         <source src={mediaUrl(id, videos[0].video)} type="video/mp4" />
       </video>
+      <figcaption>
+        <a href={guide}>動画の見方</a> ・ <a href={mediaUrl(id, 'solution.json')}>数値データ（JSON）</a>
+      </figcaption>
     </figure>
   )
 }
@@ -57,8 +61,8 @@ const failed = Object.entries(manifest?.solver ?? {}).filter(([, status]) => !st
               <source src={mediaUrl(id, video.video)} type="video/mp4" />
             </video>
             <figcaption>
-              プリセット <code>{video.name}</code> の計算結果 ・{' '}
-              <a href={mediaUrl(id, `${video.name}.json`)}>JSONデータ</a>
+              <a href={guide}>動画の見方</a> ・{' '}
+              <a href={mediaUrl(id, `${video.name}.json`)}>数値データ（JSON）</a>
             </figcaption>
           </figure>
         </TabItem>
@@ -70,7 +74,7 @@ const failed = Object.entries(manifest?.solver ?? {}).filter(([, status]) => !st
   manifest?.comparison && (
     <figure class="example-figure">
       <img src={mediaUrl(id, manifest.comparison)} alt={`${id}: 全プリセットの比較`} loading="lazy" />
-      <figcaption>全プリセットの重ね描き。条件を変えたときに解のどこが変わるかを比較できます。</figcaption>
+      <figcaption>全プリセットの重ね描き</figcaption>
     </figure>
   )
 }

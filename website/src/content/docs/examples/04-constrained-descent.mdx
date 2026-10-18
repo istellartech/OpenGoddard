@@ -1,6 +1,6 @@
 ---
 title: 04. 深さ制限付き最速降下
-description: 終点の位置と深さを固定した最速降下に最大深さ（床）の制約を加え、制約が効くと解が3区間に分かれる様子を比較する。
+description: 終点を固定した最速降下に最大深さ（床）の制約を加え、制約が効くと解が3区間に分かれる様子を比べる。
 sidebar:
   order: 4
 ---
@@ -9,109 +9,63 @@ import ExampleMedia from '../../../components/ExampleMedia.astro';
 import ExampleSource from '../../../components/ExampleSource.astro';
 import RunCommand from '../../../components/RunCommand.astro';
 
-03の最速降下に「これより深くは掘れない」という床を加えます。
-床が十分深ければ解はサイクロイドのままですが、床が浅くなると軌道は床に接し、
-**下降・床上の水平移動・上昇**の3区間に分かれます。制約が効くかどうかで区間の構成が変わることと、
-それを phase で表す方法を確かめる例題です。
+03の最速降下に「これより深くは潜れない」床を加えます。床が十分深ければ解はサイクロイドのままですが、
+浅くなると軌道は床に接し、降下・床に沿った移動・上昇の3区間に分かれます。この区間構成を phase で表します。
 
-## この例題で学ぶこと
+## 問題
 
-- 状態の拘束（最大深さ）が効くと、解が性質の異なる区間に分かれること
-- エネルギー保存を使って状態を減らし、冗長な運動方程式を避ける工夫
-- 解析解（サイクロイド＋水平線分）を初期推定と検証の両方に使う方法
-
-## 問題設定
-
-水平位置 $x$ と深さ $y$（下向き正）、速さ $v$、制御 $\theta$（鉛直下向きから右向きに測った進行方向）は03と同じです。
+運動方程式は03と同じです（$y$ は下向き正、$\theta$ は鉛直下向きから測る）。静止から出発するので
+エネルギー保存 $y = v^2/(2g)$ が成り立ち、コードでは状態を $x$ と $v$ の2個に減らします。
+床の上で $\dot{y}=0$ と $\dot{v}=0$ を重複して課さないためです。
 
 $$
-\dot{x} = v\sin\theta, \qquad \dot{y} = v\cos\theta, \qquad \dot{v} = g\cos\theta
+\dot{x} = v\sin\theta,\quad \dot{v} = g\cos\theta,\qquad
+x(0)=v(0)=0,\quad x(t_f)=L,\quad v(t_f)=\sqrt{2g\,y_f},\qquad
+v \le \sqrt{2g\,y_{\max}},\qquad J = t_f
 $$
 
-静止から出発するのでエネルギー保存により $y = v^2/(2g)$ が常に成り立ちます。
-そこでコードでは状態を $x$ と $v$ の2個に減らし、深さは出力時に $v$ から復元します。
-床の上では深さも速さも一定なので、$\dot{y}$ と $\dot{v}$ を両方課すと同じ条件が重複するためです。
+03と違い終点の深さ $y_f$ も固定し、床 $y \le y_{\max}$ は速さの上限に置き換えます。
+既定値は $L = 1$ m、$y_f = 0.2$ m、$g = 9.81$ m/s²、$y_{\max} = 0.3$ m です。
 
-境界条件は、03と違って終点の水平位置と深さの**両方**を固定します（深さの条件は速さの条件に置き換えます）。
+`reference_solution()` は、終点を通るサイクロイドの最大深さが $y_{\max}$ を超えるときに床が効くと判定し、
+半径 $a = y_{\max}/2$ のサイクロイドで降下 → 速さ $\sqrt{2g\,y_{\max}}$ の等速移動 → 同じサイクロイドで上昇、
+という解析解を作ります。これを phase 数（1 または 3）と初期推定、検証に使います。
 
-$$
-x(0) = v(0) = 0, \qquad x(t_f) = L, \qquad v(t_f) = \sqrt{2 g\, y_f}
-$$
+## コードとの対応
 
-床の深さを $y_{\max}$ とすると、深さの制約 $y \le y_{\max}$ は速さの上限 $v \le \sqrt{2 g\, y_{\max}}$ になります。
-目的関数は到達時刻 $t_f$ です（ソルバーには $t_f/\sqrt{L_s/g}$、$L_s = \max(L, y_f)$ の無次元値を渡します）。
-
-`Parameters` の既定値は $L = 1$ m、$y_f = 0.2$ m、$g = 9.81$ m/s²、$y_{\max} = 0.3$ m です。
-
-### 区間の分け方と解析解
-
-`reference_solution()` は、まず床がない場合のサイクロイド $x = a(\phi - \sin\phi)$、$y = a(1-\cos\phi)$ を
-終点 $(L, y_f)$ を通るように求めます。その最大深さ $2a$ が $y_{\max}$ を超える場合に床が効くと判定し、
-次の3区間の解析解を作ります。
-
-1. 下降：$a = y_{\max}/2$ のサイクロイドで、$\phi = \pi$（水平）で床に接する
-2. 床上：深さ $y_{\max}$、速さ $\sqrt{2 g\, y_{\max}}$ の等速直線運動
-3. 上昇：同じサイクロイドの $\phi > \pi$ の部分で終点まで上がる
-
-各区間の所要時間は $\pi\sqrt{a/g}$、水平距離 $/ \sqrt{2 g\, y_{\max}}$、$(\phi_f - \pi)\sqrt{a/g}$ です。
-これを各 phase の初期時刻と初期推定に使い、合計 `minimum_time` を数値解と比べます。
-
-## 数式とコードの対応
-
-| 数式 | コード（`main.py`） |
+| 数式 | `main.py` |
 | --- | --- |
-| $\dot{x}=v\sin\theta,\ \dot{v}=g\cos\theta$ | `pointwise_dynamics` が `xp.stack((x[1] * xp.sin(theta), obj.gravity * xp.cos(theta)))` を返す |
-| $y = v^2/(2g)$（深さの復元） | `solve()` の `phase[grid]["depth"] = ... ** 2 / (2 * parameters.gravity)` |
-| $x(0)=v(0)=0$ | `equality` の `for state in range(2): c.equal(problem.states(state, 0)[0], 0, ...)` |
-| $x(t_f)=L,\ v(t_f)=\sqrt{2gy_f}$ | `c.equal(problem.states(0, -1)[-1], p.distance, ...)` と `np.sqrt(2 * p.gravity * p.final_depth)` |
-| 床への出入りで $v=\sqrt{2gy_{\max}}$ | 3区間のとき `c.equal(problem.states(1, 0)[-1], floor_speed, ...)` と区間1の終端も同様 |
-| $v \le \sqrt{2gy_{\max}}$ | `problem.set_states_bounds(1, section, 0, np.sqrt(2 * p.gravity * p.max_depth) ...)` |
-| $0 \le x \le L$ | `problem.set_states_bounds(0, section, 0, p.distance)` |
-| $\theta$ の範囲 | 下降 $[0, \pi/2]$、上昇 $[\pi/2, \pi]$、それ以外 $[0, \pi]$（`angle_bounds`） |
-| 各区間の長さ $> 0$ | `inequality` の `c.lower_bound(prob.time_final(section) - prob.time_start(section), 1e-6 * time_scale, ...)` |
+| 運動方程式 | `pointwise_dynamics` が `xp.stack((x[1] * xp.sin(theta), obj.gravity * xp.cos(theta)))` を返す |
+| 終点 | `equality` の `c.equal(problem.states(0, -1)[-1], p.distance, ...)` と `np.sqrt(2 * p.gravity * p.final_depth)` |
+| 床への出入り | 3区間のとき区間1・2の終端で `c.equal(..., floor_speed, ...)` |
+| $v \le \sqrt{2g\,y_{\max}}$ | `problem.set_states_bounds(1, section, 0, np.sqrt(2 * p.gravity * p.max_depth) ...)` |
 | $J = t_f$ | `problem.cost = LinearCallback(lambda prob, obj: prob.time_final(-1) / time_scale)` |
-| 区間数 | `make_problem()` が `reference_solution(p)["phase_durations"]` の長さ（1 または 3）で phase 数を決める |
+| 区間数・初期推定 | `make_problem()` が `reference_solution(p)["phase_durations"]` から決める |
+| 深さの復元 | `solve()` で `depth = speed ** 2 / (2 * parameters.gravity)` |
 
-区間の境界時刻は最適化変数で、床に入る・出る時刻はソルバーが決めます。
-床上で $\theta$ を直接指定していない点に注意してください。速さが一定 $v = \sqrt{2gy_{\max}}$ であることから、
-運動方程式 $\dot{v} = g\cos\theta = 0$ によって $\theta = \pi/2$（水平）が決まります。
+床の上では $\theta$ を指定していません。速さが一定なので $\dot{v} = g\cos\theta = 0$ から $\theta = 90°$ が決まります。
 
-## 計算結果
+## 結果
 
-左は軌道上を動く球で、破線は床 $y_{\max}$ です（`no_floor` では描かれません）。
-深さは下向きに描いています。右は速さと $\theta$ の時間履歴で、縦の点線は phase の境界、黒い縦線は動画の現在時刻です。
-タブでプリセットを切り替えられます。動画のタイトルにある objective は無次元化した到達時刻です。
+プリセットごとに、最適な経路の球と同じ終点への直線の斜面を滑る球を競争させています。最後の図は全プリセットの軌道の重ね描きです。
 
 <ExampleMedia id="constrained_descent" />
 
-### 読み取りのポイント
+- `no_floor`：終点 $(1, 0.2)$ を通るサイクロイド1区間で、途中約 0.358 m まで潜ります。到達時刻は約 0.621 s です。
+- `default`：床 0.3 m が 0.358 m より浅いので3区間に分かれ、床の上では速さ一定・$\theta = 90°$ です。到達時刻は約 0.624 s とわずかに遅くなります。
+- `inactive_floor`：床 0.8 m は効かず、`no_floor` と同じ解です。制約はあるだけでなく、効いたときに解を変えます。
+- `shallow_floor`：床 0.23 m では床に沿う区間が長くなり、約 0.644 s に延びます。
+- `lower_gravity`：$g = 1.62$ m/s² でも軌道の形は `default` と同じで、時間だけが $\sqrt{9.81/1.62} \approx 2.46$ 倍になります。
 
-- `no_floor`：床がない場合です。軌道は終点 $(1, 0.2)$ を通るサイクロイド1区間で、
-  途中で約 0.358 m まで潜ってから終点へ上がります。到達時刻は約 0.621 s です。
-- `default`：床 0.3 m が約 0.358 m より浅いので制約が効き、3区間に分かれます。
-  床上では速さが一定、$\theta$ が 90° で平らになります。到達時刻は約 0.624 s で、床なしよりわずかに遅くなります。
-- `inactive_floor`：床 0.8 m は解の最大深さより深いので、床があっても `no_floor` と同じ1区間の解になります。
-  制約は「あるかどうか」ではなく「効くかどうか」で解を変えることが分かります。
-- `shallow_floor`：床 0.23 m では床上の区間が長くなり（解析解で約 0.476 m）、到達時刻は約 0.644 s に延びます。
-- `lower_gravity`：月面程度の $g = 1.62$ m/s² です。軌道の形は `default` と同じで、時間だけが
-  $\sqrt{9.81/1.62} \approx 2.46$ 倍（約 1.536 s）になります。無次元化した objective は `default` と同じ値になるので、
-  重力の比較には実時間を使ってください。
-
-最後の比較図は全プリセットの重ね描きです。床が効くプリセットだけ軌道の底が平らになっていることを確認してください。
-
-## 試してみる
-
-プリセットは `--preset`、個別のパラメータは `--set 名前=値`（値はJSON）で変更できます。
-結果のJSONには `reference.minimum_time`（解析解）が含まれ、数値解と比較できます。
+## 試す
 
 <RunCommand id="constrained_descent" args="--preset shallow_floor --plot" />
 <RunCommand id="constrained_descent" args="--set max_depth=0.35 --plot" />
 <RunCommand id="constrained_descent" args="--set final_depth=0.1 --set max_depth=null --plot" />
 
-- `max_depth` を 0.4 から 0.25 まで少しずつ浅くし、どこで区間が3つに分かれ始めるかを探してみましょう。
-  境界は床なしの解の最大深さ（既定値では約 0.358 m）のはずです。
-- `distance` を大きくすると、床なしの解はどこまで深く潜るでしょうか。同じ床でも効き方が変わります。
-- `max_depth` は `final_depth` より大きくする必要があります。等しくするとエラーになる理由を考えてみましょう。
+- `max_depth` を 0.4 から少しずつ浅くすると、どこで3区間に分かれ始めるか（約 0.358 m のはず）。
+- 出力JSONの `reference.minimum_time`（解析解）と数値解の到達時刻を比べる。
+- `max_depth` を `final_depth` 以下にするとエラーになるのはなぜか。
 
 ## ソースコード
 

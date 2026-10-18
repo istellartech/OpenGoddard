@@ -29,6 +29,7 @@ export default defineConfig({
               name: 'OpenGoddard',
               search: ['../src'],
               docstringStyle: 'google',
+              sourceLink: { host: 'github', repo: 'istellartech/OpenGoddard', ref: 'master', root: '..' },
             },
           ],
           inventories: ['python'],

@@ -1,6 +1,6 @@
 ---
 title: 02. 加速して停止する移動
-description: 静止状態から距離 d だけ移動して停止する。最短時間と最小二乗操作量を比較する。
+description: 静止状態から距離 d だけ動いて止まる。最短時間と最小二乗操作量で、最適な加速度の形がどう変わるかを比べる。
 sidebar:
   order: 2
 ---
@@ -9,83 +9,56 @@ import ExampleMedia from '../../../components/ExampleMedia.astro';
 import ExampleSource from '../../../components/ExampleSource.astro';
 import RunCommand from '../../../components/RunCommand.astro';
 
-レール上の物体を、静止状態から距離 $d$ だけ動かして再び止めます。
-同じ運動方程式でも、**何を最小化するか**と**どの制約が効くか**で最適な加速度の形が
-大きく変わることを確かめる例題です。
+物体を静止状態から距離 $d$ だけ動かして止めます。同じ運動方程式でも、目的関数と制約によって
+最適な加速度の形が変わります。解析解があるので、数値解と照合できます。
 
-## この例題で学ぶこと
-
-- 状態（位置・速度）と制御（加速度）の分け方
-- 終端時刻を自由にする問題（最短時間）と固定する問題（最小二乗操作量）の書き分け
-- 制御の上下限・速度上限が効くと解が「区間」に分かれること、区間を複数の phase で表す方法
-
-## 問題設定
+## 問題
 
 状態は位置 $x$ と速度 $v$、制御は加速度 $u$ です。
 
 $$
-\dot{x} = v, \qquad \dot{v} = u
+\dot{x} = v,\quad \dot{v} = u,\qquad
+x(0)=v(0)=0,\quad x(t_f)=d,\quad v(t_f)=0,\qquad
+|u| \le a_{\max},\quad 0 \le v \le v_{\max}
 $$
 
-境界条件と制約は次のとおりです。
+| `objective` | 目的関数 | $t_f$ | 解析解 |
+| --- | --- | --- | --- |
+| `minimum_time` | $t_f$ | 自由 | 最大加速→最大減速（速度上限があれば間に定速）。$t_f = 2\sqrt{d/a_{\max}}$ |
+| `minimum_effort` | $\int_0^{t_f} u^2\,dt$ | 固定 | 制約が効かなければ $u$ は時間の1次関数。$J = 12d^2/t_f^3$ |
 
-$$
-x(0) = v(0) = 0, \qquad x(t_f) = d, \qquad v(t_f) = 0, \qquad
-|u| \le a_{\max}, \qquad 0 \le v \le v_{\max}
-$$
+加速度が切り替わる時刻を phase（区間）の境界にすると、各区間内で制御が滑らかになり、
+多項式近似の精度が上がります。境界の時刻も最適化変数です。
 
-目的関数は `objective` パラメータで選びます。
+## コードとの対応
 
-| `objective` | 最小化するもの | 終端時刻 |
-| --- | --- | --- |
-| `minimum_time` | $J = t_f$ | 自由 |
-| `minimum_effort` | $J = \displaystyle\int_0^{t_f} u^2\,dt$ | `duration` に固定 |
-
-速度上限がない最短時間問題の解は「最大加速 → 最大減速」の bang-bang 制御で、
-$t_f = 2\sqrt{d/a_{\max}}$ です。最小二乗操作量で上下限が効かない場合は、
-加速度が時間の1次関数になり $J = 12d^2/t_f^3$ となります。
-これらの解析解は `minimum_time()` と `phase_plan()` に実装され、数値解の検証に使われます。
-
-## 数式とコードの対応
-
-| 数式 | コード（`main.py`） |
+| 数式 | `main.py` |
 | --- | --- |
 | $\dot{x}=v,\ \dot{v}=u$ | `pointwise_dynamics` が `xp.stack((x[1], u[0]))` を返す |
-| $x(0)=v(0)=0,\ x(t_f)=d,\ v(t_f)=0$ | `equality` の `c.equal(...)` 4本 |
-| $\lvert u\rvert \le a_{\max}$ | `problem.set_controls_bounds(0, section, -a, a)` |
-| $0 \le v \le v_{\max}$ | `problem.set_states_bounds(1, section, 0.0, p.speed_limit)` |
-| $J=t_f$ | `problem.cost = LinearCallback(lambda prob, obj: prob.time_final(-1))` |
-| $J=\int u^2 dt$ | `problem.running_cost = lambda prob, obj: prob.controls_all_section(0) ** 2` |
-| $t_f$ 固定 | `problem.set_time_final_bounds(-1, p.duration, p.duration)` |
-| 加速・定速・減速の区間 | `phase_plan()` が区間の数と初期推定を決め、各区間を1つの phase にする |
+| 境界条件 | `equality` の `c.equal(...)` 4本 |
+| $\lvert u\rvert \le a_{\max}$、$0 \le v \le v_{\max}$ | `set_controls_bounds`、`set_states_bounds` |
+| $J=t_f$ / $J=\int u^2 dt$ | `problem.cost` / `problem.running_cost` |
+| 区間の数と初期推定 | `phase_plan()`（解析解の切り替え構造） |
 
-制御が不連続に切り替わる時刻を phase の境界に置くと、各 phase 内では制御が滑らかになり、
-擬スペクトル法の多項式近似がよく効きます。境界時刻そのものも最適化変数です。
-単位のスケーリング（`set_unit_time` など）は、ソルバーが扱う数値の大きさを揃えるためのものです。
+## 結果
 
-## 計算結果
-
-左はレール上の物体と加速度（赤い矢印）、右は位置・速度・加速度の時間履歴です。
-縦の点線は phase の境界、黒い縦線は動画の現在時刻を表します。タブでプリセットを切り替えられます。
+プリセットはタブで切り替えられます。グラフの黒い破線は `phase_plan()` から計算した解析解です。
 
 <ExampleMedia id="move_stop" />
 
-### 読み取りのポイント
+- `default`：加速度は $+a_{\max}$ から $-a_{\max}$ に一度だけ切り替わり、速度は三角形です。
+- `speed_limit`：速度が上限 2 m/s に達すると加速度 0 の定速区間が入り、速度は台形になります。
+- `minimum_effort`：加速度は直線的に減り、急な切り替えがありません。
+- `limited_effort`：時間を短くすると、直線の両端が加速度上限で切り取られます。
+- どのプリセットでも、数値解は解析解に重なります。
 
-- `default`：加速度が $+a_{\max}$ から $-a_{\max}$ に一度だけ切り替わり、速度は三角形になります。
-- `speed_limit`：速度が上限 2 m/s に達すると加速度 0 の定速区間（cruise）が現れ、速度は台形になります。
-- `minimum_effort`：加速度は直線的に減少し、急な切り替えがありません。操作量の二乗積分を減らすためです。
-- `limited_effort`：移動時間を短くすると、直線の両端が加速度上限で切り取られます。
-
-## 試してみる
-
-プリセットは `--preset`、個別のパラメータは `--set 名前=値` で変更できます。
+## 試す
 
 <RunCommand id="move_stop" args="--preset speed_limit --plot" />
-<RunCommand id="move_stop" args="--set distance=20 --set max_acceleration=1 --plot" />
+<RunCommand id="move_stop" args="--preset minimum_effort --set duration=5.5 --plot" />
 
-- `duration` を短くしていくと、どこで加速度上限に達するでしょうか。最短時間より短くするとエラーになる理由を考えてみましょう。
-- `speed_limit` を `null` にした最短時間解と比べ、移動時間はどれだけ延びるでしょうか。
+- `duration` を短くすると、どこから加速度上限に当たるか。最短時間 $2\sqrt{d/a_{\max}}$ 以下にするとエラーになるのはなぜか。
+- `speed_limit` を変えると、所要時間はどれだけ延びるか。
 
 ## ソースコード
 

@@ -16,6 +16,7 @@ was released) are labelled as schematic where they could be mistaken for it.
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -72,12 +73,34 @@ class Series:
 class Flight:
     """What one animation shows. Getters take one sampled phase."""
 
-    kind: str  # "vertical", "ascent" or "orbit"
+    kind: str  # "rail", "track", "plane", "vertical", "ascent" or "orbit"
     title: str
     phase_names: list[str]
-    throttle: Getter  # thrust magnitude; normalised to the maximum internally
-    panels: list[list[Series]]
-    readout: list[Series]
+    panels: list[list[Series]] = field(default_factory=list)
+    readout: list[Series] = field(default_factory=list)
+    # Thrust magnitude, normalised per phase; None for problems without an
+    # engine (no engine-off shading or fast-forward).
+    throttle: Getter | None = None
+    # rail / track / plane: position in the plane of the picture
+    x: Getter | None = None
+    y: Getter | None = None
+    xlabel: str = ""
+    ylabel: str = ""
+    invert_y: bool = False  # depth axes point down
+    decorate: Callable[[Any], None] | None = None  # static extras in the scene
+    arrow: Getter | None = None  # rail: signed arrow (e.g. acceleration)
+    arrow_label: str = ""
+    heading: Getter | None = None  # plane: thrust direction [rad from +x]
+    legend_lines: list[str] = field(default_factory=list)  # extra scene key
+    # Exact reference shown as a second body racing the solution:
+    # position at a time, and its arrival time.
+    ghost: Callable[[float], tuple[float, float]] | None = None
+    ghost_time: float = 0.0
+    ghost_label: str = ""
+    # Analytic curves per panel index: (time, value, label)
+    overlays: dict[int, list[tuple[np.ndarray, np.ndarray, str]]] = field(
+        default_factory=dict
+    )
     altitude: Getter | None = None  # vertical: height shown in the column
     altitude_label: str = ""
     altitude_unit: str = ""
@@ -143,6 +166,21 @@ def _coast_spans(t: np.ndarray, throttle: np.ndarray) -> list[tuple[float, float
         spans.append((start, t[-1]))
     duration = t[-1] - t[0]
     return [(a, b) for a, b in spans if b - a > 0.02 * duration]
+
+
+def _fit_ylim(ax, curves: list[np.ndarray]) -> None:
+    """Keep a nearly constant curve from being blown up to solver noise."""
+    ax.ticklabel_format(axis="y", useOffset=False)
+    values = np.concatenate(curves)
+    values = values[np.isfinite(values)]
+    if values.size == 0:
+        return
+    low, high = float(values.min()), float(values.max())
+    size = max(abs(low), abs(high))
+    if high - low < 0.02 * size:
+        ax.set_ylim(
+            min(0.0, low) * 1.15 - 0.05 * size, max(0.0, high) * 1.15 + 0.05 * size
+        )
 
 
 def _rocket_shapes(length: float, width: float, stages: int):
@@ -218,17 +256,29 @@ def render_flight(flight: Flight, phases: list[Phase], stem: Path) -> None:
     # full thrust, not a few percent of the first stage's.
     # A phase whose peak is under 2% of the flight's peak only holds numerical
     # noise around zero thrust (e.g. a coast phase), so it is "off" throughout.
-    peaks = [float(np.max(np.abs(flight.throttle(p)))) for p in phases]
-    top = max(peaks) or 1.0
-    throttle = np.concatenate(
-        [
-            np.abs(flight.throttle(p)) / peak
-            if peak > 0.02 * top
-            else np.zeros(len(p["time"]))
-            for p, peak in zip(phases, peaks, strict=True)
-        ]
-    )
+    if flight.throttle is None:
+        throttle = np.ones_like(t)
+    else:
+        engine = flight.throttle
+        peaks = [float(np.max(np.abs(engine(p)))) for p in phases]
+        top = max(peaks) or 1.0
+        throttle = np.concatenate(
+            [
+                np.abs(engine(p)) / peak
+                if peak > 0.02 * top
+                else np.zeros(len(p["time"]))
+                for p, peak in zip(phases, peaks, strict=True)
+            ]
+        )
     times = _frame_times(t, throttle, flight)
+    if flight.ghost is not None and flight.ghost_time > t[-1]:
+        # Keep the clock running until the reference also arrives.
+        times = np.concatenate(
+            (
+                np.linspace(t[0], flight.ghost_time, int(flight.seconds * FPS)),
+                np.full(int(1.5 * FPS), flight.ghost_time),
+            )
+        )
     speedup = _speedup(t, throttle, flight)
     knots = [p["time"][0] for p in phases[1:]]
     coasts = _coast_spans(t, throttle)
@@ -270,7 +320,7 @@ def render_flight(flight: Flight, phases: list[Phase], stem: Path) -> None:
 
     # --- graphs -----------------------------------------------------------
     cursors, values_text, dots, legends = [], [], [], []
-    for ax, group in zip(axes, flight.panels, strict=True):
+    for index, (ax, group) in enumerate(zip(axes, flight.panels, strict=True)):
         for i, phase in enumerate(phases):
             color = PHASE_COLORS[i % 4]
             ax.axvspan(
@@ -304,6 +354,9 @@ def render_flight(flight: Flight, phases: list[Phase], stem: Path) -> None:
             else ("無次元" if group[0].unit in ("", "-") else f"[{group[0].unit}]")
         )
         ax.grid(alpha=0.3)
+        for ref_t, ref_v, _ in flight.overlays.get(index, []):
+            ax.plot(ref_t, ref_v, color=INK, lw=1.4, ls=(0, (4, 3)), zorder=4)
+        _fit_ylim(ax, [_cat(phases, series.value) for series in group])
         if len(group) > 1:
             legend = ax.legend(
                 loc="upper left", fontsize=11, framealpha=0.9, edgecolor="#d1d5db"
@@ -330,29 +383,33 @@ def render_flight(flight: Flight, phases: list[Phase], stem: Path) -> None:
     axes[-1].set_xlabel(f"時刻 [{flight.time_unit}]")
     for ax in axes[:-1]:
         ax.tick_params(labelbottom=False)
+    keys = []
+    if flight.overlays:
+        labels = {label for refs in flight.overlays.values() for *_, label in refs}
+        keys.append(f"実線：数値解（色は区間）　黒の破線：{'・'.join(sorted(labels))}")
     if coasts:
+        keys.append("灰色の斜線：エンジン停止（慣性飛行）")
+    if knots:
+        keys.append("縦の破線：区間（phase）の境界")
+    if keys:
         axes[0].text(
-            0.01,
+            0.0,
             1.04,
-            "灰色の斜線：エンジン停止（慣性飛行）  破線：区間の境界",
+            "　".join(keys),
             transform=axes[0].transAxes,
-            fontsize=10,
-            color=MUTED,
-        )
-    elif knots:
-        axes[0].text(
-            0.01,
-            1.04,
-            "破線：区間（phase）の境界",
-            transform=axes[0].transAxes,
-            fontsize=10,
+            fontsize=10.5,
             color=MUTED,
         )
 
     # --- scene ------------------------------------------------------------
-    draw_scene = {"vertical": _vertical, "ascent": _ascent, "orbit": _orbit}[
-        flight.kind
-    ]
+    draw_scene = {
+        "rail": _rail,
+        "track": _track,
+        "plane": _plane,
+        "vertical": _vertical,
+        "ascent": _ascent,
+        "orbit": _orbit,
+    }[flight.kind]
     update_scene = draw_scene(scene, flight, phases, t, throttle, knots, fig)
     readout = scene.text(
         0.02,
@@ -374,11 +431,11 @@ def render_flight(flight: Flight, phases: list[Phase], stem: Path) -> None:
     if flight.note:
         scene.text(
             0.98,
-            0.015,
+            0.98,
             flight.note,
             transform=scene.transAxes,
             ha="right",
-            va="bottom",
+            va="top",
             fontsize=10,
             color=MUTED,
             zorder=20,
@@ -398,7 +455,8 @@ def render_flight(flight: Flight, phases: list[Phase], stem: Path) -> None:
         k = phase_at(time)
         power = at(throttle, time)
         name = flight.phase_names[min(k, len(flight.phase_names) - 1)]
-        badge.set_text(f" {name}{'・エンジン停止' if power <= 0.03 else ''} ")
+        off = flight.throttle is not None and power <= 0.03
+        badge.set_text(f" {name}{'・エンジン停止' if off else ''} ")
         box = badge.get_bbox_patch()
         if box is not None:
             box.set_facecolor(PHASE_COLORS[k % 4])
@@ -418,12 +476,12 @@ def render_flight(flight: Flight, phases: list[Phase], stem: Path) -> None:
         for cursor, text, group, group_dots, labels in zip(
             cursors, values_text, flight.panels, dots, legends, strict=True
         ):
-            cursor.set_xdata([time, time])
+            cursor.set_xdata([min(time, t[-1])] * 2)
             parts = []
             for series, (dot, values) in zip(group, group_dots, strict=True):
                 value = at(values, time) + 0.0
                 visible = np.isfinite(value)
-                dot.set_data([time], [value] if visible else [np.nan])
+                dot.set_data([min(time, t[-1])], [value] if visible else [np.nan])
                 if visible:
                     unit = "" if series.unit in ("", "-") else f" {series.unit}"
                     parts.append(f"{series.fmt.format(value)}{unit}")
@@ -455,6 +513,202 @@ def render_flight(flight: Flight, phases: list[Phase], stem: Path) -> None:
 
 # ---------------------------------------------------------------------------
 # Scenes. Each draws the static picture and returns update(time, power, flicker).
+
+LIGHT = "#f8fafc"
+STROBE = 16  # marks at equal time steps: their spacing shows the speed
+
+
+def _strobe_times(t: np.ndarray) -> np.ndarray:
+    return np.linspace(t[0], t[-1], STROBE + 1)
+
+
+def _caption(ax, text: str) -> None:
+    ax.text(
+        0.02,
+        0.02,
+        text,
+        transform=ax.transAxes,
+        fontsize=11,
+        color=MUTED,
+        va="bottom",
+        zorder=20,
+        bbox={"boxstyle": "round,pad=0.3", "fc": "white", "ec": "none", "alpha": 0.85},
+    )
+
+
+def _rail(ax, flight, phases, t, throttle, knots, fig):
+    """A block on a straight rail; the arrow is the signed control."""
+    assert flight.x is not None
+    x = _cat(phases, flight.x)
+    span = float(np.ptp(x)) or 1.0
+    left, right = float(np.min(x)) - 0.15 * span, float(np.max(x)) + 0.15 * span
+    ax.set_xlim(left, right)
+    ax.set_ylim(-1, 1)
+    ax.set_facecolor(LIGHT)
+    ax.set_yticks([])
+    ax.set_xlabel(flight.xlabel)
+    for spine in ("left", "top", "right"):
+        ax.spines[spine].set_visible(False)
+    ax.plot([left, right], [-0.12, -0.12], color="#94a3b8", lw=6, zorder=1)
+    for value, name, color in ((x[0], "スタート", MUTED), (x[-1], "ゴール", "#059669")):
+        ax.plot([value, value], [-0.12, 0.55], color=color, lw=1.5, ls="--", zorder=1)
+        ax.text(value, 0.6, name, color=color, ha="center", fontsize=12)
+    strobe_t = _strobe_times(t)
+    strobe_x = np.interp(strobe_t, t, x)
+    (marks,) = ax.plot([], [], "|", color=MUTED, ms=22, mew=2, zorder=2)
+    (block,) = ax.plot([], [], "s", ms=34, mec=INK, mew=1.5, zorder=5)
+    arrow = ax.annotate(
+        "",
+        xy=(0, 0),
+        xytext=(0, 0),
+        arrowprops={"arrowstyle": "-|>", "color": "#dc2626", "lw": 3.5},
+        zorder=6,
+    )
+    values = _cat(phases, flight.arrow) if flight.arrow else np.zeros_like(x)
+    peak = float(np.max(np.abs(values))) or 1.0
+    _caption(
+        ax,
+        f"赤い矢印：{flight.arrow_label}（長さは最大値に対する比）\n"
+        "灰色の目盛り：一定時間ごとの位置（間隔が広いほど速い）",
+    )
+
+    def update(time, power, flicker):
+        px = float(np.interp(time, t, x))
+        k = int(np.searchsorted(knots, time, side="right"))
+        block.set_data([px], [0.12])
+        block.set_color(PHASE_COLORS[k % 4])
+        block.set_markeredgecolor(INK)
+        marks.set_data(
+            strobe_x[strobe_t <= time], np.full((strobe_t <= time).sum(), 0.12)
+        )
+        a = float(np.interp(time, t, values)) / peak
+        if abs(a) > 0.01:
+            arrow.set_position((px, 0.42))
+            arrow.xy = (px + 0.22 * span * a, 0.42)
+            arrow.set_visible(True)
+        else:
+            arrow.set_visible(False)
+
+    return update
+
+
+def _track(ax, flight, phases, t, throttle, knots, fig):
+    """A ball sliding along the optimal curve, optionally racing a reference."""
+    assert flight.x is not None and flight.y is not None
+    x, y = _cat(phases, flight.x), _cat(phases, flight.y)
+    ax.set_facecolor(LIGHT)
+    ax.plot(x, y, color="#cbd5e1", lw=9, solid_capstyle="round", zorder=1)
+    if flight.decorate is not None:
+        flight.decorate(ax)
+    trails = [
+        ax.plot([], [], color=PHASE_COLORS[i % 4], lw=3, zorder=3)[0]
+        for i in range(len(phases))
+    ]
+    phase_of = _phase_index(phases)
+    strobe_t = _strobe_times(t)
+    sx, sy = np.interp(strobe_t, t, x), np.interp(strobe_t, t, y)
+    (marks,) = ax.plot([], [], "o", color=MUTED, ms=6, alpha=0.7, zorder=4)
+    (ball,) = ax.plot([], [], "o", color="#dc2626", mec=INK, mew=1.5, ms=18, zorder=6)
+    ghost_ball = ghost_text = None
+    if flight.ghost is not None:
+        gx0, gy0 = flight.ghost(t[0])
+        gx1, gy1 = flight.ghost(flight.ghost_time)
+        ax.plot([gx0, gx1], [gy0, gy1], color="#2563eb", lw=2, ls="--", zorder=2)
+        (ghost_ball,) = ax.plot(
+            [], [], "o", color="#60a5fa", mec="#1d4ed8", ms=16, alpha=0.8, zorder=5
+        )
+        ghost_text = ax.text(
+            0.98,
+            0.10,
+            "",
+            transform=ax.transAxes,
+            ha="right",
+            color="#1d4ed8",
+            fontsize=12,
+            zorder=20,
+        )
+    done_text = ax.text(
+        0.98,
+        0.17,
+        "",
+        transform=ax.transAxes,
+        ha="right",
+        color="#b91c1c",
+        fontsize=12,
+        weight="bold",
+        zorder=20,
+    )
+    ax.set_xlabel(flight.xlabel)
+    ax.set_ylabel(flight.ylabel)
+    ax.set_aspect("equal", adjustable="datalim")
+    ax.margins(0.08)
+    if flight.invert_y:
+        ax.invert_yaxis()
+    ax.grid(alpha=0.3)
+    lines = ["赤い球：最適解（OpenGoddard）　灰色の点：一定時間ごとの位置"]
+    if flight.ghost is not None:
+        lines.append(f"青い球：{flight.ghost_label}")
+    _caption(ax, "\n".join(lines + flight.legend_lines))
+
+    def update(time, power, flicker):
+        for p, trail in enumerate(trails):
+            sel = (phase_of == p) & (t <= time)
+            trail.set_data(x[sel], y[sel])
+        ball.set_data([np.interp(time, t, x)], [np.interp(time, t, y)])
+        shown = strobe_t <= time
+        marks.set_data(sx[shown], sy[shown])
+        done_text.set_text(f"最適解の到着 {t[-1]:.3g}" if time >= t[-1] else "")
+        if ghost_ball is not None and ghost_text is not None and flight.ghost:
+            gx, gy = flight.ghost(min(time, flight.ghost_time))
+            ghost_ball.set_data([gx], [gy])
+            arrived = time >= flight.ghost_time
+            ghost_text.set_text(
+                f"直線の到着 {flight.ghost_time:.3g}" if arrived else ""
+            )
+
+    return update
+
+
+def _plane(ax, flight, phases, t, throttle, knots, fig):
+    """A rocket flying in a vertical plane, nose along the thrust direction."""
+    assert flight.x and flight.y and flight.heading
+    x, y = _cat(phases, flight.x), _cat(phases, flight.y)
+    heading = _cat(phases, flight.heading)
+    ax.set_facecolor(LIGHT)
+    ax.plot(x, y, color="#cbd5e1", lw=6, zorder=1)
+    if flight.decorate is not None:
+        flight.decorate(ax)
+    (trail,) = ax.plot([], [], color=PHASE_COLORS[0], lw=3, zorder=3)
+    strobe_t = _strobe_times(t)
+    sx, sy = np.interp(strobe_t, t, x), np.interp(strobe_t, t, y)
+    (marks,) = ax.plot([], [], "o", color=MUTED, ms=6, alpha=0.7, zorder=4)
+    ax.set_xlabel(flight.xlabel)
+    ax.set_ylabel(flight.ylabel)
+    span = max(float(np.ptp(x)), float(np.ptp(y))) or 1.0
+    ax.set_xlim(float(np.min(x)) - 0.2 * span, float(np.max(x)) + 0.2 * span)
+    ax.set_ylim(float(np.min(y)) - 0.2 * span, float(np.max(y)) + 0.3 * span)
+    ax.set_aspect("equal", adjustable="datalim")
+    ax.grid(alpha=0.3)
+    rocket = RocketGlyph(ax, length=60, width=16)
+    _caption(
+        ax,
+        "\n".join(
+            ["機体の向き＝推力の向き（模式図）　灰色の点：一定時間ごとの位置"]
+            + flight.legend_lines
+        ),
+    )
+
+    def update(time, power, flicker):
+        sel = t <= time
+        trail.set_data(x[sel], y[sel])
+        shown = strobe_t <= time
+        marks.set_data(sx[shown], sy[shown])
+        px, py = float(np.interp(time, t, x)), float(np.interp(time, t, y))
+        b = float(np.interp(time, t, heading))
+        nose = _screen_angle(ax, px, py, np.cos(b), np.sin(b))
+        rocket.place(px, py, nose, power, flicker)
+
+    return update
 
 
 def _vertical(ax, flight, phases, t, throttle, knots, fig):
@@ -796,3 +1050,86 @@ def _orbit(ax, flight, phases, t, throttle, knots, fig):
         craft.place(px, py, nose, power, flicker)
 
     return update
+
+
+# ---------------------------------------------------------------------------
+# Static comparison of several solved cases (presets)
+
+
+def render_comparison(
+    flights: dict[str, Flight], cases: dict[str, list[Phase]], path: Path, title: str
+) -> None:
+    """Overlay every case: the path in the plane (if any) and every graph."""
+    # Presets may differ in panels (e.g. a mass graph only with variable mass).
+    first = max(flights.values(), key=lambda flight: len(flight.panels))
+    has_path = first.kind == "track"
+    panels = first.panels
+    fig = plt.figure(figsize=SIZE, dpi=DPI, facecolor="white")
+    grid = fig.add_gridspec(
+        len(panels),
+        2 if has_path else 1,
+        width_ratios=[1.25, 1] if has_path else [1],
+        left=0.06,
+        right=0.97,
+        top=0.88,
+        bottom=0.08,
+        wspace=0.16,
+        hspace=0.22,
+    )
+    column = 1 if has_path else 0
+    axes = [fig.add_subplot(grid[i, column]) for i in range(len(panels))]
+    for ax in axes[1:]:
+        ax.sharex(axes[0])
+    scene = fig.add_subplot(grid[:, 0]) if has_path else None
+    fig.text(0.04, 0.95, title, fontsize=20, weight="bold", color=INK)
+    palette = PHASE_COLORS + ["#f59e0b", "#0891b2"]
+    # Distinct dashes keep coinciding solutions (e.g. an inactive floor) visible.
+    dashes = [
+        "-",
+        (0, (6, 3)),
+        (0, (2, 2)),
+        (0, (8, 3, 2, 3)),
+        (0, (1, 2)),
+        (0, (4, 1)),
+    ]
+    for k, (name, phases) in enumerate(cases.items()):
+        color, dash = palette[k % len(palette)], dashes[k % len(dashes)]
+        flight = flights[name]
+        t = _cat(phases, lambda p: p["time"])
+        for ax, group in zip(axes, flight.panels, strict=False):
+            for j, series in enumerate(group):
+                ax.plot(
+                    t,
+                    _cat(phases, series.value),
+                    color=color,
+                    lw=2.2,
+                    ls=dash,
+                    label=name if j == 0 else None,
+                )
+        if scene is not None and flight.x and flight.y:
+            scene.plot(
+                _cat(phases, flight.x),
+                _cat(phases, flight.y),
+                color=color,
+                lw=2.6,
+                ls=dash,
+                label=name,
+            )
+    for ax, group in zip(axes, panels, strict=True):
+        ax.set_ylabel(" / ".join(s.label for s in group))
+        ax.grid(alpha=0.3)
+    for ax in axes[:-1]:
+        ax.tick_params(labelbottom=False)
+    axes[-1].set_xlabel(f"時刻 [{first.time_unit}]")
+    if scene is not None:
+        scene.set_facecolor(LIGHT)
+        scene.set(xlabel=first.xlabel, ylabel=first.ylabel)
+        scene.set_aspect("equal", adjustable="datalim")
+        if first.invert_y:
+            scene.invert_yaxis()
+        scene.grid(alpha=0.3)
+        scene.legend(loc="lower left", fontsize=11)
+    else:
+        axes[0].legend(loc="best", fontsize=11, ncols=2)
+    fig.savefig(path, dpi=DPI)
+    plt.close(fig)

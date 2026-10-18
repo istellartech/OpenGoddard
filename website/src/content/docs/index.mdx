@@ -9,7 +9,7 @@ hero:
       link: /OpenGoddard/getting-started/
       icon: right-arrow
     - text: 例題を見る
-      link: /OpenGoddard/examples/02-move-stop/
+      link: /OpenGoddard/examples/01-minimum-energy-transfer/
       variant: secondary
     - text: APIリファレンス
       link: /OpenGoddard/api/OpenGoddard/
@@ -20,18 +20,17 @@ import { Card, CardGrid } from '@astrojs/starlight/components';
 import ExampleGallery from '../../components/ExampleGallery.astro';
 
 <CardGrid>
-  <Card title="例題を動画で" icon="seti:video">
-    15の例題を学習順に並べています。軌道上の物体の動きと、状態・制御のグラフを同じ時刻で
-    同期させた動画で、解の構造を確認できます。
+  <Card title="15の例題を動画で" icon="seti:video">
+    簡単な移動から最速降下、ロケットの軌道投入、低推力の軌道遷移まで。解の動きとグラフを同じ時刻で再生します。
   </Card>
   <Card title="数式とコードの対応" icon="document">
-    運動方程式・境界条件・制約・目的関数が `main.py` のどの行に対応するかを表で示します。
+    運動方程式・境界条件・目的関数が `main.py` のどこに書かれているかを表で示します。解析解がある例題は数値解と重ねて表示します。
   </Card>
-  <Card title="擬スペクトル法の考え方" icon="star">
-    LGLノード上の多項式近似と微分行列で、最適制御問題を非線形計画問題に変換します。
+  <Card title="擬スペクトル法" icon="star">
+    LGLノードでの多項式近似と微分行列で、最適制御問題を非線形計画問題に変換します。
   </Card>
-  <Card title="自動生成のAPIリファレンス" icon="open-book">
-    ソースコードのdocstringからGriffeで生成しています。
+  <Card title="APIリファレンス" icon="open-book">
+    ソースコードのdocstringから自動生成しています。
   </Card>
 </CardGrid>
 
