@@ -1,56 +1,35 @@
-# OpenGoddard: エージェント向け作業方針
+# OpenGoddard
 
-## ドキュメント刷新の前提
+擬スペクトル法による最適軌道計算のPythonライブラリ。Python 3.15、uvで管理。
 
-以下は今後のドキュメント整備に向けた方針であり、実装済みの構成ではない。
-ユーザーは現時点では実装開始を求めていない。この記録だけを根拠に、サイトの
-作成、依存関係の追加、既存文書の移行・削除、デプロイ設定の変更を始めない。
-後続のユーザー依頼があった際に、その依頼の範囲で進める。
+## 構成
 
-### 目的と役割
+- `src/OpenGoddard/`：ライブラリ本体（import名 `OpenGoddard`）。公開APIは `__init__.py` の `__all__`。
+- `examples/NN_<id>/main.py`：15の例題。番号は学習順、`catalog.py` のIDは安定識別子。
+  生成物は各例題の `output/`（Git対象外）。共通処理は `_shared.py`。
+- `tests/`：unittest。
+- `website/`：Astro + Starlight + MDX の解説サイト。APIリファレンスは
+  starlight-pydocs（Griffe）がdocstring（Google形式）から生成する。
+- `website/scripts/build_media.py`：例題を解いてMatplotlibで動画・図を `website/public/media/` に生成する。
 
-- Python API文書の自動生成は必須とする。API仕様を手書きで二重管理しない。
-- READMEは、概要、導入方法、最初の例題の実行方法、結果の図、詳細解説への
-  リンクを備える入口とする。
-- ドキュメントサイトは、解説、例題、図・動画、自動生成APIリファレンスを
-  同じサイトにまとめる。高度な操作機能は必要になった段階で追加する。
-- 見た目だけでなく、数式・コード・計算結果の対応を理解できる説明を重視する。
+## コマンド
 
-### 想定する構成
+```sh
+uv sync --extra autodiff
+uv run ruff check . && uv run ruff format --check .
+uv run ty check
+uv run python -m unittest discover -s tests
+uv run python website/scripts/build_media.py [ids...]   # 動画・図
+cd website && npm ci && npm run build                     # サイト
+```
 
-- サイトの第一候補は **Astro + Starlight + MDX**。
-  Reactはブラウザ上で高度な操作が必要になった場合に検討し、初期構成の必須要件にしない。
-- Python API生成には **starlight-pydocs + Griffe** を第一候補とする。
-  Pythonソースとdocstringから生成し、サイトのナビゲーションと検索に統合する。
-- 実装時には、既存docstring、数式、相互参照、公開APIの抽出結果について
-  互換性を確認してから採用を確定する。Sphinxと同等の出力品質を未検証のまま
-  前提にしない。
-- 旧Sphinx構成（`docs_sphinx/`、`docs/`、`make_docs.py`）と旧URLのリダイレクトは削除済み。
+CI（`.github/workflows/`）は上記を実行し、`master` のサイトをGitHub Pagesへ公開する。
 
-### 動く説明の方針
+## 方針
 
-- 初期公開は **Matplotlibで動画を生成し、静的な解説ページに埋め込む** 方針とする。
-  計算済みの軌道、物体の運動、推力・質量・速度などのグラフをPython側で同期させ、
-  条件ごとにMP4と静止画を出力する。閲覧時のPythonサーバーは不要とする。
-- ブラウザでは標準の動画プレーヤーで再生・停止・シークできるようにする。
-  条件の比較は、事前に生成した動画を並べるか、選択して切り替える形から始める。
-  計算済みケースの再生のためだけにReact/SVGの専用再生器を作らない。
-- サンプルのパラメータ、求解、結果データ、描画の分離は維持し、動画生成にも再利用する。
-  JSON出力は将来の拡張に利用できるが、初期公開をブラウザ側のJSON再生器に依存させない。
-- グラフ上の数値参照、表示項目の変更、複数の解の連動操作などが必要になった場合に、
-  Reactなどによるブラウザ側の可視化を検討する。
-- 題材の候補は、最速降下問題の軌道比較、擬スペクトル法のノード配置と補間、
-  ロケット位置と推力・質量・速度の同期表示、段分離と区間接続条件の可視化。
-- 閲覧者が条件を変えて最適化を再実行する機能は初期構成に含めない。
-  必要になった場合は、バックエンドまたはブラウザ内Pythonを別途検討する。
-
-### 公開先とビルド
-
-- GitHub Pagesで公開可能な静的構成を前提とする。
-- 想定する公開先は `https://istellartech.github.io/OpenGoddard/`。
-  Astroの設定は `site: 'https://istellartech.github.io'`、
-  `base: '/OpenGoddard'` を想定し、リンクや動画・画像・JSONの読み込みもこのパスに対応させる。
-- 将来の公開フローは、GitHub ActionsでAPI文書を生成し、サイトをビルドして、
-  HTML・CSS・必要なJavaScriptと、生成済みの動画・画像・データをGitHub Pagesへ
-  公開する形を想定する。
-- 本ファイルは公開作業の依頼ではない。デプロイは後続の依頼の範囲に従う。
+- API仕様はdocstringに書き、手書きで二重管理しない。
+- READMEは入口に留め、詳細はサイトに書く。数式・コード・結果の対応が分かる説明を重視する。
+- 動きは事前生成したMP4と静止画で見せる。React等のブラウザ側可視化や、閲覧者による
+  再計算は必要になるまで追加しない。
+- 例題はパラメータ・求解・結果データ・描画を分離し、動画生成でも再利用する。
+- サイトは `base: '/OpenGoddard'` で公開される。リンクやメディアのパスはこれに合わせる。
