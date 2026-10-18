@@ -1,35 +1,249 @@
-.example-video video {
-  width: 100%;
-  height: auto;
-  border-radius: 0.5rem;
-  background: #000;
+/* OpenGoddard documentation theme.
+ * One accent (a deep "trajectory" blue), warm neutral grays, Noto Sans JP for
+ * Japanese body text and generous line height for long explanations. */
+
+:root {
+  --sl-font: 'Noto Sans JP', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', system-ui, sans-serif;
+  --sl-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --sl-content-width: 48rem;
+  --sl-line-height: 1.9;
+  --sl-text-h1: 2.1rem;
+  --sl-text-h2: 1.5rem;
+  --sl-text-h3: 1.2rem;
+  --sl-text-h4: 1.05rem;
+
+  /* dark */
+  --sl-color-accent-low: #17213d;
+  --sl-color-accent: #6f95ff;
+  --sl-color-accent-high: #c8d6ff;
+  --sl-color-white: #f3f4f6;
+  --sl-color-gray-1: #e5e7eb;
+  --sl-color-gray-2: #c9ccd2;
+  --sl-color-gray-3: #9aa0aa;
+  --sl-color-gray-4: #6b7280;
+  --sl-color-gray-5: #3a3f48;
+  --sl-color-gray-6: #1d2128;
+  --sl-color-black: #121418;
+  --og-surface: #191c22;
+  --og-figure-bg: #ffffff;
+  --og-flame: #f59e0b;
 }
 
-.example-video,
-.example-figure {
-  margin: 1rem 0;
+:root[data-theme='light'] {
+  --sl-color-accent-low: #e4ebfc;
+  --sl-color-accent: #2f5bd3;
+  --sl-color-accent-high: #1c3a8c;
+  --sl-color-white: #111827;
+  --sl-color-gray-1: #1f2937;
+  --sl-color-gray-2: #374151;
+  --sl-color-gray-3: #5b6371;
+  --sl-color-gray-4: #8a919c;
+  --sl-color-gray-5: #d9dce1;
+  --sl-color-gray-6: #eef0f3;
+  --sl-color-gray-7: #f7f8fa;
+  --sl-color-black: #ffffff;
+  --og-surface: #f7f8fa;
 }
-.example-video figcaption,
-.example-figure figcaption {
-  font-size: var(--sl-text-sm);
+
+/* ---- Header and sidebar ------------------------------------------------- */
+
+.site-title {
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  gap: 0.55rem;
+}
+.site-title img {
+  height: 1.7rem;
+  width: auto;
+}
+header.header {
+  border-bottom: 1px solid var(--sl-color-hairline);
+  backdrop-filter: saturate(1.4) blur(8px);
+}
+nav.sidebar .group-label .large {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   color: var(--sl-color-gray-3);
-  margin-top: 0.4rem;
+  text-transform: uppercase;
 }
-.example-figure img,
-.figure-grid img {
+nav.sidebar a {
+  font-size: 0.92rem;
+  border-radius: 0.4rem;
+}
+nav.sidebar a[aria-current='page'] {
+  font-weight: 700;
+}
+
+/* ---- Page title and body text ------------------------------------------ */
+
+.content-panel h1#_top {
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+.sl-markdown-content {
+  font-size: 1rem;
+}
+.sl-markdown-content :is(h2, h3, h4) {
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+.sl-markdown-content h2 {
+  margin-top: 3.2rem;
+  padding-bottom: 0.45rem;
+  border-bottom: 1px solid var(--sl-color-hairline);
+}
+.sl-markdown-content h3 {
+  margin-top: 2.2rem;
+}
+.sl-markdown-content strong {
+  color: var(--sl-color-white);
+}
+.sl-markdown-content a:not(:where(.not-content *)) {
+  text-underline-offset: 0.2em;
+  text-decoration-thickness: 1px;
+}
+.sl-markdown-content .lead {
+  font-size: 1.1rem;
+  color: var(--sl-color-gray-2);
+}
+
+/* Tables: compact, readable, never wider than the column. */
+.sl-markdown-content table {
+  display: block;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+.sl-markdown-content th {
+  background: var(--og-surface);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.sl-markdown-content :is(th, td) {
+  border: 1px solid var(--sl-color-hairline);
+  padding: 0.5rem 0.75rem;
+}
+
+/* ---- Math: wide equations scroll inside the column ----------------------- */
+
+.katex {
+  font-size: 1.08em;
+}
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.35rem 0;
+  margin: 1.1rem 0;
+}
+.katex-display > .katex {
+  max-width: 100%;
+}
+
+/* ---- Figures and videos -------------------------------------------------- */
+
+.og-figure {
+  margin: 1.75rem 0;
+}
+.og-figure img,
+.og-figure video {
+  display: block;
   width: 100%;
   height: auto;
-  border-radius: 0.4rem;
-  background: #fff;
+  border-radius: 0.6rem;
+  background: var(--og-figure-bg);
+  border: 1px solid var(--sl-color-hairline);
 }
-.figure-grid {
+.og-figure figcaption {
+  margin-top: 0.6rem;
+  font-size: 0.88rem;
+  line-height: 1.7;
+  color: var(--sl-color-gray-3);
+}
+.og-figure figcaption::before {
+  content: '';
+  display: inline-block;
+  width: 0.9rem;
+  height: 2px;
+  margin-right: 0.45rem;
+  vertical-align: middle;
+  background: var(--sl-color-accent);
+}
+
+/* ---- Fact sheet at the top of each example ------------------------------- */
+
+.og-facts {
+  margin: 1.5rem 0 2rem;
+  padding: 0.25rem 1.25rem;
+  border-radius: 0.75rem;
+  background: var(--og-surface);
+  border: 1px solid var(--sl-color-hairline);
+}
+.og-facts table {
+  display: table;
+  width: 100%;
+  margin: 0.6rem 0;
+  font-size: 0.93rem;
+}
+.og-facts :is(th, td) {
+  border: none;
+  border-bottom: 1px solid var(--sl-color-hairline);
+  padding: 0.55rem 0.5rem;
+  background: transparent;
+  vertical-align: top;
+}
+.og-facts tr:last-child :is(th, td) {
+  border-bottom: none;
+}
+.og-facts thead {
+  display: none;
+}
+.og-facts td:first-child {
+  width: 7.5rem;
+  font-weight: 700;
+  color: var(--sl-color-gray-3);
+  white-space: nowrap;
+}
+
+/* ---- Step lists in theory pages ----------------------------------------- */
+
+.og-steps ol {
+  counter-reset: step;
+  list-style: none;
+  padding-left: 0;
+}
+.og-steps ol > li {
+  counter-increment: step;
+  position: relative;
+  padding-left: 2.6rem;
+  margin-top: 0.9rem;
+}
+.og-steps ol > li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 0.15rem;
+  width: 1.8rem;
+  height: 1.8rem;
+  border-radius: 50%;
+  background: var(--sl-color-accent-low);
+  color: var(--sl-color-accent-high);
+  font-weight: 700;
+  font-size: 0.9rem;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
-  gap: 0.75rem;
-  margin-top: 0.75rem;
+  place-items: center;
 }
-.example-figures summary,
-.example-source summary {
-  cursor: pointer;
-  font-weight: 600;
+
+/* ---- Small helpers ------------------------------------------------------- */
+
+.og-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--sl-color-white);
+}
+@media (max-width: 50rem) {
+  .sl-markdown-content h2 {
+    margin-top: 2.5rem;
+  }
 }

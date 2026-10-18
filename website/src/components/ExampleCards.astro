@@ -1,0 +1,97 @@
+---
+// Cards for the examples, grouped by level, with the generated scene as image.
+import { getCollection } from 'astro:content';
+import { exampleHref, examples, hasMedia, mediaUrl } from '../lib/catalog';
+
+interface Props {
+  /** Two-digit numbers to show, e.g. ["01", "02"]. */
+  numbers: string[];
+}
+
+const docs = await getCollection('docs');
+const cards = examples()
+  .filter((example) => Astro.props.numbers.includes(example.number))
+  .map((example) => {
+    const doc = docs.find((entry) => entry.id.startsWith(`examples/${example.number}-`));
+    const image = ['animation.png', 'scene.png', 'history.png'].find((name) => hasMedia(example.id, name));
+    return {
+      ...example,
+      href: exampleHref(example.id),
+      description: doc?.data.description ?? '',
+      image: image ? mediaUrl(example.id, image) : undefined,
+    };
+  });
+---
+
+<div class="og-cards not-content">
+  {
+    cards.map((card) => (
+      <a class="og-card" href={card.href}>
+        <div class="og-card-image">{card.image && <img src={card.image} alt="" loading="lazy" />}</div>
+        <div class="og-card-body">
+          <span class="og-card-number">例題 {card.number}</span>
+          <span class="og-card-title">{card.title}</span>
+          <span class="og-card-text">{card.description}</span>
+        </div>
+      </a>
+    ))
+  }
+</div>
+
+<style>
+  .og-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(14.5rem, 1fr));
+    gap: 1rem;
+    margin: 1.25rem 0 2rem;
+  }
+  .og-card {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--sl-color-hairline);
+    border-radius: 0.75rem;
+    overflow: hidden;
+    text-decoration: none;
+    color: inherit;
+    background: var(--sl-color-black);
+    transition:
+      border-color 0.15s,
+      transform 0.15s;
+  }
+  .og-card:hover {
+    border-color: var(--sl-color-accent);
+    transform: translateY(-2px);
+  }
+  .og-card-image {
+    aspect-ratio: 16 / 9;
+    background: #fff;
+    border-bottom: 1px solid var(--sl-color-hairline);
+  }
+  .og-card-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .og-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.75rem 0.9rem 0.95rem;
+  }
+  .og-card-number {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--sl-color-accent);
+  }
+  .og-card-title {
+    font-weight: 700;
+    color: var(--sl-color-white);
+    line-height: 1.5;
+  }
+  .og-card-text {
+    font-size: 0.84rem;
+    line-height: 1.65;
+    color: var(--sl-color-gray-3);
+  }
+</style>

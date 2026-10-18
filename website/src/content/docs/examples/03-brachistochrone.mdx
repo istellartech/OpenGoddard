@@ -1,60 +1,182 @@
 ---
 title: 03. 最速降下
-description: 重力で滑る球が水平距離 l に最短時間で到達する経路を求め、サイクロイドと比較する。
+description: 静止した玉を重力だけで転がし、水平に 1 m 離れた鉛直線まで最も早く届かせるには、どんな形の坂を作ればよいかを求める。答えはサイクロイドになる。
 sidebar:
   order: 3
 ---
 
-import ExampleMedia from '../../../components/ExampleMedia.astro';
-import ExampleSource from '../../../components/ExampleSource.astro';
+import ExampleFigure from '../../../components/ExampleFigure.astro';
 import RunCommand from '../../../components/RunCommand.astro';
+import SolverNote from '../../../components/SolverNote.astro';
+import Value from '../../../components/Value.astro';
 
-最速降下問題を、進行方向の角度を制御とする最適制御問題として解く。終点の深さは自由とする。
+<p class="lead">
+  摩擦のない坂の上に玉を置き、静かに手を離します。玉が水平に 1 m 離れた地点へ最も早く着くのは、どんな形の坂でしょうか。
+  まっすぐな坂は道のりが最短ですが、最速ではありません。1696年に Johann Bernoulli が出題した、変分法の始まりとなった問題です。
+</p>
 
-## 問題
+<div class="og-facts">
 
-$y$ は下向き正、$\theta$ は進行方向が鉛直下向きからなす角、$g = 1$、$l = 1$ である。
-
-$$
-\dot{x} = v\sin\theta,\quad \dot{y} = v\cos\theta,\quad \dot{v} = g\cos\theta,\qquad
-x(0)=y(0)=v(0)=0,\quad x(t_f)=l,\qquad
-y \ge 0,\quad \theta \ge 0,\quad t_f \ge 0.1,\qquad J = t_f
-$$
-
-解析解はサイクロイド $x = a(\phi - \sin\phi)$、$y = a(1-\cos\phi)$ である。終点の深さが自由なので終点で水平となり、
-$a = l/\pi$、$y(t_f) = 2l/\pi \approx 0.637$、$t_f = \sqrt{\pi} \approx 1.772$ となる。
-
-## 手で書く順序
-
-三角関数を使って速さを水平・鉛直成分に分ける。まず3本の `dx` と初期条件を書く。終点の深さを固定していない点を、04との比較に使う。
-
-## コードとの対応
-
-| 数式 | 例題のPythonファイル |
+| 項目 | 内容 |
 | --- | --- |
-| 運動方程式 | `dynamics` の `dx[0]`・`dx[1]`・`dx[2]` |
-| 境界条件 | `equality` の `result.equal(...)` 4本（終点は `result.equal(x[-1], p["l"])`） |
-| $y \ge 0$、$\theta \ge 0$、$t_f \ge 0.1$ | `inequality` の `result.lower_bound(y[1:], 0)` など |
-| $J = t_f$ | `cost` が `problem.time_final(-1)` を返す |
-| 勾配の計算 | ライブラリが有限差分で計算する |
-| ノード数・初期推定 | ノード数 `[20]`、$\theta$ は一定 30°、$x$・$y$ は直線 |
+| 状態 | 水平位置 $x$、深さ $y$、速さ $v$ |
+| 制御 | 坂の向き $\theta$（真下から測った角度） |
+| 目的 | 到着時刻 $t_f$ を最小にする |
+| 区間 | 1区間、20ノード、終了時刻は自由 |
+| 新しく学ぶこと | 三角関数を含む非線形な運動方程式、不等式で書く経路制約、終点の一部（深さ）を自由にする境界条件、解析解との比較 |
+
+</div>
+
+## 状況
+
+坂の形を直接探す代わりに、**玉が各時刻に進む向き**を制御として探します。向きの時間変化が決まれば、
+玉の通る道筋、つまり坂の形が決まります。
+
+- 坂を急にすると、早く速度が上がりますが、深く下がるだけで横にはあまり進みません。
+- 坂をゆるやかにすると、横には進みますが、速度がなかなか上がりません。
+
+最速の坂は、「最初は急に下って速度を稼ぎ、速くなってから横へ進む」形になると予想できます。その度合いを最適化で決めます。
+
+終点については水平位置 $x = 1$ だけを決め、深さは決めません。「水平に 1 m 離れた鉛直線のどこかに、最も早く届く」問題です。
+重力加速度と距離をどちらも 1 とする、単位を気にしない設定です。
+
+## 問題設定
+
+### 運動方程式
+
+深さ $y$ は**下向きを正**にとります。角度 $\theta$ は真下から測り、$\theta = 0$ が真下、$\theta = 90^\circ$ が水平です。
+
+$$
+\begin{aligned}
+\dot{x} &= v \sin\theta \\[2pt]
+\dot{y} &= v \cos\theta \\[2pt]
+\dot{v} &= g \cos\theta
+\end{aligned}
+$$
+
+- 1・2行目：速さ $v$ を、向き $\theta$ に応じて水平方向と鉛直方向に分けたものが、位置の変化の速さです。
+- 3行目：重力 $g$ のうち坂に沿った成分 $g\cos\theta$ だけが玉を加速します。真下（$\theta = 0$）なら $g$ そのもの、水平（$\theta = 90^\circ$）なら加速しません。
+
+2行目と3行目から $v\dot{v} = g\dot{y}$、つまり $\tfrac{1}{2}v^2 = g y$ が常に成り立ちます。
+摩擦がないので**速さは深さだけで決まる**（$v = \sqrt{2 g y}$）という、エネルギー保存の式です。
+
+### 境界条件
+
+$$
+\begin{aligned}
+x(0) &= 0, & y(0) &= 0, & v(0) &= 0 \\[2pt]
+x(t_f) &= l
+\end{aligned}
+$$
+
+原点で静止した状態から出発し、水平位置 $l$ に着いたら終わりです。終点の深さ $y(t_f)$ と速さ $v(t_f)$ は決めず、最適化に任せます。
+
+### 制約
+
+$$
+\begin{aligned}
+y &\ge 0 \\[2pt]
+\theta &\ge 0 \\[2pt]
+t_f &\ge 0.1
+\end{aligned}
+$$
+
+- 出発点より上には行きません（出発点では $y = 0$ が境界条件で決まっているので、それ以外のノードに課しています）。
+- 向きは左に戻らない範囲にします。
+- 終了時刻が 0 に近づいて計算が壊れないよう、下限を置いています。
+
+これらは途中のすべてのノードで守る**経路制約**で、「値 $\ge 0$」の形の不等式として与えています。
+最適解ではどれも効いていません（等号になりません）。
+
+### 目的関数
+
+$$
+J = t_f
+$$
+
+### パラメータ
+
+| 記号 | 意味 | 値 |
+| --- | --- | --- |
+| $g$ | 重力加速度 `PARAMETERS["g"]` | 1 m/s² |
+| $l$ | 終点の水平距離 `PARAMETERS["l"]` | 1 m |
+
+### 初期推定
+
+時刻は 0 から 2 までとし、水平位置は 0 から 1 へ、深さは 0 から $1/\sqrt{3}$ へ、どちらも時刻に比例して増える直線にします。
+向きは一定の $30^\circ$ です。速さには初期推定を与えておらず、0 から始まります。
+道筋としては「30°ずれた直線の坂」を、物理的につじつまの合わないまま与えていることになりますが、最適化の途中で修正されます。
 
 ## 結果
 
-数値解を、サイクロイドおよび同じ終点への直線斜面と比較する。
+<SolverNote id="brachistochrone" />
 
-<ExampleMedia id="brachistochrone" />
+<ExampleFigure id="brachistochrone" kind="scene" caption="玉の通る道筋（縦軸は深さで、下ほど深い）。点は20個のノードでの値、青の線はそれらを通る多項式、黒の破線はサイクロイド（解析解）です。灰色の点線は始点と終点を結ぶ直線の坂です。" />
 
-- 軌道はサイクロイドと一致し、到達時刻は約 1.772、終点の深さは約 0.637 である。
-- 直線斜面の到達時刻は約 2.10 で、数値解より遅い。$\theta$ は 0 から始まり終点で 90° になる。
+<ExampleFigure id="brachistochrone" kind="history" caption="速さと向き（制御）の時間履歴。点はノードでの値、青の線は多項式、黒の破線はサイクロイドの解析解です。向きは度で表示しています。" />
 
-## 試す
+<ExampleFigure id="brachistochrone" kind="animation" caption="最速の坂（青）と直線の坂（灰色の点線、白い玉）を同時に転がした様子。最速の坂の玉が終点に着いた瞬間、直線の坂の玉はまだ途中にいます。右は速さと向きの時間履歴です。" />
+
+- 到着時刻は <Value id="brachistochrone" k="final_time" d={6} /> s で、解析解 $\sqrt{\pi} =$ <Value id="brachistochrone" k="exact_final_time" d={6} /> s と7桁ほど一致します。
+- 同じ終点へ直線の坂で行くと <Value id="brachistochrone" k="straight_line_time" d={3} /> s かかります。最速の坂は道のりが長いのに約16 % 早く着きます。
+- 終点の深さは <Value id="brachistochrone" k="final_depth" d={4} /> m（解析解 $2/\pi =$ <Value id="brachistochrone" k="exact_final_depth" d={4} /> m）、速さは <Value id="brachistochrone" k="phases.0.final.v" d={3} /> m/s です。
+- 向きは真下（0°）から始まり、時間にほぼ比例して増え、終点でちょうど水平（<Value id="brachistochrone" k="phases.0.final.theta" d={1} scale={57.29577951308232} />°）になります。
+
+## 解説
+
+### サイクロイド
+
+最速降下曲線は**サイクロイド**であることが知られています。半径 $a$ の円が水平な天井の下を転がるとき、
+円周上の1点が描く曲線で、円の回転角 $\phi$ を使って
+
+$$
+\begin{aligned}
+x &= a(\phi - \sin\phi) \\[2pt]
+y &= a(1 - \cos\phi)
+\end{aligned}
+$$
+
+と表せます。始点 $\phi = 0$ では真下を向き、最も深い点 $\phi = \pi$ では水平になります。
+
+なぜサイクロイドになるのかは、光の屈折にたとえると分かります。光は速く進める場所を長く通るように曲がり、
+その曲がり方は「$\sin\theta / v$ が一定」というスネルの法則で決まります。玉も同じで、
+深いほど速い（$v = \sqrt{2gy}$）ので、最速の道は $\sin\theta / \sqrt{y}$ が一定になるように曲がります。この条件を満たす曲線がサイクロイドです。
+
+### 終点では水平になる
+
+この例では終点の深さを決めていません。そのため最適な道は**終点でちょうど水平**になります。
+終点では「水平位置が $l$ に届くこと」だけが求められているので、最後の瞬間に下向きの速度成分を持っていても、到着を早めることには役立ちません。
+速さのすべてを水平方向に向けて着くのが得なのです。
+
+サイクロイドで水平になるのは $\phi = \pi$ のときなので、$x = a\pi = l$ から半径が $a = l/\pi$ と決まり、
+
+$$
+\begin{aligned}
+y(t_f) &= 2a = \frac{2l}{\pi} \\[4pt]
+t_f &= \pi\sqrt{\frac{a}{g}} = \sqrt{\frac{\pi l}{g}}
+\end{aligned}
+$$
+
+となります。$g = l = 1$ では $t_f = \sqrt{\pi} \approx 1.7725$ です。
+
+また、サイクロイドでは向き $\theta$ が円の回転角のちょうど半分（$\theta = \phi/2$）で、円は一定の速さで回るので、
+$\theta$ は**時刻に比例して**増えます。向きの時間履歴が直線になっているのはこのためです。
+
+### 数値解の精度
+
+運動方程式に三角関数が入り、状態と制御が掛け算で結びついているので、この問題は**非線形**です。
+それでも解がなめらかなので、20ノードの多項式で解析解と7桁ほど一致します。
+ノード数を変えたときの誤差の減り方は、[精度を確かめる](../../theory/pseudospectral/#精度を確かめる)の図にまとめています。
+
+## 試してみよう
+
+- `PARAMETERS["l"]` を 2 にし、到着時刻が $\sqrt{2\pi} \approx 2.507$ s、終点の深さが $4/\pi \approx 1.273$ m になることを確かめる。
+- `PARAMETERS["g"]` を 4 にすると、坂の形は変わらず、到着時刻だけが $\sqrt{\pi/4} \approx 0.886$ s と半分になる。
+- `make_problem` の `Problem([0.0, 2.0], [20], ...)` の `20` を 8 にすると誤差は $10^{-7}$ 程度、7 にすると $10^{-5}$ 程度に増えます。
+  さらに 5 や 6 にすると、ソルバーは成功を報告するのに到着時刻が 0.2 s 以上ずれます。「成功」と「正確」は別であることがわかります。
+
+## 実行する
 
 <RunCommand id="brachistochrone" />
 
-- `PARAMETERS["l"]` を 2 にし、到達時刻が $\sqrt{2}$ 倍になることを確認する。
-- `inequality` のコメントアウトされた `result.upper_bound(y, x * np.tan(p["theta0"]) + p["h"])` を有効にし、軌道が壁に沿う区間を確認する。
-
-## ソースコード
-
-<ExampleSource id="brachistochrone" />
+[examples/03_brachistochrone.py](https://github.com/istellartech/OpenGoddard/blob/master/examples/03_brachistochrone.py) を GitHub で見る

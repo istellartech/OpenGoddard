@@ -1,0 +1,198 @@
+---
+title: 擬スペクトル法
+description: LGL擬スペクトル法が、運動方程式を有限個の等式に変え、最適制御問題を非線形計画問題にする仕組み。
+---
+
+import Figure from '../../../components/Figure.astro';
+
+<p class="lead">
+  擬スペクトル法は、状態を「ノードと呼ぶ特別な点での値」を通る1本の多項式で表し、運動方程式をノードでの等式に置き換えます。
+  このページでは、OpenGoddard が使う LGL（Legendre–Gauss–Lobatto）擬スペクトル法の手順を、小さな数値例とともに説明します。
+</p>
+
+<div class="og-steps">
+
+1. **時間を $[-1, 1]$ に写す。** どんな長さの区間も同じ形で扱えるようにする。
+2. **ノードを置く。** 区間の両端と、その間の特別な位置に点を置く。
+3. **状態を多項式で表す。** ノードでの値 $X_k$ を未知数とし、それらを通る多項式で状態を近似する。
+4. **微分を行列で計算する。** 多項式の微分は、ノード値の線形結合で正確に計算できる。
+5. **運動方程式を等式制約にする。** 各ノードで「多項式の傾き＝運動方程式の右辺」を課す。
+6. **積分を和で計算する。** 目的関数の積分を、ノード値の重み付き和で近似する。
+7. **非線形計画問題として解く。** すべてをノード値の式で書き、SLSQP で解く。
+
+</div>
+
+## 1. 時間の正規化
+
+ひとつの区間の時刻 $t \in [t_0, t_f]$ を、正規化時間 $\tau \in [-1, 1]$ に1次式で写します。
+
+$$
+t = \frac{t_f - t_0}{2}\,\tau + \frac{t_f + t_0}{2}, \qquad dt = \frac{t_f - t_0}{2}\, d\tau
+$$
+
+微分は $\dfrac{dx}{dt} = \dfrac{2}{t_f - t_0}\dfrac{dx}{d\tau}$ と変換されます。
+終了時刻 $t_f$ も最適化の変数にできるので、所要時間が未知の問題もこの形のまま扱えます。
+
+## 2. LGL ノード
+
+$N$ 個の **LGL ノード** $\tau_0, \dots, \tau_{N-1}$ を、次のように置きます。
+
+- 両端 $\tau_0 = -1$、$\tau_{N-1} = 1$
+- その間の $N-2$ 点：$N-1$ 次のルジャンドル多項式 $P_{N-1}(\tau)$ の導関数 $P'_{N-1}(\tau)$ の根
+
+たとえば $N = 5$ なら、ノードは $-1,\ -0.6547,\ 0,\ 0.6547,\ 1$ です。式は難しく見えますが、性質は単純で、
+**区間の両端に近いほど点が密になる**ように並びます。
+
+<Figure src="concepts/lgl_nodes.png" caption="LGL ノード（青）と等間隔の点（灰）。点の数が増えるほど、両端付近にノードが集まります。" />
+
+### なぜ等間隔ではいけないのか
+
+多くの点を通る高次多項式を等間隔の点で作ると、区間の端で大きく振動します（**ルンゲ現象**）。
+点を増やすほど振動はむしろ大きくなり、近似として使えません。
+端に点を集めた LGL ノードではこの振動が起きず、点を増やすと誤差が指数的に小さくなります。
+
+<Figure src="concepts/interpolation.png" caption="関数 1/(1+25τ²) を14点の多項式で補間した結果（左）と、点の数を変えたときの最大誤差（右、縦軸は対数目盛り）。等間隔の点では端で振動して誤差が増え、LGL ノードでは誤差が急速に減ります。" />
+
+<Figure src="concepts/interpolation.mp4" poster="concepts/interpolation_poster.png" caption="点の数 N を 4 から 30 まで増やしたときの補間の変化。" />
+
+## 3. 状態を多項式で表す
+
+各ノードでの状態の値 $X_0, \dots, X_{N-1}$ を**最適化の未知数**とします。状態の時間変化は、これらの値を通る
+$N-1$ 次多項式で表します。
+
+$$
+x(\tau) \approx \sum_{k=0}^{N-1} X_k\, \ell_k(\tau)
+$$
+
+$\ell_k(\tau)$ はラグランジュ基底多項式で、ノード $\tau_k$ では 1、他のノードでは 0 になる多項式です。
+したがって、ノード $\tau_k$ での多項式の値はちょうど $X_k$ になります。制御も同じくノードでの値 $U_k$ を未知数にします。
+
+## 4. 微分行列
+
+多項式の微分も多項式なので、ノード $\tau_i$ での傾きはノード値の線形結合で**正確に**表せます。
+
+$$
+\left.\frac{dx}{d\tau}\right|_{\tau_i} = \sum_{k=0}^{N-1} D_{ik}\, X_k, \qquad D_{ik} = \ell'_k(\tau_i)
+$$
+
+$N \times N$ の行列 $D$ を**微分行列**といいます。$D$ はノードの位置だけで決まるので、計算の最初に一度だけ作れば済みます。
+
+### 小さな例：N = 3 の場合
+
+ノードは $\tau = -1, 0, 1$ で、微分行列は
+
+$$
+D = \begin{pmatrix} -\tfrac{3}{2} & 2 & -\tfrac{1}{2} \\[2pt] -\tfrac{1}{2} & 0 & \tfrac{1}{2} \\[2pt] \tfrac{1}{2} & -2 & \tfrac{3}{2} \end{pmatrix}
+$$
+
+です。$x(\tau) = \tau^2$ のノード値 $X = (1, 0, 1)$ に掛けると
+
+$$
+D X = \begin{pmatrix} -2 \\ 0 \\ 2 \end{pmatrix}
+$$
+
+となり、導関数 $2\tau$ の各ノードでの値 $(-2, 0, 2)$ に一致します。2次式は3点の多項式で正確に表せるので、微分も正確です。
+
+<Figure src="concepts/differentiation.png" caption="6個のノード値（白丸）を通る多項式（青）と、微分行列で計算した各ノードでの傾き（橙の線分）。傾きはノード値だけから計算されます。" />
+
+## 5. 運動方程式を等式制約にする
+
+運動方程式 $\dot{x} = f(x, u, t)$ を、各ノードで成り立つ等式に置き換えます。時間の正規化で出る係数 $(t_f - t_0)/2$ を含めて、
+
+$$
+\sum_{k=0}^{N-1} D_{ik} X_k = \frac{t_f - t_0}{2}\, f(X_i, U_i, t_i), \qquad i = 0, 1, \dots, N-1
+$$
+
+左辺は「多項式の傾き」、右辺は「運動方程式が要求する傾き」です。この差を**欠損**（defect）と呼び、すべて 0 になることを要求します。
+状態が複数あれば、状態ごとに同じ式を並べます。
+
+<Figure src="concepts/collocation.png" caption="運動方程式 ẋ = −x の例。左：初期推定（直線）では、多項式の傾き（太い青）と運動方程式が要求する傾き（橙）が合いません。右：最適化の後は全ノードで一致し、多項式は厳密解 e^(−t) にほぼ重なります。" />
+
+ここが[直接法](../methods/)の核心です。微分方程式を数値積分するのではなく、**「傾きが合っている」という代数方程式の集まり**として扱います。
+最適化ソルバーは、目的関数を良くしながら、すべての欠損を 0 にするノード値を探します。
+
+## 6. 積分を和で計算する
+
+目的関数の積分項は、ノードでの値の重み付き和（**Gauss–Lobatto 求積**）で計算します。
+
+$$
+\int_{t_0}^{t_f} L\,dt \approx \frac{t_f - t_0}{2} \sum_{k=0}^{N-1} w_k\, L(X_k, U_k, t_k)
+$$
+
+重み $w_k$ もノードの位置だけで決まります。この求積は $2N-3$ 次以下の多項式に対して厳密です。
+$N = 3$ では $w = (\tfrac{1}{3}, \tfrac{4}{3}, \tfrac{1}{3})$ で、これは高校数学でも出てくるシンプソンの公式そのものです。
+
+## 7. 非線形計画問題として解く
+
+以上で、最適制御問題はすべてノード値の式になりました。未知数をまとめたベクトルを
+
+$$
+\boldsymbol{z} = \bigl(\,\underbrace{X_{0}, \dots, X_{N-1}}_{\text{各状態}},\ \underbrace{U_0, \dots, U_{N-1}}_{\text{各制御}},\ t_f\,\bigr)
+$$
+
+とすると、解くべき問題は
+
+$$
+\begin{aligned}
+\min_{\boldsymbol{z}}\ \ & \Phi(X_{N-1}, t_f) + \frac{t_f - t_0}{2} \sum_k w_k L_k \\
+\text{subject to}\ \ & D X - \tfrac{t_f - t_0}{2} f(X, U, t) = 0 && \text{（欠損、ノードごと）}\\
+& \psi(X_0, X_{N-1}, t_f) = 0 && \text{（境界条件）}\\
+& g(X_k, U_k, t_k) \ge 0 && \text{（経路制約、ノードごと）}
+\end{aligned}
+$$
+
+という非線形計画問題（NLP）です。境界条件はノードの最初と最後の値 $X_0$、$X_{N-1}$ に直接課せます。
+LGL ノードは区間の両端を含むので、これが自然に書けます。
+
+規模の感覚をつかむため、[例題07](../../examples/07-goddard-0knot/)（状態3つ、制御1つ、ノード50個）を数えると、
+未知数は $50 \times (3+1) + 1 = 201$ 個、欠損の等式は $50 \times 3 = 150$ 本です。この程度の規模なら、SciPy の SLSQP で数秒から数十秒で解けます。
+
+OpenGoddard の利用者が書くのは、運動方程式 $f$、境界条件 $\psi$、経路制約 $g$、目的関数 $\Phi$ と $L$ だけです。
+ノードの計算、微分行列と欠損の組み立て、求積、NLP の呼び出しはライブラリが行います。
+
+## 区間に分ける
+
+1本の多項式は滑らかな関数しか上手に表せません。推力が最大からゼロへ急に切り替わる、段分離で質量が跳ぶ、といった
+不連続があると、その前後で多項式が振動します。
+
+そこで、時間を複数の**区間**（phase）に分け、区間ごとに別々のノードと多項式を使います。区間の境目（ノット）では、
+前の区間の最後のノードと次の区間の最初のノードについて**接続条件**を課します。
+
+- 状態が連続する場合：$X^{(1)}_{\text{last}} = X^{(2)}_{\text{first}}$（OpenGoddard が自動で課す）
+- 段分離のように跳ぶ場合：$m^{(1)}_{\text{last}} = m^{(2)}_{\text{first}} + \Delta m$ のような条件を自分で書く
+
+<Figure src="concepts/knots.png" caption="Goddard 問題の推力。左：全体を1本の多項式で表した例題07。燃焼終了付近で推力が振動します。右：燃焼終了の時刻で区間を分けた例題08。区間1の終端まで滑らかで、区間2では推力がゼロのまま保たれます。" />
+
+制御は区間の境目で不連続でも構いません。どこで区間を分けるか（ノットの時刻）も、最適化の変数にできます。
+
+## 精度を確かめる
+
+ソルバーが「成功」を返しても、それは**離散化した NLP の解**が見つかったという意味です。元の最適制御問題の解として十分な精度があるかは、別に確かめます。
+基本的な方法は、**ノード数を増やして解が変わらないことを確認する**ことです。
+
+<Figure src="concepts/convergence.png" caption="例題03（最速降下）をノード数を変えて解き、所要時間を解析解 √π と比べた誤差（縦軸は対数目盛り）。滑らかな問題では、ノードを少し増やすだけで誤差が桁違いに減ります。" />
+
+OpenGoddard には、ノード間での運動方程式の残差を見積もる `estimate_error` と、誤差の大きい区間を自動で細かくする
+`solve_adaptive` もあります（[問題の書き方](../../guide/usage/#精度を確かめる)）。
+
+## 参考文献
+
+### 理論と数値解法
+
+- F. Fahroo and I. M. Ross, "Costate Estimation by a Legendre Pseudospectral Method", *J. Guidance, Control, and Dynamics*, 24(2), 2001. [doi:10.2514/2.4709](https://doi.org/10.2514/2.4709)
+- I. M. Ross and F. Fahroo, "Pseudospectral Knotting Methods for Solving Nonsmooth Optimal Control Problems", *J. Guidance, Control, and Dynamics*, 27(3), 2004. [doi:10.2514/1.3426](https://doi.org/10.2514/1.3426)
+- Q. Gong, F. Fahroo, and I. M. Ross, "Spectral Algorithm for Pseudospectral Methods in Optimal Control", *J. Guidance, Control, and Dynamics*, 31(3), 2008. [doi:10.2514/1.32908](https://doi.org/10.2514/1.32908)
+- A. V. Rao et al., "Algorithm 902: GPOPS, A MATLAB Software for Solving Multiple-Phase Optimal Control Problems Using the Gauss Pseudospectral Method", *ACM Transactions on Mathematical Software*, 37(2), Article 22, 2010. [doi:10.1145/1731022.1731032](https://doi.org/10.1145/1731022.1731032)
+- J. T. Betts, *Practical Methods for Optimal Control and Estimation Using Nonlinear Programming*, 2nd ed., SIAM, 2010. 直接法全般の標準的な教科書。
+
+### 打上げ機の軌道最適化
+
+- I. Ross, C. D'Souza, F. Fahroo, and J. Ross, "A Fast Approach to Multi-Stage Launch Vehicle Trajectory Optimization", *AIAA Guidance, Navigation, and Control Conference and Exhibit*, 2003. [doi:10.2514/6.2003-5639](https://doi.org/10.2514/6.2003-5639)
+- J. R. Rea, "A Legendre Pseudospectral Method for Rapid Optimization of Launch Vehicle Trajectories", Massachusetts Institute of Technology, 2001. [MIT リポジトリ](http://hdl.handle.net/1721.1/8608)
+
+### 日本語の文献
+
+- 原田正範「ヤコビ擬スペクトル法による最適化手法の重み関数の高精度計算法」『日本機械学会論文集 C編』77(784), pp. 4458–4467, 2011. [doi:10.1299/kikaic.77.4458](https://doi.org/10.1299/kikaic.77.4458)
+- 原田正範「ヤコビ擬スペクトル法を用いた最適制御問題の解法における双対変数の推定」『計測自動制御学会論文集』49(8), pp. 808–815, 2013. [doi:10.9746/sicetr.49.808](https://doi.org/10.9746/sicetr.49.808)
+- 原田正範「高次ガウス・ロバット則の重み関数を用いたヤコビ擬スペクトル法による軌道最適化」『日本機械学会論文集 C編』73(728), pp. 1075–1080, 2007. [doi:10.1299/kikaic.73.1075](https://doi.org/10.1299/kikaic.73.1075)
+- 藤川貴弘・土屋武司・田口秀之「観測ロケットを利用した極超音速飛行試験: 2 軌道検討」『平成24年度宇宙輸送シンポジウム: 講演集録』2013. [JAXA リポジトリ](https://repository.exst.jaxa.jp/dspace/handle/a-is/14011)

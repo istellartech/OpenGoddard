@@ -29,19 +29,28 @@ export function findExample(id: string): ExampleEntry {
   return entry;
 }
 
-export interface MediaManifest {
-  id: string;
-  videos: { name: string; video: string; poster: string }[];
-  figures: string[];
-  data: string[];
-  solver?: Record<string, { success: boolean; message: string }>;
+/** Numbers written by scripts/build_media.py for one example. */
+export type Summary = Record<string, any> & {
+  success: boolean;
+  message: string;
+  objective: number;
+};
+
+export function summary(id: string): Summary | undefined {
+  const path = resolve(process.cwd(), 'public/media', id, 'summary.json');
+  return existsSync(path) ? JSON.parse(readFileSync(path, 'utf-8')) : undefined;
 }
 
-export function mediaManifest(id: string): MediaManifest | undefined {
-  const path = resolve(process.cwd(), 'public/media', id, 'manifest.json');
-  return existsSync(path) ? JSON.parse(readFileSync(path, 'utf-8')) : undefined;
+export function hasMedia(...parts: string[]): boolean {
+  return existsSync(resolve(process.cwd(), 'public/media', ...parts));
 }
 
 export function mediaUrl(...parts: string[]): string {
   return `${import.meta.env.BASE_URL.replace(/\/$/, '')}/media/${parts.join('/')}`;
+}
+
+export function exampleHref(id: string): string {
+  const example = findExample(id);
+  const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+  return `${base}/examples/${example.number}-${example.id.replaceAll('_', '-')}/`;
 }

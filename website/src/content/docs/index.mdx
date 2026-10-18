@@ -1,21 +1,80 @@
 ---
-title: OpenGoddard
-description: 擬スペクトル法による非線形最適制御のPythonライブラリ。
-template: splash
-hero:
-  tagline: 擬スペクトル法による非線形最適制御のPythonライブラリ
-  actions:
-    - text: はじめに
-      link: /OpenGoddard/getting-started/
-      icon: right-arrow
-    - text: 例題
-      link: /OpenGoddard/examples/01-minimum-energy-transfer/
-      variant: secondary
-    - text: API
-      link: /OpenGoddard/api/OpenGoddard/
-      variant: minimal
+title: はじめに
+description: OpenGoddard は、時間とともに変わる操作の「いちばん良い決め方」を数値計算で求める Python ライブラリです。
 ---
 
-import ExampleGallery from '../../components/ExampleGallery.astro';
+import { LinkCard, CardGrid } from '@astrojs/starlight/components';
+import Figure from '../../components/Figure.astro';
 
-<ExampleGallery />
+<p class="lead">
+  OpenGoddard は、ロケットの打上げ経路のように「時間とともに変わる操作を、どう決めればいちばん良いか」を数値計算で求める
+  Python ライブラリです。このような問題を<strong>最適制御問題</strong>といいます。
+</p>
+
+## どんな問題を解くのか
+
+例として、坂道で球を転がす問題を考えます。点 A から静かに球を放し、重力だけで点 B まで転がします。
+坂の形を自由に作れるとき、いちばん早く B に着く形はどれでしょうか。
+
+<Figure src="concepts/candidate_curves.png" caption="A から B へ球を転がしたときの所要時間。最短距離の直線は最速ではありません。最速の形（サイクロイド）は、最初に急に下って速さを稼ぎます。" />
+
+直線は距離こそ最短ですが、加速がゆるやかなので遅くなります。逆に深く潜りすぎると道のりが長くなります。
+この中間にある「最速の形」は、最初に急降下して速さを稼ぎ、後半はその速さで水平に進む曲線です。
+
+この問題で探しているのは、ひとつの数ではなく、**坂の形（各時刻にどちらへ進むか）という関数**です。
+ロケットなら「各時刻に推力をどれだけ、どの向きに出すか」、自動車なら「各時刻にアクセルとブレーキをどれだけ踏むか」が、
+同じように探す対象になります。OpenGoddard はこの種の問題を、次の情報から解きます。
+
+- **運動方程式**：操作を決めると、状態（位置・速度・質量など）がどう変化するか
+- **条件**：出発点と到着点の状態、途中で守る制限（推力の上限、加速度の上限など）
+- **目的**：何を最小にしたいか（所要時間、燃料、到達高度にマイナスをつけたもの など）
+
+結果として、状態と操作の時間変化（時間履歴）が得られます。下は、2段式ロケットで高度 500 km の円軌道に入るとき、
+軌道上に残る質量を最大にする飛び方を求めた例です（[例題13](examples/13-rocket-ascent-polar-tsto/)）。
+
+<Figure src="rocket_ascent_polar_tsto/scene.png" caption="例題13の解。青が1段目、赤が2段目の飛行経路、橙の矢印は推力の向きです。白い点は計算で直接求めた点（ノード）で、線はそれらを通る多項式です。" />
+
+## 特徴
+
+- **擬スペクトル法（LGL法）** で解きます。少ない点数で高い精度が得られる方法です（[擬スペクトル法](theory/pseudospectral/)）。
+- **数式をそのまま書けます。** 運動方程式・条件・目的関数を普通の Python 関数として書くだけで、
+  離散化や最適化問題の組み立てはライブラリが行います（[問題の書き方](guide/usage/)）。
+- **複数の区間を扱えます。** 段分離のように途中で性質が変わる飛行も、区間ごとに分けて解けます。
+- **依存は NumPy・SciPy・Matplotlib だけです。** 最適化には SciPy の SLSQP（逐次二次計画法）を使います。
+
+## インストール
+
+Python 3.11 以上が必要です。
+
+```sh
+pip install OpenGoddard
+```
+
+例題を動かす場合は、リポジトリを取得して [uv](https://docs.astral.sh/uv/) で環境を作ります。
+
+```sh
+git clone https://github.com/istellartech/OpenGoddard.git
+cd OpenGoddard
+uv sync
+uv run python examples/02_move_stop.py
+```
+
+## このサイトの読み方
+
+最適制御や数値最適化を学習中の方は、上から順に読むことを想定しています。
+
+<CardGrid>
+  <LinkCard title="1. 最適制御問題とは" description="状態・制御・運動方程式・目的関数とは何か。問題をどう数式で書くか。" href="theory/optimal-control/" />
+  <LinkCard title="2. 解き方の全体像" description="間接法と直接法。シューティングとコロケーション。擬スペクトル法の立ち位置。" href="theory/methods/" />
+  <LinkCard title="3. 擬スペクトル法" description="LGLノード、微分行列、求積。運動方程式を有限個の等式に変える仕組み。" href="theory/pseudospectral/" />
+  <LinkCard title="4. 問題の書き方" description="数式を OpenGoddard のコードに書き下す手順。" href="guide/usage/" />
+  <LinkCard title="5. 例題" description="1次元の移動から、2段式ロケットの軌道投入まで15題。" href="examples/" />
+  <LinkCard title="APIリファレンス" description="クラスと関数の仕様（docstring から生成）。" href="api/OpenGoddard/" />
+</CardGrid>
+
+## 名前について
+
+ロケットの父と呼ばれる Robert H. Goddard にちなみます。彼が1919年に提起した「決まった量の推進剤で、ロケットを最も高く上げるには
+推力をどう変えればよいか」という問題（Goddard 問題）は、最適制御の代表的な例題です（[例題07](examples/07-goddard-0knot/)）。
+
+OpenGoddard は [インターステラテクノロジズ株式会社](https://www.istellartech.com/) が MIT ライセンスで公開しています。

@@ -15,7 +15,20 @@ export default defineConfig({
   integrations: [
     starlight({
       title: 'OpenGoddard',
-      description: '擬スペクトル法による最適軌道計算のPythonライブラリ',
+      description: '擬スペクトル法で最適制御問題を解くPythonライブラリ',
+      logo: { src: './src/assets/logo.svg' },
+      favicon: '/favicon.svg',
+      head: [
+        { tag: 'link', attrs: { rel: 'preconnect', href: 'https://fonts.googleapis.com' } },
+        { tag: 'link', attrs: { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: true } },
+        {
+          tag: 'link',
+          attrs: {
+            rel: 'stylesheet',
+            href: 'https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Noto+Sans+JP:wght@400;500;700;800&display=swap',
+          },
+        },
+      ],
       defaultLocale: 'root',
       locales: { root: { label: '日本語', lang: 'ja' } },
       social: [
@@ -36,7 +49,12 @@ export default defineConfig({
         }),
       ],
       sidebar: [
-        { label: 'ガイド', items: ['getting-started', 'concepts/pseudospectral'] },
+        { label: 'はじめに', link: '/' },
+        {
+          label: '基礎',
+          items: ['theory/optimal-control', 'theory/methods', 'theory/pseudospectral'],
+        },
+        { label: '使い方', items: ['guide/usage', 'guide/troubleshooting'] },
         { label: '例題', items: [{ autogenerate: { directory: 'examples' } }] },
         { label: 'APIリファレンス', items: [pydocsSidebarGroup] },
       ],

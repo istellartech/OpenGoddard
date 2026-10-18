@@ -1,69 +1,212 @@
 ---
 title: 13. 極座標・2段軌道投入
-description: 2段ロケットを2つの phase で表し、高度 500 km の円軌道へ投入する。
+description: 2段式ロケットを地上から高度500 kmの円軌道へ投入する。段ごとに性能の違う2つの区間をつなぎ、分離の時刻も含めて、軌道に残る2段目の質量を最大にする飛び方を求める。
 sidebar:
   order: 13
 ---
 
-import ExampleMedia from '../../../components/ExampleMedia.astro';
-import ExampleSource from '../../../components/ExampleSource.astro';
+import ExampleFigure from '../../../components/ExampleFigure.astro';
 import RunCommand from '../../../components/RunCommand.astro';
+import SolverNote from '../../../components/SolverNote.astro';
+import Value from '../../../components/Value.astro';
 
-[12](../12-rocket-ascent-polar-ssto/) の極座標モデルを2段ロケットに拡張し、高度 500 km の円軌道へ投入する。各段の燃焼を1つの phase とし、段分離では位置・速度を連続、質量を2段目の初期質量に切り替える。
+<p class="lead">
+  実際の打上げロケットの多くは、使い終わった1段目を途中で捨てる多段式です。
+  空になった重いタンクを運び続けずに済むからです。
+  [例題12](../12-rocket-ascent-polar-ssto/) の2次元の上昇に段分離を加え、いつ分離して、それぞれの段で推力をどう出せばよいかを求めます。
+</p>
 
-## 問題
+<div class="og-facts">
 
-状態・制御・運動方程式は12と同じで、$i$ 段目の phase ではその段の $I_{sp,i}$、$C_{d,i}$、$A_i$ を使う。
+| 項目 | 内容 |
+| --- | --- |
+| 状態 | 地球中心からの距離 $R$、角度 $\theta$、鉛直速度 $V_r$、水平速度 $V_t$、質量 $m$ |
+| 制御 | 推力の鉛直成分 $T_r$ と水平成分 $T_t$ |
+| 目的 | 軌道投入時の2段目の質量 $m(t_f)$ を最大にする |
+| 区間 | 2区間（各20ノード）、分離時刻も終了時刻も自由 |
+| 新しく学ぶこと | 2次元での段分離、区間ごとに異なる機体パラメータ |
 
-| | 1段目 | 2段目 |
-| --- | --- | --- |
-| 初期質量・乾燥質量 | 20000 kg・2000 kg | 1000 kg・200 kg |
-| $I_{sp}$ | 300 s | 350 s |
-| 最大推力 $1.5 M_{0,i} g_0$ | 約 294 kN | 約 14.7 kN |
+</div>
+
+## 状況
+
+打上げ時の質量は 20 t で、これには上に載っている2段目（1 t）も含まれます。
+1段目の区間では機体全体の質量が 2 t を下回るまで推進剤を使うことはできません。
+分離すると機体は2段目だけになり、質量は 1 t から再出発します。分離で捨てる質量（分離直前の質量 − 1 t）は、分離の時刻とともに最適化で決まります。
+
+2段目は1段目より比推力が高く（300 s に対して 350 s）、最大推力は小さい（約 294 kN に対して約 14.7 kN）エンジンを持ちます。
+目標は高度 500 km の円軌道で、軌道に入ったときの2段目の質量を最大にします。
+地球の自転は考えず、加速度は 8 G 以下に抑えます。
+
+## 問題設定
+
+### 座標系
+
+[例題12](../12-rocket-ascent-polar-ssto/#座標系) と同じです。$R$ は地球中心からの距離（高度 $h = R - R_e$）、$\theta$ は射点から地球中心のまわりに回った角度、
+$V_r$ は真上向きの速度、$V_t$ は進行方向の水平速度、$T_r$ と $T_t$ は推力の鉛直成分と水平成分です。
+
+### 区間と接続条件
+
+時間を2つの区間に分けます。
+
+- 区間1（1段目）：$0 \le t \le t_s$
+- 区間2（2段目）：$t_s \le t \le t_f$
+
+分離時刻 $t_s$ と終了時刻 $t_f$ はどちらも最適化で決めます。分離の瞬間、位置と速度は変わらず、質量だけが不連続に減ります。
 
 $$
 \begin{aligned}
-&R(0)=R_e,\ \theta(0)=V_r(0)=V_t(0)=0,\ m(0)=20000;\qquad
-R(t_f)=R_e+500\,\mathrm{km},\ V_r(t_f)=0,\ V_t(t_f)=\sqrt{GM_e/R(t_f)} \\
-&(R,\theta,V_r,V_t)(t_s^+) = (R,\theta,V_r,V_t)(t_s^-),\qquad m(t_s^+) = 1000 \\
-&\sqrt{T_r^2+T_t^2} \le T_{\max,i},\quad \lvert \boldsymbol{T}-\boldsymbol{D}\rvert/m \le 8 g_0,\quad
-2000 \le m \le 20000\ (\text{1段目}),\quad 1 \le m \le 1000\ (\text{2段目}),\qquad
-J = -m(t_f)/M_{0,1}
+R(t_s^+) &= R(t_s^-) \\
+\theta(t_s^+) &= \theta(t_s^-) \\
+V_r(t_s^+) &= V_r(t_s^-) \\
+V_t(t_s^+) &= V_t(t_s^-) \\
+m(t_s^+) &= 1\ \mathrm{t}
 \end{aligned}
 $$
 
-## 手で書く順序
+$t_s^-$ は分離直前、$t_s^+$ は分離直後を表します。質量は連続にせず、分離直後の値を 1 t に固定します
+（[区間をつなぐ](../../guide/usage/#区間をつなぐ)）。
 
-12の式を両段で使う。`section` が段の番号にもなるので、配列からその段の抗力係数・断面積・比推力を選ぶ。
+### 運動方程式
 
-## コードとの対応
+両区間とも[例題12](../12-rocket-ascent-polar-ssto/#運動方程式) と同じ形で、段 $i$（$i = 1, 2$）の値を使います。
 
-| 数式 | 例題のPythonファイル |
-| --- | --- |
-| 段ごとの値 | `Isp = obj.Isp[section]`、`obj.Cd[section] * obj.A[section]` |
-| knot での自動連続を外す | `problem.dynamics = [dynamics, dynamics]`、`problem.knot_states_smooth = [False]` |
-| 位置・速度の連続 | `result.equal(R1[0], R0[-1], unit=unit_R)`（`theta`、`Vr`、`Vt` も同様） |
-| 段分離後の質量 | `result.equal(m1[0], obj.M0[1], unit=unit_m)` |
-| $J$ | `cost` が `-m1[-1] / problem.unit_states[1][4]` を返す |
+$$
+\begin{aligned}
+\dot{R} &= V_r \\[2pt]
+\dot{\theta} &= \frac{V_t}{R} \\[2pt]
+\dot{V}_r &= \frac{T_r - D_r}{m} - g(R) + \frac{V_t^2}{R} \\[2pt]
+\dot{V}_t &= \frac{T_t - D_t}{m} - \frac{V_r V_t}{R} \\[2pt]
+\dot{m} &= -\frac{\sqrt{T_r^2 + T_t^2}}{g_0 I_{sp,i}}
+\end{aligned}
+$$
 
-求解は12と同じく `ftol=1e-6, maxiter=3000` の1回の SLSQP 実行である。
+$V_t^2/R$ は遠心力、$-V_r V_t/R$ は上昇すると水平速度が減る効果（角運動量の保存）を表します。抵抗・空気密度・重力は次のとおりです。
+
+$$
+\begin{aligned}
+V &= \sqrt{V_r^2 + V_t^2} \\[2pt]
+D_r &= \tfrac12 \rho(h)\, V_r V\, C_{D,i} A_i \\[2pt]
+D_t &= \tfrac12 \rho(h)\, V_t V\, C_{D,i} A_i \\[2pt]
+\rho(h) &= 1.225\, e^{-h/8500} \\[2pt]
+g(R) &= g_0 (R_e/R)^2
+\end{aligned}
+$$
+
+### 境界条件
+
+$$
+\begin{aligned}
+&R(0) = R_e,\quad \theta(0) = 0 \\
+&V_r(0) = 0,\quad V_t(0) = 0 \\
+&m(0) = 20\ \mathrm{t} \\[4pt]
+&R(t_f) = R_e + 500\ \mathrm{km} \\
+&V_r(t_f) = 0 \\
+&V_t(t_f) = \sqrt{\mu / R(t_f)}
+\end{aligned}
+$$
+
+終端の水平速度は高度 500 km の円軌道速度（約 7616.6 m/s）です。終端の角度と時刻は自由です。
+
+### 制約
+
+$$
+\begin{aligned}
+&R \ge R_e \\
+&2\ \mathrm{t} \le m \le 20\ \mathrm{t} \quad (\text{区間1}) \\
+&1\ \mathrm{kg} \le m \le 1\ \mathrm{t} \quad (\text{区間2}) \\
+&\sqrt{T_r^2 + T_t^2} \le T_{\max,i} \\
+&-T_{\max,2} \le T_r,\ T_t \le T_{\max,i} \\
+&\left|\frac{\boldsymbol{T} - \boldsymbol{D}}{m}\right| \le 8\, g_0
+\end{aligned}
+$$
+
+- 推力の大きさは段ごとの最大推力以下です。
+- 推力の各成分には、負の側にも上限 $T_{\max,2}$（約 14.7 kN）の範囲を与えています。例題12と違い、推力を少しなら下向き・後ろ向きにも出せます。
+- 区間2の質量の下限は 1 kg で、2段目の空の質量（200 kg）は制約に入っていません。最終質量を最大にするので、結果がこの下限に近づくことはありません。
+- 加速度（推力と抵抗による、重力を含めない加速度）の大きさを 8 G 以下にします。
+
+### 目的関数
+
+$$
+J = -\frac{m(t_f)}{20\ \mathrm{t}}
+$$
+
+軌道に入ったときの2段目の質量を最大にします。打上げ時の質量で割って大きさをそろえています。
+
+### パラメータ
+
+| 記号 | 意味 | 1段目 | 2段目 |
+| --- | --- | --- | --- |
+| — | 区間の初めの質量 | 20 t | 1 t |
+| — | 質量の下限 | 2 t | 1 kg |
+| $C_{D,i} A_i$ | 抵抗係数 × 断面積 | 0.2 × 3.14 m² | 0.2 × 3.14 m² |
+| $I_{sp,i}$ | 比推力 | 300 s | 350 s |
+| $T_{\max,i}$ | 最大推力（初めの重量の 1.5 倍） | 約 294.2 kN | 約 14.7 kN |
+
+地球半径 $R_e = 6371$ km、地表の重力加速度 $g_0 = 9.80665$ m/s²、目標速度の計算に使う重力定数 $\mu = 3.986 \times 10^{14}$ m³/s²、
+加速度の上限 8 G、目標高度 500 km です。距離・速度・質量の単位は例題12と同じ考え方でそろえます（質量の単位は 20 t）。
+
+### 初期推定
+
+区間1を 0〜100 秒、区間2を 100〜200 秒として与えます。
+
+- 距離 $R$ は地表から目標の高さへ、角度 $\theta$ は 0 から 25° へなめらかに増える3次式。
+- 鉛直速度は 0、水平速度は 0 から目標速度へ直線的に増やします。
+- 質量は、区間1で 20 t から 2 t へ、区間2で 1 t から 200 kg へ減る3次式。
+- 推力は各段で、鉛直成分を $0.9\,T_{\max,i}$、水平成分を $0.1\,T_{\max,i}$ から 0 へ下げる3次式。
 
 ## 結果
 
-分離時刻で質量だけが不連続になり、その後は12と同じく慣性飛行と遠地点噴射で円軌道に入る。
+<SolverNote id="rocket_ascent_polar_tsto" />
 
-<ExampleMedia id="rocket_ascent_polar_tsto" />
+<ExampleFigure id="rocket_ascent_polar_tsto" kind="scene" caption="飛行経路。横軸は射点からの地表距離、縦軸は高度で、高度方向を拡大しています。青は1段目、橙は2段目の区間です。点はノードでの値、線はそれらを通る多項式、橙色の矢印はエンジンが動いているノードでの推力の向き（間引いて表示）です。" />
 
-- 1段目は質量下限 2000 kg まで燃焼し、分離で 1000 kg に落ちる。推力上限も2段目の値に切り替わる。
-- 2段目は遠地点 500 km の楕円軌道に乗り、遠地点で小さく水平に噴射して円軌道に入る。最終質量は約 477 kg である。
-- 最終質量は慣性飛行の長さにほとんど依存しないため、慣性飛行の長さと $t_f$ は計算環境によって変わる。
+<ExampleFigure id="rocket_ascent_polar_tsto" kind="history" caption="時間履歴。高度、水平速度（実線）と鉛直速度（破線）、質量、推力の大きさ、推力の仰角（エンジン停止中は非表示）、推力と抵抗による加速度。青は1段目、橙は2段目、縦の破線は段分離の時刻です。赤い点線は各段の最大推力と加速度の上限です。" />
 
-## 試す
+<ExampleFigure id="rocket_ascent_polar_tsto" kind="animation" caption="上昇の様子。右側は速度・推力の大きさ・推力の仰角で、縦の実線が現在の時刻です。エンジンが止まっている間は早送りしています。" />
+
+- 段分離は時刻 <Value id="rocket_ascent_polar_tsto" k="knots.0" d={1} /> 秒です。分離直前の質量は <Value id="rocket_ascent_polar_tsto" k="phases.0.final.m" d={0} /> kg で、
+  区間1の下限に達しています。1段目の推進剤を使い切ってから捨てています。
+- 分離時の水平速度は <Value id="rocket_ascent_polar_tsto" k="phases.0.final.Vt" d={0} /> m/s で、軌道速度の大部分を1段目が稼いでいます。
+- 2段目は時刻 <Value id="rocket_ascent_polar_tsto" k="burn_spans.2.1" d={0} /> 秒ごろまで燃焼した後、長い慣性飛行に入り、
+  <Value id="rocket_ascent_polar_tsto" k="burn_spans.3.0" d={0} /> 秒ごろから <Value id="rocket_ascent_polar_tsto" k="final_time" d={0} /> 秒まで再び燃焼して円軌道に入ります。
+- 軌道に残る2段目の質量は <Value id="rocket_ascent_polar_tsto" k="final_mass_kg" d={1} /> kg です。2段目の空の質量 200 kg を除いた分が、運べる荷物と残った推進剤にあたります。
+- 終端の高度は <Value id="rocket_ascent_polar_tsto" k="final_altitude_km" d={1} /> km、速さは <Value id="rocket_ascent_polar_tsto" k="final_speed" d={1} /> m/s で、目標どおりです。
+- 加速度はノードで上限の <Value id="rocket_ascent_polar_tsto" k="max_accel_G" d={2} /> G に達しています。
+
+## 解説
+
+### 1段目の終わりに推力を絞る
+
+1段目は推進剤を使うほど軽くなり、同じ推力でも加速度が大きくなります。分離直前の 2 t の機体に最大推力 294 kN をかけると約 15 G になり、
+上限の 8 G を超えます。そのため1段目の最後は推力を絞って 8 G を守っています。推力のグラフで1段目の終わりに値が大きく上下しているのは、
+この上限に沿った推力の変化を、少ないノードの多項式で表しきれていないためで、ノードの間では加速度の線が 8 G を越えています。
+
+### 長い慣性飛行とホーマン遷移
+
+2段目は高度 100〜150 km あたりで軌道速度に近い速さまで加速したあと、エンジンを止め、地球のまわりを大きく回りながら高度 500 km まで上がります。
+射点から軌道投入点までの地表距離は <Value id="rocket_ascent_polar_tsto" k="downrange_km" d={0} /> km にもなります。
+最高点に着いたところで再び燃焼し、円軌道に必要な速度まで加速します。
+
+これは低い軌道から高い軌道へ移る**ホーマン遷移**の形です。低い高度で加速して、最高点が目標高度になる楕円軌道に乗り、
+最高点で円軌道にするための加速を加えるのが、推進剤の点で効率的です。[例題12](../12-rocket-ascent-polar-ssto/) の
+「燃焼・慣性飛行・燃焼」と同じ考え方ですが、2段目の推力が小さいので、最初の燃焼が長くなり、慣性飛行は 30 分以上と長くなっています。
+
+### なぜ2段式が得か
+
+1段目の空のタンクやエンジン（約 1 t）を分離で捨てるので、2段目は軽い機体を加速するだけで済みます。
+さらに比推力の高いエンジンを真空に近い上空で使えます。単段の例題12では空の機体が質量の 1 % という非現実的な値を仮定していましたが、
+2段式なら各段の構造に余裕を持たせても軌道に到達できます。
+
+## 試してみよう
+
+- `Rocket` の `Isp` の2段目の値を 350 から 450 に上げ、最終質量がどれだけ増えるか、2段目の燃焼時間がどう変わるかを見る。
+- `MaxG` を 8 から 15 に緩め、1段目の終わりの推力の絞り込みと、推力のグラフの上下の振れがどう変わるかを確かめる。
+- ノード数（`Problem([0.0, 100, 200], [20, 20], ...)` の `[20, 20]`）を `[30, 30]` に増やし、1段目の終わりの推力の振れが小さくなるか比べる。
+
+## 実行する
 
 <RunCommand id="rocket_ascent_polar_tsto" />
 
-- `self.Isp` の2段目を 450 にし、最終質量の増加を確認する。
-
-## ソースコード
-
-<ExampleSource id="rocket_ascent_polar_tsto" />
+[examples/13_rocket_ascent_polar_tsto.py](https://github.com/istellartech/OpenGoddard/blob/master/examples/13_rocket_ascent_polar_tsto.py) を GitHub で見る

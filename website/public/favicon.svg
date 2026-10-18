@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- A trajectory arc sampled at LGL nodes: denser near both ends. -->
+  <path d="M8 54 C 16 24, 36 10, 58 9" stroke="#2f5bd3" stroke-width="4.5" stroke-linecap="round"/>
+  <g fill="#ffffff" stroke="#2f5bd3" stroke-width="3">
+    <circle cx="8" cy="54" r="4"/>
+    <circle cx="10.6" cy="45.5" r="3.4"/>
+    <circle cx="17.5" cy="31.5" r="3.4"/>
+    <circle cx="30" cy="18" r="3.4"/>
+    <circle cx="45" cy="11.2" r="3.4"/>
+    <circle cx="54.5" cy="9.3" r="3.4"/>
+  </g>
+  <circle cx="58" cy="9" r="5" fill="#f59e0b"/>
+</svg>

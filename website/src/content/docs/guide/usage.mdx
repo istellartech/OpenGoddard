@@ -1,0 +1,261 @@
+---
+title: 問題の書き方
+description: 最適制御問題の数式を OpenGoddard のコードに書き下す手順。例題02を題材に、区間・運動方程式・条件・目的関数・初期推定・求解・結果の取り出しまで。
+---
+
+import ExampleSource from '../../../components/ExampleSource.astro';
+
+<p class="lead">
+  OpenGoddard では、数式の各部分を Python の関数として書き、<code>Problem</code> に登録して解きます。
+  ここでは <a href="../../examples/02-move-stop/">例題02</a>（10 m 移動して止まるまでの最短時間）を題材に、手順を順に説明します。
+</p>
+
+解く問題は次のとおりです（記号の意味は[最適制御問題とは](../../theory/optimal-control/)を参照）。
+
+$$
+\begin{aligned}
+&\text{最小化} && J = t_f \\
+&\text{運動方程式} && \dot{x} = v,\quad \dot{v} = a \\
+&\text{境界条件} && x(0) = 0,\ v(0) = 0,\ x(t_f) = 10,\ v(t_f) = 0 \\
+&\text{制約} && -2 \le a \le 2
+\end{aligned}
+$$
+
+最適解は加速から減速へ一度切り替わるので、例題02では時間を「加速」と「減速」の2区間に分けます（1区間でも解けますが、
+切り替えの前後で多項式が振動します）。
+
+## 全体の流れ
+
+| 数式の要素 | OpenGoddard での書き方 |
+| --- | --- |
+| 区間・ノード数・状態と制御の数 | `Problem(...)` の引数 |
+| 運動方程式 $\dot{\boldsymbol{x}} = \boldsymbol{f}$ | `dynamics(problem, obj, section)` 関数（区間ごとに登録） |
+| 境界条件 $\boldsymbol{\psi} = \boldsymbol{0}$ | `equality(problem, obj)` 関数 |
+| 経路制約 $\boldsymbol{g} \ge \boldsymbol{0}$ | `inequality(problem, obj)` 関数、または上下限の設定 |
+| 終端コスト $\Phi$ | `cost(problem, obj)` 関数 |
+| 積分コストの被積分関数 $L$ | `running_cost(problem, obj)` 関数（積分はライブラリが行う） |
+| 初期推定 | `set_states`・`set_controls` と `Guess` |
+
+どの関数も第2引数 `obj` に、`solve(obj)` に渡した値がそのまま届きます。物理パラメータ（距離、重力など）を入れておくと便利です。
+
+## 1. 問題の大きさを決める
+
+```py
+from OpenGoddard import Dynamics, Guess, Problem
+
+problem = Problem(
+    [0, 2.24, 4.47],  # 区間の境目の時刻の初期推定（区間数 + 1 個）
+    [12, 12],         # 区間ごとのノード数
+    [2, 2],           # 区間ごとの状態の数（x, v）
+    [1, 1],           # 区間ごとの制御の数（a）
+)
+```
+
+最初の引数は時刻の**初期推定**です。終了時刻 $t_f$ や区間の境目の時刻は、最適化の途中で動きます。
+ノード数は区間ごとに指定し、状態・制御には **0 から始まる番号**で順番をつけます（ここでは状態0が $x$、状態1が $v$、制御0が $a$）。
+
+## 2. 運動方程式を書く
+
+```py
+def dynamics(problem, p, section):
+    v = problem.states(1, section)     # 状態1（速度）の全ノードの値
+    a = problem.controls(0, section)   # 制御0（加速度）の全ノードの値
+    dx = Dynamics(problem, section)
+    dx[0] = v   # dx/dt = v
+    dx[1] = a   # dv/dt = a
+    return dx()
+
+problem.dynamics = [dynamics, dynamics]  # 区間ごとに1つ
+```
+
+`problem.states(i, section)` は、区間 `section` の全ノードでの状態 `i` の値を NumPy 配列で返します。
+運動方程式の右辺は**全ノード分をまとめて**配列の演算で計算します。`Dynamics` に状態の番号ごとに右辺を代入し、
+最後に `dx()` を返します。単位の換算（後述）は `Dynamics` が行うので、右辺は物理単位のままで書きます。
+
+区間ごとに運動方程式が違う場合（段ごとに比推力が違うなど）は、`section` で分岐するか、別の関数を登録します。
+
+## 3. 境界条件を書く
+
+```py
+def equality(problem, p):
+    x = problem.states_all_section(0)  # 全区間をつなげた位置
+    v = problem.states_all_section(1)
+    c = problem.condition()
+    c.equal(x[0], 0)               # x(0) = 0
+    c.equal(v[0], 0)               # v(0) = 0
+    c.equal(x[-1], p["distance"])  # x(tf) = 10
+    c.equal(v[-1], 0)              # v(tf) = 0
+    return c()
+
+problem.equality = equality
+```
+
+LGL ノードは区間の両端を含むので、配列の最初 `[0]` が初期時刻、最後 `[-1]` が終了時刻の値です。
+`c.equal(左辺, 右辺)` を並べると、「左辺 − 右辺 = 0」という条件が登録されます。
+区間の境目で状態が連続になる条件は自動で課されるので、書く必要はありません（後述の「区間をつなぐ」を参照）。
+
+## 4. 経路制約を書く
+
+制御や状態の単純な上下限は、`set_*_bounds` で設定するのがいちばん確実です。
+
+```py
+for section in range(2):
+    problem.set_controls_bounds(0, section, -2, 2)  # -2 <= a <= 2
+```
+
+上下限で書けない制約（加速度の大きさ $\sqrt{a_x^2 + a_y^2} \le 8\,\text{G}$ など）は `inequality` 関数に書きます。
+条件は「値 ≥ 0」の向きに登録されます。
+
+```py
+def inequality(problem, p):
+    a = problem.controls_all_section(0)
+    c = problem.condition()
+    c.lower_bound(a, -2)  # a >= -2
+    c.upper_bound(a, 2)   # a <= 2
+    return c()
+```
+
+制約は各ノードで課されます。ノードとノードの間では、多項式が制約をわずかにはみ出すことがあります。
+
+## 5. 目的関数を書く
+
+```py
+def cost(problem, p):
+    return problem.time_final(-1)  # 最後の区間の終了時刻 = tf
+
+problem.cost = cost
+```
+
+積分コスト $\int L\,dt$ がある場合は、被積分関数 $L$ の各ノードでの値を `running_cost` で返します。
+積分（求積の重みと区間の長さを掛けて足す計算）はライブラリが行います。
+
+```py
+def running_cost(problem, p):
+    a = problem.controls_all_section(0)
+    return a**2  # J に ∫ a² dt が加わる
+
+problem.running_cost = running_cost
+```
+
+最大化したい量は、マイナスをつけて返します（例：最終高度を最大にするなら `return -h[-1]`）。
+
+## 6. 初期推定を与える
+
+最適化は初期推定から出発して改善を繰り返すので、**物理的にもっともらしい初期推定**を与えるほど速く確実に解けます。
+`Guess` は時刻の配列から典型的な形を作ります。
+
+```py
+time = problem.time_all_section  # 全ノードの時刻
+problem.set_states_all_section(0, Guess.linear(time, 0, 10))   # x: 0 から 10 へ直線
+problem.set_states_all_section(1, Guess.constant(time, 2.0))   # v: 一定
+problem.set_controls(0, 0, Guess.constant(problem.time[0], 2))   # 区間0の a = +2
+problem.set_controls(0, 1, Guess.constant(problem.time[1], -2))  # 区間1の a = -2
+```
+
+| 関数 | 形 |
+| --- | --- |
+| `Guess.constant(time, c)` | 一定値 |
+| `Guess.linear(time, y0, yf)` | 始点 $y_0$ から終点 $y_f$ への直線 |
+| `Guess.cubic(time, y0, dy0, yf, dyf)` | 両端の値と傾きを指定した3次式 |
+
+例題02では、初期推定として等加速度運動の式そのものを各区間のノードで計算して与えています。
+
+## 7. 解く
+
+```py
+result = problem.solve(PARAMETERS, maxiter=300, ftol=1e-9)
+print(result.success, result.message)
+print("tf =", problem.time_final(-1))
+```
+
+`solve` の第1引数が、各関数の `obj` に渡されます。そのほかの引数は SciPy の最適化ソルバーにそのまま渡されます。
+
+| 引数 | 意味 |
+| --- | --- |
+| `maxiter` | 1回の求解の最大反復回数 |
+| `ftol` | 収束判定の許容誤差（SLSQP） |
+| `solver` | `"SLSQP"`（既定）または `"trust-constr"` |
+
+反復回数の上限で止まった場合は、その解から自動で解き直します。解き直しの最大回数は `Problem(..., maxIterator=n)` で指定します。
+解くと `problem` の中の値が解で置き換わり、`result.success` で収束したかどうかがわかります。
+
+## 8. 結果を取り出す
+
+```py
+t = problem.time_all_section        # 全ノードの時刻
+x = problem.states_all_section(0)   # 位置
+a = problem.controls_all_section(0) # 加速度
+problem.to_csv("result.csv")        # 時刻・状態・制御を CSV に保存
+```
+
+取り出せるのは**ノードでの値**です。滑らかな曲線として描きたいときは、区間ごとにノード値を通る多項式で補間します
+（このサイトの図は `scipy.interpolate.BarycentricInterpolator` で補間しています）。
+
+## 区間をつなぐ
+
+区間が複数あるとき、既定では隣り合う区間の境目で**すべての状態が連続**になる条件が自動で課されます。
+段分離のように質量が不連続に変わる場合は、自動の接続を外して、接続条件を `equality` に自分で書きます。
+
+```py
+problem.knot_states_smooth = [False]  # 境目1か所について自動の接続を外す
+
+def equality(problem, obj):
+    c = problem.condition()
+    R1, R2 = problem.states(0, 0), problem.states(0, 1)
+    m1, m2 = problem.states(2, 0), problem.states(2, 1)
+    c.equal(R1[-1], R2[0])          # 位置はつながる
+    c.equal(m1[-1], m2[0] + 1200)   # 1段目の構造 1200 kg を切り離す
+    ...
+    return c()
+```
+
+詳しくは [例題11](../../examples/11-rocket-ascent-two-stage/) を参照してください。
+
+## 単位をそろえる（スケーリング）
+
+ロケットの問題では、半径は $6.4 \times 10^6$ m、質量は $10^4$ kg、時刻は $10^2$ s と、変数の桁が大きく違います。
+このまま解くと、最適化ソルバーにとって「どの方向にどれだけ動かせばよいか」の感覚がつかめず、収束しにくくなります。
+そこで、それぞれの変数の**代表的な大きさ（単位）**を指定します。
+
+```py
+problem.set_unit_states_all_section(0, 6.371e6)  # 半径の単位 [m]
+problem.set_unit_states_all_section(2, 5000)     # 質量の単位 [kg]
+problem.set_unit_controls_all_section(0, 1e5)    # 推力の単位 [N]
+problem.set_unit_time(800)                       # 時刻の単位 [s]
+```
+
+内部では各変数をこの単位で割った値（1 前後の値）で最適化します。運動方程式・条件・結果の取り出しは、
+すべて**物理単位のまま**書けます。`Condition` の `unit=` 引数で、条件の残差にも同じように単位を指定できます。
+
+## 精度を確かめる
+
+運動方程式を `DynamicsModel` の形で書くと、ノードの間での運動方程式の残差を見積もったり、
+誤差の大きい区間を自動で細かくしたりできます。`DynamicsModel` に渡す関数は、状態 `x`（状態数 × ノード数）と
+制御 `u` を受け取り、右辺を同じ形の配列で返します。
+
+```py
+from OpenGoddard import DynamicsModel
+
+def move(x, u, t, p, section, xp):
+    position, velocity = x
+    (acceleration,) = u
+    return xp.stack([velocity, acceleration])
+
+problem.dynamics = [DynamicsModel(move), DynamicsModel(move)]
+problem.solve(PARAMETERS)
+print(problem.estimate_error(PARAMETERS)["max_error"])  # ノード間の残差の見積もり
+
+problem.solve_adaptive(PARAMETERS, tolerance=1e-6)  # 許容誤差を満たすまでノードを増やす
+```
+
+`xp` は NumPy（または自動微分用の `autograd.numpy`）です。`np.` の代わりに `xp.` で書くと、
+`solve(..., derivatives="structured")` や `derivatives="autograd"` による高速・高精度な微分も使えます。
+
+## 例題02の全体
+
+上の手順をまとめた例題02のコードです。パラメータ、問題の組み立て、求解、描画を関数に分けています。
+
+<ExampleSource id="move_stop" />
+
+関数やクラスの詳しい仕様は [APIリファレンス](../../api/OpenGoddard/) を参照してください。
+解がうまく求まらないときは [うまく解けないとき](../troubleshooting/) を参照してください。

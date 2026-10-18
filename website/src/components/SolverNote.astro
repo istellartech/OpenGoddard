@@ -1,0 +1,19 @@
+---
+// Warn when the generated solution did not converge.
+import { Aside } from '@astrojs/starlight/components';
+import { summary } from '../lib/catalog';
+
+interface Props {
+  id: string;
+}
+
+const data = summary(Astro.props.id);
+---
+
+{
+  data && !data.success && (
+    <Aside type="caution" title="ソルバーが収束を報告していません">
+      <code>{data.message}</code>。図は計算が止まった時点の値です。
+    </Aside>
+  )
+}

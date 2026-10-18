@@ -1,0 +1,16 @@
+---
+// One generated figure of an example: the motion, the time histories or the video.
+import Figure from './Figure.astro';
+
+interface Props {
+  id: string;
+  kind: 'scene' | 'history' | 'animation';
+  caption?: string;
+}
+
+const { id, kind, caption } = Astro.props;
+const src = kind === 'animation' ? `${id}/animation.mp4` : `${id}/${kind}.png`;
+const poster = kind === 'animation' ? `${id}/animation.png` : undefined;
+---
+
+<Figure src={src} poster={poster} caption={caption}><slot /></Figure>

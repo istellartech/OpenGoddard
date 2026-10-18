@@ -1,54 +1,170 @@
 ---
 title: 04. 深さ制限付き最速降下
-description: 最速降下に深さの上限を追加する。03と同じ3つの状態を使う。
+description: 最速降下の坂に「深さ 0.3 m より下には掘れない」という床を設けたとき、最速の坂の形はどう変わるかを求める。
 sidebar:
   order: 4
 ---
 
-import ExampleMedia from '../../../components/ExampleMedia.astro';
-import ExampleSource from '../../../components/ExampleSource.astro';
+import ExampleFigure from '../../../components/ExampleFigure.astro';
 import RunCommand from '../../../components/RunCommand.astro';
+import SolverNote from '../../../components/SolverNote.astro';
+import Value from '../../../components/Value.astro';
 
-03と同じ運動方程式に、床より深く降りないという制約を加える。
-終点は水平距離1 m、深さ0.2 mに固定する。深さは下向きが正である。
+<p class="lead">
+  最速降下の坂は、深く下って速度を稼ぐほど有利でした。では、ある深さより下には坂を作れないとしたらどうでしょうか。
+  床に沿って進む区間が現れ、道筋の形が変わります。
+</p>
 
-## 問題
+<div class="og-facts">
+
+| 項目 | 内容 |
+| --- | --- |
+| 状態 | 水平位置 $x$、深さ $y$、速さ $v$ |
+| 制御 | 坂の向き $\theta$（真下から測った角度） |
+| 目的 | 到着時刻 $t_f$ を最小にする |
+| 区間 | 1区間、40ノード、終了時刻は自由 |
+| 新しく学ぶこと | 状態の上下限を経路制約として使うこと、制約に沿って進む区間（境界弧）が現れること |
+
+</div>
+
+## 状況
+
+[例題03](../03-brachistochrone/) と同じく、摩擦のない坂を玉が重力だけで転がります。今回は次の2点が違います。
+
+- **終点を1点に決めます。** 水平に 1 m、深さ 0.2 m の点です。例題03では深さを自由にしていました。
+- **床があります。** 深さ 0.3 m より下には坂を作れません。
+
+床がなければ、最速の道は終点より深いところまで下ってから、終点へ向かって上り返します。深く下るほど速くなれるからです。
+その最も深い点が床より下にあると、そのままでは通れません。床が答えをどう変えるかを調べます。
+
+この例では重力加速度を地球の値 9.81 m/s² にしています。
+
+## 問題設定
+
+### 運動方程式
+
+深さ $y$ は下向きを正、角度 $\theta$ は真下から測ります。$\theta = 0$ が真下、$90^\circ$ が水平、$90^\circ$ より大きいと上り坂です。
 
 $$
-\dot{x}=v\sin\theta,\quad \dot{y}=v\cos\theta,\quad \dot{v}=g\cos\theta,
-\qquad J=t_f
+\begin{aligned}
+\dot{x} &= v \sin\theta \\[2pt]
+\dot{y} &= v \cos\theta \\[2pt]
+\dot{v} &= g \cos\theta
+\end{aligned}
 $$
 
+例題03と同じ式です。上り坂（$\cos\theta < 0$）では3行目が負になり、玉は減速します。
+ここでもエネルギー保存により、速さは深さだけで決まります（$v = \sqrt{2 g y}$）。
+
+### 境界条件
+
 $$
-x(0)=y(0)=v(0)=0,\quad x(t_f)=1,\quad y(t_f)=0.2,\quad
-0\le y\le0.3,\quad v\ge0,\quad0\le\theta\le\pi
+\begin{aligned}
+x(0) &= 0, & y(0) &= 0, & v(0) &= 0 \\[2pt]
+x(t_f) &= 1, & y(t_f) &= 0.2
+\end{aligned}
 $$
 
-重力は $g=9.81$ m/s² とする。状態は03と同じく水平位置・深さ・速さの3つである。
+終点の速さは決めません。エネルギー保存から、終点の深さが決まれば速さも $\sqrt{2 \cdot 9.81 \cdot 0.2} \approx 1.98$ m/s に決まります。
 
-## 手で書く順序
+### 制約
 
-1. 03の `dynamics` を使う。
-2. `equality` に終点の深さを追加する。
-3. `set_states_bounds(1, 0, 0, p["max_depth"])` で深さの上限を設定する。
+$$
+\begin{aligned}
+0 \le\ & y \le 0.3 \\[2pt]
+& v \ge 0 \\[2pt]
+0 \le\ & \theta \le \pi \\[2pt]
+0.01 \le\ & t_f \le 5
+\end{aligned}
+$$
 
-1区間のまま40ノードで近似する。床の有無の判定や区間数の切り替えは行わない。
+1行目の上限 $y \le 0.3$ がこの例の主役の**床**です。この例では、どれも変数の上下限として与えています。
+状態の上下限は**すべてのノード**で課されるので、「途中のどの時刻でも床より下へ行かない」という経路制約として働きます。
+
+$v \ge 0$、$0 \le \theta \le \pi$（左へ戻らない）、終了時刻の範囲は、計算が変な方向へ迷い込まないための補助的な制約です。
+
+### 目的関数
+
+$$
+J = t_f
+$$
+
+### パラメータ
+
+| 記号 | 意味 | 値 |
+| --- | --- | --- |
+| $g$ | 重力加速度 `PARAMETERS["gravity"]` | 9.81 m/s² |
+| $l$ | 終点の水平距離 `PARAMETERS["distance"]` | 1 m |
+| $y_f$ | 終点の深さ `PARAMETERS["final_depth"]` | 0.2 m |
+| $y_{\max}$ | 床の深さ `PARAMETERS["max_depth"]` | 0.3 m |
+
+### 初期推定
+
+時刻は 0 から 0.7 s までとし、その割合を $s = t / 0.7$（0 から 1）とします。
+
+$$
+\begin{aligned}
+x &= l\, s \\[2pt]
+y &= y_f\, s + 0.2 \sin(\pi s) \\[2pt]
+v &= \sqrt{2 g y}
+\end{aligned}
+$$
+
+水平位置は一定の速さで進み、深さは途中で一度ふくらんでから終点の深さへ戻る形です。
+速さはエネルギー保存に合わせています。向き $\theta$ は 0 から 2 rad（約 115°）へ時刻に比例して増やします。
 
 ## 結果
 
-<ExampleMedia id="constrained_descent" />
+<SolverNote id="constrained_descent" />
 
-到達時刻は約0.624秒である。床まで降り、床に沿って進んだあと終点へ上がる。
-上下限はノード上で満たす。ノード間の多項式には小さな誤差があり、既定の計算では
-深さの最大値は約0.300025 mとなる。
+<ExampleFigure id="constrained_descent" kind="scene" caption="玉の通る道筋。縦軸は深さで、下ほど深くなります。灰色の領域が床より深い通れない範囲です。点は40個のノードでの値、青の線はそれらを通る多項式、黒の破線は床がない場合の最速降下曲線です。" />
 
-## 試す
+<ExampleFigure id="constrained_descent" kind="history" caption="深さ・速さ・向き（制御）の時間履歴。点はノードでの値、線は多項式、赤の点線は深さの上限 0.3 m です。向きは度で表示しています。" />
+
+<ExampleFigure id="constrained_descent" kind="animation" caption="玉が転がる様子。左は道筋と床、右は深さ・速さ・向きの時間履歴で、縦線が現在の時刻です。" />
+
+- 到着時刻は <Value id="constrained_descent" k="final_time" d={4} /> s です。床がない場合の <Value id="constrained_descent" k="floorless_time" d={4} /> s より、わずかに遅くなります。
+- 床がなければ深さ <Value id="constrained_descent" k="floorless_max_depth" d={3} /> m まで下りますが、床があると最大深さは <Value id="constrained_descent" k="max_depth" d={3} /> m に抑えられます。
+- 道筋は「下る → 床に沿って水平に進む → 上る」の3つの部分に分かれます。床の上では向きが 90°（水平）で一定、速さも一定です。
+- 終点では向きが <Value id="constrained_descent" k="phases.0.final.theta" d={0} scale={57.29577951308232} />° の上り坂で、速さは <Value id="constrained_descent" k="phases.0.final.v" d={3} /> m/s です。
+
+## 解説
+
+### 床に沿って進む区間
+
+床がないときの最速の道は、床より深いところを通ります。床があるとそこへは行けないので、
+**行ける範囲で最も深いところ、つまり床の上をできるだけ長く通る**のが次善の策になります。
+床の上では速さが $\sqrt{2 g y_{\max}} = \sqrt{2 \cdot 9.81 \cdot 0.3} \approx 2.43$ m/s で、これが途中で出せる最大の速さです。
+
+このように、制約が等号で成り立ったまま（$y = y_{\max}$）進む部分を**境界弧**といいます。
+境界弧の上では制御も制約で決まり、深さを保つために向きは水平（$\theta = 90^\circ$）に固定されます。
+境界弧の前後は、床のない問題と同じくサイクロイドの一部で、床に接するように入り、接するように出ていきます。
+
+### 時間の損失が小さい理由
+
+床があると、床がない場合の最も深い（最も速い）部分を通れません。ただ、その部分は道のりのごく一部で、
+床の上でも速さは 2.43 m/s と十分に大きいので、到着時刻の差は1 % 未満にとどまります。
+
+### 終点の向き
+
+例題03では終点の深さを自由にしたので、終点でちょうど水平になりました。この例では終点の深さを 0.2 m に固定したので、
+その条件はなくなります。床から 0.2 m まで上り返す必要があり、終点では上り坂になっています。
+
+### 1本の多項式で表す限界
+
+境界弧の始まりと終わりでは、向き $\theta$ の変化の仕方が急に変わります（傾きが折れ曲がる）。
+1区間の多項式ではこの折れ目を正確に表せないので、向きのグラフでは境界弧の前後が少し丸まっています。
+上限はノードでだけ課されるので、ノードの間を通る多項式は床をごくわずかに（$10^{-5}$ m 程度）超えることがあります。
+ノードを増やすと折れ目はよりはっきりします。
+
+## 試してみよう
+
+- `PARAMETERS["max_depth"]` を 0.4 にする。床が床なしの最大深さ（約 0.358 m）より深くなるので床に触れず、到着時刻は床なしの値 約 0.6206 s に一致します。
+- `PARAMETERS["max_depth"]` を 0.25 にする。床に沿う区間が長くなり、到着時刻は約 0.636 s に延びます。
+- `main()` の `solve()` を `solve(nodes=20)` にしてノード数を半分にし、向きのグラフの折れ目付近の形を40ノードの場合と比べる。
+
+## 実行する
 
 <RunCommand id="constrained_descent" />
 
-- `max_depth` を0.4 mにして、床から離れた経路になることを確認する。
-- `nodes` を20と40に変え、到達時刻とノード間での最大深さを比較する。
-
-## ソースコード
-
-<ExampleSource id="constrained_descent" />
+[examples/04_constrained_descent.py](https://github.com/istellartech/OpenGoddard/blob/master/examples/04_constrained_descent.py) を GitHub で見る

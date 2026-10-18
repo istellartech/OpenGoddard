@@ -1,0 +1,25 @@
+---
+// A number from an example's summary.json, so the text always matches the code.
+import { summary } from '../lib/catalog';
+
+interface Props {
+  id: string;
+  /** Dot-separated key, e.g. "final_time" or "phases.0.final.h". */
+  k: string;
+  /** Digits after the decimal point. */
+  d?: number;
+  /** Multiply before printing (e.g. 1e-3 for kg -> t). */
+  scale?: number;
+}
+
+const { id, k, d = 3, scale = 1 } = Astro.props;
+const data = summary(id);
+let value: any = data;
+for (const key of k.split('.')) value = value?.[key];
+const text =
+  typeof value === 'number'
+    ? (value * scale).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d })
+    : '—';
+---
+
+<span class="og-value">{text}</span>

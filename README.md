@@ -70,17 +70,17 @@ Start from example 01 and adapt it in this order:
 
 The default solver is SciPy's SLSQP. Results depend on the initial guess and node
 counts; as well as checking solver success, increase the node counts to see
-whether the solution stabilizes. The getting-started guide and API reference
-below explain the code and settings in detail.
+whether the solution stabilizes. The guide and API reference below explain the code and
+settings in detail.
 
 ## Learn and use
 
-- [Getting started](https://istellartech.github.io/OpenGoddard/getting-started/):
-  how to define a problem and work through the examples.
-- [Pseudospectral method](https://istellartech.github.io/OpenGoddard/concepts/pseudospectral/):
-  the numerical method behind the library.
-- [Example tutorials](https://istellartech.github.io/OpenGoddard/examples/01-minimum-energy-transfer/):
-  equations, code, results, and videos, starting with example 01.
+- [Introduction](https://istellartech.github.io/OpenGoddard/) (Japanese):
+  what optimal control is, direct vs. indirect methods, and the LGL pseudospectral method.
+- [Writing a problem](https://istellartech.github.io/OpenGoddard/guide/usage/):
+  from equations to code, step by step.
+- [Examples](https://istellartech.github.io/OpenGoddard/examples/):
+  15 problems with equations, figures, and videos, from a 1-D move to orbit insertion.
 - [API reference](https://istellartech.github.io/OpenGoddard/api/OpenGoddard/):
   classes, solver options, derivatives, and mesh refinement.
 

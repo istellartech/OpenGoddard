@@ -63,13 +63,13 @@ uv run python examples/01_minimum_energy_transfer.py
 
 既定のソルバーはSciPyのSLSQPです。解は初期推定やノード数の影響を受けるため、
 求解の成功に加え、ノード数を増やして結果が安定するかも確認してください。
-具体的なコードと各設定の意味は、以下の「はじめに」とAPIリファレンスで説明しています。
+具体的なコードと各設定の意味は、以下の解説サイトとAPIリファレンスで説明しています。
 
 ## 学ぶ・使う
 
-- [はじめに](https://istellartech.github.io/OpenGoddard/getting-started/)：問題の記述方法と学習の進め方。
-- [擬スペクトル法](https://istellartech.github.io/OpenGoddard/concepts/pseudospectral/)：数値解法の仕組み。
-- [例題の解説](https://istellartech.github.io/OpenGoddard/examples/01-minimum-energy-transfer/)：例題01から、数式・コード・結果・動画を対応づけて学ぶ。
+- [はじめに](https://istellartech.github.io/OpenGoddard/)：最適制御問題とは何か、間接法と直接法、擬スペクトル法の仕組み。
+- [問題の書き方](https://istellartech.github.io/OpenGoddard/guide/usage/)：数式をコードに書き下す手順。
+- [例題](https://istellartech.github.io/OpenGoddard/examples/)：1次元の移動から軌道投入まで15題。数式・図・動画で解説。
 - [APIリファレンス](https://istellartech.github.io/OpenGoddard/api/OpenGoddard/)：クラス、ソルバーの設定、微分、メッシュ細分化の詳細。
 
 ## ライセンス

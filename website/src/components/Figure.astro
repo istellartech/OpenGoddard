@@ -1,0 +1,42 @@
+---
+// An image or video from public/media with a caption.
+import { hasMedia, mediaUrl } from '../lib/catalog';
+
+interface Props {
+  /** Path below public/media, e.g. "concepts/lgl_nodes.png". */
+  src: string;
+  /** Poster image for a video, below public/media. */
+  poster?: string;
+  alt?: string;
+  caption?: string;
+}
+
+const { src, poster, alt = '', caption } = Astro.props;
+const parts = src.split('/');
+const exists = hasMedia(...parts);
+const isVideo = src.endsWith('.mp4');
+---
+
+{
+  exists ? (
+    <figure class="og-figure">
+      {isVideo ? (
+        <video controls preload="metadata" playsinline muted poster={poster ? mediaUrl(poster) : undefined}>
+          <source src={mediaUrl(...parts)} type="video/mp4" />
+        </video>
+      ) : (
+        <img src={mediaUrl(...parts)} alt={alt || caption || ''} loading="lazy" />
+      )}
+      {(caption || Astro.slots.has('default')) && (
+        <figcaption>
+          {caption}
+          <slot />
+        </figcaption>
+      )}
+    </figure>
+  ) : (
+    <p class="og-missing">
+      図 <code>{src}</code> は未生成です。<code>uv run python website/scripts/build_media.py</code> で生成されます。
+    </p>
+  )
+}
