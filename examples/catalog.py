@@ -1,6 +1,5 @@
-"""Learning order, stable IDs, and imports for the numbered example folders.
+"""Learning order, stable IDs, and imports for the numbered example scripts.
 
-Each lesson owns its main.py, README, input data, reference figures and output.
 Numbers define learning order; datasets and URLs should use stable IDs.
 """
 
@@ -12,12 +11,12 @@ from types import ModuleType
 @dataclass(frozen=True)
 class Example:
     id: str
-    directory: str
+    stem: str
     title: str
 
     @property
     def script(self) -> str:
-        return f"{self.directory}/main.py"
+        return f"{self.stem}.py"
 
 
 EXAMPLES = (
@@ -60,7 +59,7 @@ EXAMPLES = (
 def find_example(identifier: str) -> Example:
     """Look up a stable ID or the current two-digit lesson number."""
     for example in EXAMPLES:
-        if identifier in (example.id, example.directory[:2]):
+        if identifier in (example.id, example.stem[:2]):
             return example
     raise ValueError(f"unknown example: {identifier}")
 
@@ -68,7 +67,7 @@ def find_example(identifier: str) -> Example:
 def load_example(identifier: str) -> ModuleType:
     """Import a lesson by stable ID, without starting optimization or plotting.
 
-    Numeric directory names need not appear in callers' Python import syntax.
+    Numeric module names need not appear in callers' Python import syntax.
     """
     example = find_example(identifier)
-    return import_module(f"examples.{example.directory}.main")
+    return import_module(f"examples.{example.stem}")

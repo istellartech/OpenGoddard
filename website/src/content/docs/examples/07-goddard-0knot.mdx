@@ -26,16 +26,20 @@ $$
 
 $g_0=h_0=m_0=1$、$H_c=500$、$D_c=310$、$c=0.5$、$T_{\max}=3.5$。経路制約 $h \ge h_0$、$v \ge 0$、$0.6 \le m \le 1$、$t_f \ge 0.1$ を課す。
 
+## 手で書く順序
+
+質量を状態として追加する。抗力、重力、燃料消費を別々に計算してから3本の運動方程式に代入する。
+
 ## コードとの対応
 
-| 数式 | `main.py` |
+| 数式 | 例題のPythonファイル |
 | --- | --- |
-| 運動方程式 | `xp.stack((v, (thrust - drag) / mass - gravity, -thrust / obj.c))` |
-| 抗力・重力 | `drag = obj.Dc * v**2 * xp.exp(...)`、`gravity = obj.g0 * (obj.H0 / h) ** 2` |
+| 運動方程式 | `dynamics` の `dx[0]`・`dx[1]`・`dx[2]` |
+| 抗力・重力 | `drag = p["Dc"] * v**2 * np.exp(...)`、`gravity = p["g0"] * (p["H0"] / h) ** 2` |
 | 境界条件 | `equality` の `result.equal(...)` 5本 |
-| 経路制約 | `lower_bound(h[1:], obj.H0)`、`upper_bound(T, obj.T_max)` など |
+| 経路制約 | `lower_bound(h[1:], p["H0"])`、`upper_bound(T, p["T_max"])` など |
 | $J=-h(t_f)$ | `cost` が `-h[-1]` を返す |
-| 1つの phase | `n = [50]`、`knot_states_smooth = []` |
+| 1つの phase | `Problem(..., [50], ...)`、`knot_states_smooth = []` |
 
 ## 結果
 
@@ -51,8 +55,8 @@ $g_0=h_0=m_0=1$、$H_c=500$、$D_c=310$、$c=0.5$、$T_{\max}=3.5$。経路制�
 
 <RunCommand id="goddard_0knot" />
 
-- `n = [50]` を `[30]` や `[80]` に変え、推力の振動と `max altitude` を比較する。
-- `self.Vc`（抗力係数）を小さくし、特異弧が縮むことを確認する。
+- `Problem(..., [50], ...)` を `[30]` や `[80]` に変え、推力の振動と `max altitude` を比較する。
+- `PARAMETERS["Dc"]`（抗力係数）を小さくし、特異弧が縮むことを確認する。
 
 ## ソースコード
 

@@ -21,16 +21,20 @@ $$
 
 各 phase は1本の多項式で近似されるため、推力の不連続を knot に置けば phase 内部の振動が消える。$t_1$ は 07 の解で推進剤が尽きる時刻付近に固定する。
 
+## 手で書く順序
+
+07の `dynamics` を2区間へ登録する。同じ式を使ったまま、接続時刻の条件と初期推定だけを変える。
+
 ## コードとの対応
 
-| 数式 | `main.py` |
+| 数式 | 例題のPythonファイル |
 | --- | --- |
-| 2つの phase | `time_init = [0.0, 0.1, 0.3]`、`n = [25, 25]` |
-| 両 phase の運動方程式 | `prob.dynamics = [dynamics, dynamics]` |
-| knot での状態の連続 | `prob.knot_states_smooth = [True]` |
+| 2つの phase | `Problem([0.0, 0.1, 0.3], [25, 25], ...)` |
+| 両 phase の運動方程式 | `problem.dynamics = [dynamics, dynamics]` |
+| knot での状態の連続 | `problem.knot_states_smooth = [True]` |
 | $t_1 = 0.075$ | `result.equal(ts0, 0.075)` |
-| phase ごとの推力の初期推定 | `Guess.linear(prob.time[0], 3.5, 3.5)` と `Guess.linear(prob.time[1], 0.0, 0.0)` を `np.hstack` |
-| $J$ の勾配 | `cost_derivative` が `-prob.unit_states[-1][0]` を設定 |
+| phase ごとの推力の初期推定 | `Guess.linear(problem.time[0], 3.5, 3.5)` と `Guess.linear(problem.time[1], 0.0, 0.0)` を `np.hstack` |
+| $J$ の勾配 | ライブラリが有限差分で計算する |
 
 `knot_states_smooth = [True]` は、前の phase の最終ノードと次の phase の初期ノードで全状態が等しいという等式制約を加える。制御には課さないため、推力は knot で不連続になれる。
 

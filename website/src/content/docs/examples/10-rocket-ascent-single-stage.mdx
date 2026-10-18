@@ -25,9 +25,13 @@ $$
 
 $m_0 = 5000$ kg、$C_D = 0.2$、$A = 10$ m²、$I_{sp} = 300$ s、$T_{\max} = 2 m_0 g_0 \approx 98$ kN。範囲は $R \ge R_e$、$v \ge 0$、$0.4 m_0 \le m \le m_0$、$0 \le T \le T_{\max}$、$t_f \ge 10$ s。
 
+## 手で書く順序
+
+物理定数と大気密度の計算を `Rocket` クラスにまとめる。`self` はその機体が持つ値を表す。最適化の手順は07と同じである。
+
 ## コードとの対応
 
-| 数式 | `main.py` |
+| 数式 | 例題のPythonファイル |
 | --- | --- |
 | 運動方程式 | `dx[1] = (T - drag) / m - g`、`dx[2] = -T / g0 / Isp` |
 | 抗力・密度 | `drag = 0.5 * rho * v**2 * obj.Cd * obj.area`、`rho0 * np.exp(-beta * h)` |
@@ -36,7 +40,7 @@ $m_0 = 5000$ kg、$C_D = 0.2$、$A = 10$ m²、$I_{sp} = 300$ s、$T_{\max} = 2 
 | $J=-R(t_f)/R_e$ | `cost` が `-R[-1] / obj.Re` を返す |
 | スケーリング | `unit_R = obj.Re`、`unit_v = np.sqrt(obj.GMe / obj.Re)` |
 
-`prob.solve(obj, display_func, ftol=1e-12, maxiter=2000)` は SLSQP を1回の長い実行とする。既定の `maxiter=25` で再起動を繰り返すとヘッセ行列の推定が毎回破棄され、`ftol` を満たせない。
+`problem.solve(parameters, ftol=1e-12, maxiter=2000)` は SLSQP を1回の長い実行とする。既定の `maxiter=25` で再起動を繰り返すとヘッセ行列の推定が毎回破棄され、`ftol` を満たせない。
 
 ## 結果
 

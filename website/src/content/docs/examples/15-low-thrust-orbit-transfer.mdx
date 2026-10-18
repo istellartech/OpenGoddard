@@ -31,13 +31,17 @@ $$
 
 $\lvert u_r\rvert$ は 0 で微分できないため、$u_r = u_{r1} - u_{r2}$ と非負の2変数に分けて和を最小化する。最適解では片方が 0 になり、和は $\lvert u_r\rvert$ に一致する（$u_t$ も同様）。右辺に $\theta$ は現れないので状態に含めず、描画時に $\dot{\theta} = v_t/r$ を積分して復元する。
 
+## 手で書く順序
+
+終端コストから積分コストへ戻る。正負それぞれの非負の推力変数を作り、運動方程式では差、燃料使用量では和を使う理由を確かめる。
+
 ## コードとの対応
 
-| 数式 | `main.py` |
+| 数式 | 例題のPythonファイル |
 | --- | --- |
 | 運動方程式 | `dx[1] = vt**2 / r - 1 / r**2 + (ur1 - ur2)`、`dx[2] = -vr * vt / r + (ut1 - ut2)` |
-| $1 \le r \le 4$ | `result.lower_bound(r[1:-1], obj.r0)`、`result.upper_bound(r[1:-1], obj.rf)` |
-| 制御と $t_f$ の範囲 | `prob.set_controls_bounds(control, 0, 0.0, obj.u_max)`、`prob.set_time_final_bounds(0, 1.0, obj.tf_max)` |
+| $1 \le r \le 4$ | `result.lower_bound(r[1:-1], p["r0"])`、`result.upper_bound(r[1:-1], p["rf"])` |
+| 制御と $t_f$ の範囲 | `problem.set_controls_bounds(control, 0, 0.0, p["u_max"])`、`problem.set_time_final_bounds(0, 1.0, p["tf_max"])` |
 | $J$ | `running_cost` が `(ur1 + ur2) + (ut1 + ut2)` を返す |
 | 初期推定 | `time_init = [0.0, 50.0]`、`vt_init = 1 / np.sqrt(r_init)` |
 

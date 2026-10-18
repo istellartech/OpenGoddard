@@ -24,18 +24,22 @@ $$
 u(t_f)=1,\quad v(t_f)=0,\quad y(t_f)=1,\qquad -\tfrac{\pi}{2} \le \beta \le \tfrac{\pi}{2},\qquad J = t_f
 $$
 
+## 手で書く順序
+
+状態を4個に増やす。まず `dx[0]`・`dx[1]` に加速度、`dx[2]`・`dx[3]` に速度を書く。次に速度と位置それぞれの終端条件を追加する。
+
 ## コードとの対応
 
-| 数式 | `main.py` |
+| 数式 | 例題のPythonファイル |
 | --- | --- |
-| 運動方程式 | `pointwise_dynamics` の `xp.stack((obj.a * xp.cos(u[0]), obj.a * xp.sin(u[0]), x[0], x[1]))` |
+| 運動方程式 | `dynamics` の `dx[0]`〜`dx[3]` に加速度と速度を代入 |
 | 境界条件 | `equality` の `result.equal(...)` 7本 |
 | $\beta$ の範囲 | `result.lower_bound(beta, -np.pi / 2)` ほか |
-| $J = t_f$ | `cost` が `prob.time_final(-1)` を返す（`cost_derivative = None`） |
-| 離散化 | `n = [20]`、`time_init = [0.0, 2.0]` |
+| $J = t_f$ | `cost` が `problem.time_final(-1)` を返す |
+| 離散化 | `Problem([0.0, 2.0], [20], ...)` |
 | 初期推定 | $y$ に `3 * fraction**2 - 2 * fraction**3` など境界条件を満たす多項式 |
 
-`pointwise_dynamics` では `x[0]` が水平速度 $u$、`u[0]` が制御 $\beta$ である。
+`dynamics` では `vx`・`vy` が水平・鉛直速度、`angle` が制御角 $\beta$ である。
 
 ## 結果
 
@@ -51,7 +55,7 @@ $$
 
 <RunCommand id="simple_rocket_2d" />
 
-- `Rocket` の `a` を 2 にし、到達時刻と $\beta$ の振れ幅を比較する。
+- `PARAMETERS["a"]` を 2 にし、到達時刻と $\beta$ の振れ幅を比較する。
 - $\tan\beta$ が時間に対して線形（線形タンジェント則）であることを確認する。
 
 ## ソースコード

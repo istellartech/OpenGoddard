@@ -1,6 +1,6 @@
 ---
 title: 02. 加速して停止する移動
-description: 静止状態から距離 d だけ移動して停止する問題を、最短時間と最小操作量の2つの目的関数で解く。
+description: 加速度の上限を守り、静止状態から移動して停止するまでの時間を最小にする。
 sidebar:
   order: 2
 ---
@@ -9,47 +9,41 @@ import ExampleMedia from '../../../components/ExampleMedia.astro';
 import ExampleSource from '../../../components/ExampleSource.astro';
 import RunCommand from '../../../components/RunCommand.astro';
 
-物体を静止状態から距離 $d$ だけ動かして停止させる。目的関数と制約によって最適な加速度の形が変わる。
+01に速度を状態として追加する。ここでは最短時間の移動だけを扱う。
 
 ## 問題
 
 $$
-\dot{x} = v,\quad \dot{v} = u,\qquad
+\dot{x}=v,\quad \dot{v}=a,\qquad
 x(0)=v(0)=0,\quad x(t_f)=d,\quad v(t_f)=0,\qquad
-|u| \le a_{\max},\quad 0 \le v \le v_{\max}
+-a_{\max}\le a\le a_{\max},\quad J=t_f
 $$
 
-| `objective` | 目的関数 | $t_f$ | 解析解 |
-| --- | --- | --- | --- |
-| `minimum_time` | $t_f$ | 自由 | 最大加速→（定速）→最大減速。速度上限なしで $t_f = 2\sqrt{d/a_{\max}}$ |
-| `minimum_effort` | $\int_0^{t_f} u^2\,dt$ | 固定 | 制約が無効なら $u$ は時間の1次関数。$J = 12d^2/t_f^3$ |
+距離は $d=10$ m、加速度の上限は $a_{\max}=2$ m/s² とする。
+最大加速から最大減速へ切り替えると最短時間となり、解析解は $t_f=2\sqrt{d/a_{\max}}$ である。
 
-## コードとの対応
+## 手で書く順序
 
-| 数式 | `main.py` |
-| --- | --- |
-| $\dot{x}=v,\ \dot{v}=u$ | `pointwise_dynamics` が `xp.stack((x[1], u[0]))` を返す |
-| 境界条件 | `equality` の `c.equal(...)` 4本 |
-| $\lvert u\rvert \le a_{\max}$、$0 \le v \le v_{\max}$ | `set_controls_bounds`、`set_states_bounds` |
-| $J=t_f$ / $J=\int u^2 dt$ | `problem.cost` / `problem.running_cost` |
-| 区間の数と初期推定 | `phase_plan()`（加速度の切り替え時刻を phase 境界とする） |
+1. `dynamics` に位置と速度の微分を書く。
+2. `equality` に、出発と到着での位置・速度の4条件を書く。
+3. `cost` で最終時刻を返す。
+4. 加速・減速の2区間を作り、加速度の上下限を設定する。
+
+位置と速度は区間の境界で自動的につながる。加速度はそこで切り替わってよい。
+`make_problem` の等加速度運動の式は、位置と速度の初期値を作るために使う。
 
 ## 結果
 
-各プリセットの数値解を解析解（黒破線）と比較する。いずれも数値解は解析解と一致する。
-
 <ExampleMedia id="move_stop" />
 
-- `default`：加速度は $+a_{\max}$ から $-a_{\max}$ に1回切り替わり、速度は三角形になる。
-- `speed_limit`：速度上限 2 m/s で定速区間が入り、速度は台形になる。
-- `minimum_effort`：加速度は直線的に減少する。`limited_effort` では直線の両端が加速度上限で切り取られる。
+約4.472秒で到着する。速度は三角形になり、加速度は $+2$ から $-2$ m/s² に切り替わる。
 
 ## 試す
 
-<RunCommand id="move_stop" args="--preset speed_limit --plot" />
+<RunCommand id="move_stop" />
 
-- `--preset minimum_effort --set duration=5.5` を実行し、加速度上限が有効になることを確認する。
-- `duration` を最短時間 $2\sqrt{d/a_{\max}}$ 以下にするとエラーになることを確認する。
+- `distance` を20 mにし、所要時間が $\sqrt{2}$ 倍になることを確認する。
+- `max_acceleration` を1 m/s²にし、速度と所要時間がどう変わるか調べる。
 
 ## ソースコード
 

@@ -53,7 +53,7 @@ solution; later examples also plot the results.
 | Examples | Topics |
 | --- | --- |
 | 01–02 | Simple transfers, acceleration and stopping; states, controls, and objectives |
-| 03–05 | Brachistochrones; path constraints, physical units, and spherical geometry |
+| 03–05 | Brachistochrones; depth bounds and physical units |
 | 06–09 | Rocket ascent and soft landing; changing mass, thrust limits, and phases |
 | 10–14 | Single-stage and multistage rockets; separation, orbit insertion, atmosphere and drag |
 | 15 | Low-thrust orbital transfer; integral cost optimization |

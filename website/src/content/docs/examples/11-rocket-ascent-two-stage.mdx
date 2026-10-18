@@ -33,12 +33,16 @@ J = -R(t_f)/R_e
 \end{aligned}
 $$
 
+## 手で書く順序
+
+10を2区間へ拡張する。`knot_states_smooth=[False]` とし、`equality` で半径・速度の連続と分離質量を明示する。
+
 ## コードとの対応
 
-| 数式 | `main.py` |
+| 数式 | 例題のPythonファイル |
 | --- | --- |
-| 2つの phase | `time_init = [0.0, 300, 600]`、`n = [25, 25]`、`prob.dynamics = [dynamics, dynamics]` |
-| knot での自動連続を外す | `prob.knot_states_smooth = [False]` |
+| 2つの phase | `time_init = [0.0, 300, 600]`、`Problem(..., [25, 25], ...)`、`problem.dynamics = [dynamics, dynamics]` |
+| knot での自動連続を外す | `problem.knot_states_smooth = [False]` |
 | 位置・速度の連続 | `result.equal(R1[-1], R2[0])`、`result.equal(v1[-1], v2[0])` |
 | 質量のジャンプ | `result.equal(m1[-1], m2[0] + 1200)` |
 | $J$ | `cost` が `-R[-1] / obj.Re` を返す |

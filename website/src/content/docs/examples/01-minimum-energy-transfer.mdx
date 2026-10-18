@@ -20,15 +20,19 @@ $$
 
 $t_0 = 5$、$d = 2$ とする。$u = d/T$ 一定のとき $J = T + d^2/T$ となり、最適解は $T = d$、$u = 1$、$J = 2d$ である。
 
+## 手で書く順序
+
+関数、NumPy配列の添字、ライブラリへの関数の登録を使う。まず `dynamics`、`equality`、`cost`、`running_cost` を順に書き、最後に `make_problem` と求解処理をつなぐ。
+
 ## コードとの対応
 
-| 数式 | `main.py` |
+| 数式 | 例題のPythonファイル |
 | --- | --- |
-| $\dot{x}=u$ | `pointwise_dynamics` が `xp.stack((u[0],))` を返す |
-| 境界条件 | `result.equal(state[0], 0)`、`result.equal(state[-1], target)` |
+| $\dot{x}=u$ | `dynamics` の `dx[0] = u` |
+| 境界条件 | `conditions.equal(x[0], 0)`、`conditions.equal(x[-1], target)` |
 | $0 \le u \le 3$、$5.1 \le t_f \le 15$ | `set_controls_bounds(0, 0, 0, 3)`、`set_time_final_bounds(0, 5.1, 15)` |
-| $t_f - t_0$ | `problem.cost = LinearCallback(lambda p, obj: p.time_final(0) - p.time_start(0))` |
-| $\int u^2 dt$ | `problem.running_cost = lambda p, obj: p.controls_all_section(0) ** 2`（ガウス求積で積分） |
+| $t_f - t_0$ | `cost` が所要時間を返す |
+| $\int u^2 dt$ | `running_cost` が `u**2` を返す（ガウス求積で積分） |
 | 区間・ノード数・状態数・制御数 | `Problem([5, 8], [8], [1], [1], maxIterator=2)` |
 
 ## 結果
@@ -45,7 +49,7 @@ $t_0 = 5$、$d = 2$ とする。$u = d/T$ 一定のとき $J = T + d^2/T$ とな
 <RunCommand id="minimum_energy_transfer" />
 
 - `main()` の `target` を 3 にし、$T = 3$、$J = 6$ となることを確認する。
-- `set_controls_bounds` の上限を 0.5 にし、$u = 0.5$、$T = 2d$ となることを確認する（末尾の `assert_allclose` は失敗する）。
+- `set_controls_bounds` の上限を 0.5 にし、$u = 0.5$、$T = 2d$ となることを確認する。画面に表示する解析解は速度上限が無効な場合のものなので、この条件では使えない。
 
 ## ソースコード
 

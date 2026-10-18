@@ -32,15 +32,19 @@ J = -m(t_f)/M_{0,1}
 \end{aligned}
 $$
 
+## 手で書く順序
+
+12の式を両段で使う。`section` が段の番号にもなるので、配列からその段の抗力係数・断面積・比推力を選ぶ。
+
 ## コードとの対応
 
-| 数式 | `main.py` |
+| 数式 | 例題のPythonファイル |
 | --- | --- |
 | 段ごとの値 | `Isp = obj.Isp[section]`、`obj.Cd[section] * obj.A[section]` |
-| knot での自動連続を外す | `prob.dynamics = [dynamics, dynamics]`、`prob.knot_states_smooth = [False]` |
+| knot での自動連続を外す | `problem.dynamics = [dynamics, dynamics]`、`problem.knot_states_smooth = [False]` |
 | 位置・速度の連続 | `result.equal(R1[0], R0[-1], unit=unit_R)`（`theta`、`Vr`、`Vt` も同様） |
 | 段分離後の質量 | `result.equal(m1[0], obj.M0[1], unit=unit_m)` |
-| $J$ | `cost` が `-m1[-1] / prob.unit_states[1][4]` を返す |
+| $J$ | `cost` が `-m1[-1] / problem.unit_states[1][4]` を返す |
 
 求解は12と同じく `ftol=1e-6, maxiter=3000` の1回の SLSQP 実行である。
 

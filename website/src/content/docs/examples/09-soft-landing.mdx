@@ -1,6 +1,6 @@
 ---
 title: 09. 月面への鉛直軟着陸
-description: 降下中の着陸機を高度0・速度0で接地させる推力履歴を求め、解析解と比較する。
+description: 質量一定の着陸機を、高度0・速度0で接地させる。
 sidebar:
   order: 9
 ---
@@ -9,51 +9,49 @@ import ExampleMedia from '../../../components/ExampleMedia.astro';
 import ExampleSource from '../../../components/ExampleSource.astro';
 import RunCommand from '../../../components/RunCommand.astro';
 
-高度 100 m を 10 m/s で降下する月着陸機を、高度0・速度0で同時に接地させる。最適解は自由落下（coast）→ 最大推力（burn）であり、解析解で2つの phase を初期化して数値解と照合する。
+高度100 mを10 m/sで降下する着陸機を、高度0・速度0で同時に接地させる。
+ここでは質量を一定とし、推力の時間積分（総力積）を最小化する。
 
 ## 問題
 
-上向きを正とし、一定重力・大気なしとする。制御は推力 $T$。
+上向きを正とする。状態は高度 $h$ と速度 $v$、制御は推力 $T$。
 
 $$
-\dot{h} = v,\quad \dot{v} = \frac{T}{m} - g,\quad \dot{m} = -\frac{T}{v_e},\qquad h(0)=h_0,\ v(0)=v_0,\ h(t_f)=v(t_f)=0,\qquad 0 \le h \le h_0,\ v \le 0,\ 0 \le T \le T_{\max}
+\dot{h}=v,\quad \dot{v}=T/m-g,\qquad
+h(0)=100,\quad v(0)=-10,\quad h(t_f)=v(t_f)=0
 $$
 
-既定では $m=m_0$ を定数とし、総力積 $\int_0^{t_f} T\,dt$ を最小化する。`variable_mass = true` では $m$ を状態に加え、$1 - m(t_f)/m_0$ を最小化する。既定値は $h_0=100$ m、$v_0=-10$ m/s、$g=1.62$ m/s²、$m_0=1000$ kg、$T_{\max}=4000$ N、$v_e=3000$ m/s。
-
-コストが $T$ に線形なので最適推力は bang-bang となる。質量一定では減速度 $b = T_{\max}/m_0 - g$ として次の解析解を得る（`constant_mass_reference()`）。質量可変では `landing_reference()` がロケット方程式の厳密解と `brentq` で燃焼時間を求める。
-
 $$
-s = \sqrt{\frac{(v_0^2 + 2 g h_0)\, b}{b + g}},\qquad t_{\rm coast} = \frac{s + v_0}{g},\qquad t_{\rm burn} = \frac{s}{b},\qquad I = T_{\max} t_{\rm burn}
+0\le h\le100,\quad v\le0,\quad0\le T\le T_{\max},\qquad
+J=\int_0^{t_f}T\,dt
 $$
 
-## コードとの対応
+$m=1000$ kg、$g=1.62$ m/s²、$T_{\max}=4000$ N とする。
+`running_cost` は定数 $T_{\max}\times\mathrm{unit\_time}$ で割った値を返す。
+この正規化は最適な軌道を変えない。
 
-| 数式 | `main.py` |
-| --- | --- |
-| 運動方程式 | `acceleration = u[0] / mass - obj.gravity`（質量可変では `-u[0] / obj.exhaust_velocity` も） |
-| 境界条件 | `equality` の `c.equal(...)` |
-| 状態・推力の範囲 | `set_states_bounds(1, section, None, 0)`、`set_controls_bounds(0, section, 0, p.max_thrust)` |
-| 目的関数 | 総力積は `running_cost`（`prob.controls_all_section(0) / (obj.max_thrust * time_scale)`）、推進剤消費率は `cost`（`1 - prob.states(2, -1)[-1] / obj.initial_mass`） |
-| coast / burn の2 phase | `Problem([0, tc, tc + tb], [nodes] * 2, ...)` |
+## 手で書く順序
+
+1. `dynamics` に高度・速度の微分を書く。
+2. `equality` に初期条件と着地条件を書く。
+3. `running_cost` に推力を渡し、時間積分を目的にする。
+4. 自由落下と減速の2区間を作り、両区間で推力を0〜最大推力の範囲に設定する。
+
+`make_problem` の `coast`・`burn` は区間の時刻の初期値である。
+推力と区間の時刻は最適化で決まる。質量変化は07のGoddard問題で扱う。
 
 ## 結果
 
-プリセットごとの軌道と推力履歴を示す。
-
 <ExampleMedia id="soft_landing" />
 
-- `default`：約 3.63 s 自由落下し、最大推力で約 6.67 s 減速する。力積は解析解の約 26695 N·s と一致する。
-- `variable_mass`：消費は約 8.8 kg で、軌道は `default` とほぼ一致する。
-- 力積は `lower_thrust`（$T_{\max}=3000$ N、点火が早まる）で約 30360 N·s、`higher_start`（$h_0=200$ m）で約 35456 N·s に増える。
+約3.63秒の自由落下後、最大推力で約6.67秒減速する。総力積は約26695 N·sである。
 
 ## 試す
 
-<RunCommand id="soft_landing" args="--preset variable_mass --plot" />
-<RunCommand id="soft_landing" args="--set variable_mass=true --set exhaust_velocity=300 --plot" />
+<RunCommand id="soft_landing" />
 
-- `exhaust_velocity=300` で点火時刻と質量一定の解析解との差を確認する。
-- `max_thrust` を初期重量 $m_0 g = 1620$ N 以下にし、入力検証で拒否されることを確認する。
+- `max_thrust` を3000 Nに下げ、減速を始める時刻が早まることを確認する。
+- `initial_altitude` を200 mにし、降下時間と総力積を比べる。
 
 ## ソースコード
 

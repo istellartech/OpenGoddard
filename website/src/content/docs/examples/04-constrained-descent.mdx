@@ -1,6 +1,6 @@
 ---
 title: 04. 深さ制限付き最速降下
-description: 終点を固定した最速降下に最大深さの制約を加え、制約が有効になると解が3区間に分かれることを示す。
+description: 最速降下に深さの上限を追加する。03と同じ3つの状態を使う。
 sidebar:
   order: 4
 ---
@@ -9,48 +9,45 @@ import ExampleMedia from '../../../components/ExampleMedia.astro';
 import ExampleSource from '../../../components/ExampleSource.astro';
 import RunCommand from '../../../components/RunCommand.astro';
 
-03の最速降下に床 $y \le y_{\max}$ を加える。床が有効な場合、解は降下・床上の等速移動・上昇の3区間となり、これを phase で表す。
+03と同じ運動方程式に、床より深く降りないという制約を加える。
+終点は水平距離1 m、深さ0.2 mに固定する。深さは下向きが正である。
 
 ## 問題
 
-静止から出発するので $y = v^2/(2g)$ が成り立ち、状態を $x$ と $v$ の2個に減らす。床は速さの上限に置き換える。
-
 $$
-\dot{x} = v\sin\theta,\quad \dot{v} = g\cos\theta,\qquad
-x(0)=v(0)=0,\quad x(t_f)=L,\quad v(t_f)=\sqrt{2g\,y_f},\qquad
-v \le \sqrt{2g\,y_{\max}},\qquad J = t_f
+\dot{x}=v\sin\theta,\quad \dot{y}=v\cos\theta,\quad \dot{v}=g\cos\theta,
+\qquad J=t_f
 $$
 
-既定値は $L = 1$ m、$y_f = 0.2$ m、$g = 9.81$ m/s²、$y_{\max} = 0.3$ m である。`reference_solution()` は、
-終点を通るサイクロイドの最大深さが $y_{\max}$ を超える場合に、半径 $y_{\max}/2$ のサイクロイドと等速区間からなる解析解を作り、
-phase 数・初期推定・検証に用いる。
+$$
+x(0)=y(0)=v(0)=0,\quad x(t_f)=1,\quad y(t_f)=0.2,\quad
+0\le y\le0.3,\quad v\ge0,\quad0\le\theta\le\pi
+$$
 
-## コードとの対応
+重力は $g=9.81$ m/s² とする。状態は03と同じく水平位置・深さ・速さの3つである。
 
-| 数式 | `main.py` |
-| --- | --- |
-| 運動方程式 | `pointwise_dynamics` が `xp.stack((x[1] * xp.sin(theta), obj.gravity * xp.cos(theta)))` を返す |
-| 終点 | `c.equal(problem.states(0, -1)[-1], p.distance, ...)` と `np.sqrt(2 * p.gravity * p.final_depth)` |
-| $v \le \sqrt{2g\,y_{\max}}$ | `problem.set_states_bounds(1, section, 0, np.sqrt(2 * p.gravity * p.max_depth) ...)` |
-| $J = t_f$ | `problem.cost = LinearCallback(lambda prob, obj: prob.time_final(-1) / time_scale)` |
-| 区間数・初期推定 | `make_problem()` が `reference_solution(p)["phase_durations"]` から決める |
+## 手で書く順序
+
+1. 03の `dynamics` を使う。
+2. `equality` に終点の深さを追加する。
+3. `set_states_bounds(1, 0, 0, p["max_depth"])` で深さの上限を設定する。
+
+1区間のまま40ノードで近似する。床の有無の判定や区間数の切り替えは行わない。
 
 ## 結果
 
-各プリセットの最適経路を、同じ終点への直線斜面と比較する。
-
 <ExampleMedia id="constrained_descent" />
 
-- `no_floor`：1区間のサイクロイドで、最大深さ約 0.358 m、到達時刻約 0.621 s である。
-- `default`：床 0.3 m で3区間となり、床上では $\theta = 90°$ の等速移動となる。到達時刻は約 0.624 s である。
-- `inactive_floor`：床 0.8 m は有効にならず、`no_floor` と同じ解になる。
+到達時刻は約0.624秒である。床まで降り、床に沿って進んだあと終点へ上がる。
+上下限はノード上で満たす。ノード間の多項式には小さな誤差があり、既定の計算では
+深さの最大値は約0.300025 mとなる。
 
 ## 試す
 
-<RunCommand id="constrained_descent" args="--preset shallow_floor --plot" />
+<RunCommand id="constrained_descent" />
 
-- `max_depth` を 0.4 から下げ、約 0.358 m 未満で3区間に分かれることを確認する。
-- 出力JSONの `reference.minimum_time` と数値解の到達時刻を比較する。
+- `max_depth` を0.4 mにして、床から離れた経路になることを確認する。
+- `nodes` を20と40に変え、到達時刻とノード間での最大深さを比較する。
 
 ## ソースコード
 

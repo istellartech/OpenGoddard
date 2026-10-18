@@ -166,13 +166,21 @@ class DerivativeTests(unittest.TestCase):
     def test_sparse_trust_constr_and_structured_slsqp(self):
         example = (
             Path(__file__).resolve().parents[1]
-            / "examples/01_minimum_energy_transfer/main.py"
+            / "examples/01_minimum_energy_transfer.py"
         )
         namespace = runpy.run_path(str(example))
         for solver in ("SLSQP", "trust-constr"):
             for mode in ("structured", "autograd") if HAS_AD else ("structured",):
                 with self.subTest(solver=solver, mode=mode):
                     p = namespace["make_problem"]()
+
+                    # Derivative APIs are tested here, outside the first lesson.
+                    def motion(x, u, t, obj, section, xp):
+                        return xp.stack((u[0],))
+
+                    p.dynamics = [DynamicsModel(motion)]
+                    p.equality = LinearCallback(p.equality)
+                    p.cost = LinearCallback(p.cost)
                     options = {"maxiter": 300}
                     options["ftol" if solver == "SLSQP" else "gtol"] = 1e-9
                     result = p.solve(2, solver=solver, derivatives=mode, **options)

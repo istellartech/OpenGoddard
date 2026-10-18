@@ -41,9 +41,13 @@ m \ge M_{\mathrm{dry},1} + M_{0,2}\ (\text{1段目}),\quad m \ge 220\ (\text{2�
 \end{aligned}
 $$
 
+## 手で書く順序
+
+13に実測表の読み込みと補間を加える。まず高度から大気密度・音速・圧力を求め、マッハ数から抗力係数を求める流れを追う。
+
 ## コードとの対応
 
-| 数式 | `main.py` |
+| 数式 | 例題のPythonファイル |
 | --- | --- |
 | 標準大気の補間 | `airDensity = interpolate.interp1d(stdAltitude, stdDensity, ...)`（`airPressure`、`airSound` も同様） |
 | $C_d(M)$ | `Cd = interpolate.interp1d(CdLog[:, 0], CdLog[:, 1], fill_value="extrapolate")` |

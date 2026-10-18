@@ -1,0 +1,130 @@
+"""08. Goddard問題・区間分割。
+
+07と同じ運動方程式を2区間で使う。接続時刻は0.075、状態は連続。
+"""
+
+import numpy as np
+
+from OpenGoddard import Dynamics, Guess, Problem
+
+PARAMETERS = {
+    "g0": 1.0,
+    "H0": 1.0,
+    "V0": 0.0,
+    "M0": 1.0,
+    "Hc": 500,
+    "Dc": 310.0,
+    "c": 0.5,
+    "Mf": 0.6,
+    "T_max": 3.5,
+}
+
+
+# 状態は高度・速度・質量。制御は推力。両区間で同じ式を使う。
+def dynamics(problem, p, section):
+    h = problem.states(0, section)
+    v = problem.states(1, section)
+    mass = problem.states(2, section)
+    thrust = problem.controls(0, section)
+    drag = p["Dc"] * v**2 * np.exp(-p["Hc"] * (h - p["H0"]) / p["H0"])
+    gravity = p["g0"] * (p["H0"] / h) ** 2
+    dx = Dynamics(problem, section)
+    dx[0] = v
+    dx[1] = (thrust - drag) / mass - gravity
+    dx[2] = -thrust / p["c"]
+    return dx()
+
+
+def equality(problem, p):
+    h = problem.states_all_section(0)
+    v = problem.states_all_section(1)
+    m = problem.states_all_section(2)
+    ts0 = problem.time_final(0)
+    result = problem.condition()
+    result.equal(h[0], p["H0"])
+    result.equal(v[0], p["V0"])
+    result.equal(m[0], p["M0"])
+    result.equal(v[-1], 0.0)
+    result.equal(m[-1], p["Mf"])
+    result.equal(ts0, 0.075)
+    return result()
+
+
+def inequality(problem, p):
+    h = problem.states_all_section(0)
+    v = problem.states_all_section(1)
+    m = problem.states_all_section(2)
+    T = problem.controls_all_section(0)
+    ts0 = problem.time_final(0)
+    tf = problem.time_final(-1)
+    result = problem.condition()
+    result.lower_bound(h[1:], p["H0"])
+    result.lower_bound(v[1:-1], 0.0)
+    result.lower_bound(m[:-1], p["Mf"])
+    result.lower_bound(T, 0.0)
+    result.lower_bound(tf, 0.1)
+    result.lower_bound(ts0, 0.05)
+    result.upper_bound(m[1:], p["M0"])
+    result.upper_bound(T, p["T_max"])
+    return result()
+
+
+def cost(problem, p):
+    h = problem.states_all_section(0)
+    return -h[-1]
+
+
+def make_problem(parameters=PARAMETERS):
+    problem = Problem([0.0, 0.1, 0.3], [25, 25], [3, 3], [1, 1], maxIterator=50)
+    problem.set_unit_states_all_section(0, 0.1)
+    M_init0 = Guess.linear(problem.time[0], 1.0, 0.6)
+    M_init1 = Guess.linear(problem.time[1], 0.6, 0.6)
+    T_init0 = Guess.linear(problem.time[0], 3.5, 3.5)
+    T_init1 = Guess.linear(problem.time[1], 0.0, 0.0)
+    problem.set_states_all_section(
+        0, Guess.cubic(problem.time_all_section, 1.0, 0.0, 1.01, 0.0)
+    )
+    problem.set_states_all_section(1, Guess.linear(problem.time_all_section, 0.0, 0.0))
+    problem.set_states_all_section(2, np.hstack((M_init0, M_init1)))
+    problem.set_controls_all_section(0, np.hstack((T_init0, T_init1)))
+    problem.dynamics = [dynamics, dynamics]
+    problem.knot_states_smooth = [True]
+    problem.cost = cost
+    problem.equality = equality
+    problem.inequality = inequality
+    return problem
+
+
+def solve(parameters=PARAMETERS):
+    problem = make_problem(parameters)
+    problem.solve(parameters, ftol=1e-10)
+    return problem
+
+
+def plot(problem):
+    import matplotlib.pyplot as plt
+
+    time = problem.time_all_section
+    labels = ["height [1]", "velocity [1]", "mass [1]", "thrust [1]"]
+    values = [problem.states_all_section(i) for i in range(3)]
+    values += [problem.controls_all_section(i) for i in range(1)]
+    fig, axes = plt.subplots(4, 1, sharex=True, layout="constrained", figsize=(8, 6))
+    for ax, values_i, label in zip(axes, values, labels):
+        ax.plot(time, values_i, "o-")
+        ax.set_ylabel(label)
+        ax.grid()
+    axes[-1].set_xlabel("time")
+    return fig
+
+
+def main():
+    import matplotlib.pyplot as plt
+
+    problem = solve()
+    plot(problem)
+    plt.show()
+    return problem
+
+
+if __name__ == "__main__":
+    main()

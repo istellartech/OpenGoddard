@@ -1,11 +1,11 @@
 ---
 // Pre-rendered Matplotlib videos for one example (see scripts/build_media.py).
-import { Aside, TabItem, Tabs } from '@astrojs/starlight/components';
+import { Aside } from '@astrojs/starlight/components';
 import { mediaManifest, mediaUrl } from '../lib/catalog';
 
 interface Props {
   id: string;
-  /** Show the static figures written by the example's own main(). */
+  /** Show the static figures drawn by the example's plot(). */
   figures?: boolean;
 }
 
@@ -50,36 +50,9 @@ const guide = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/getting-started/#�
   )
 }
 {
-  videos.length > 1 && (
-    <Tabs syncKey={`media-${id}`}>
-      {videos.map((video) => (
-        <TabItem label={video.name}>
-          <figure class="example-video">
-            <video controls preload="none" playsinline poster={mediaUrl(id, video.poster)}>
-              <source src={mediaUrl(id, video.video)} type="video/mp4" />
-            </video>
-            <figcaption>
-              <a href={guide}>動画の見方</a> ・{' '}
-              <a href={mediaUrl(id, `${video.name}.json`)}>数値データ（JSON）</a>
-            </figcaption>
-          </figure>
-        </TabItem>
-      ))}
-    </Tabs>
-  )
-}
-{
-  manifest?.comparison && (
-    <figure class="example-figure">
-      <img src={mediaUrl(id, manifest.comparison)} alt={`${id}: 全プリセットの比較`} loading="lazy" />
-      <figcaption>全プリセットの重ね描き</figcaption>
-    </figure>
-  )
-}
-{
   figures && manifest && manifest.figures.length > 0 && (
     <details class="example-figures">
-      <summary>main.py が保存する図（{manifest.figures.length}枚）</summary>
+      <summary>例題が保存する図（{manifest.figures.length}枚）</summary>
       <div class="figure-grid">
         {manifest.figures.map((figure) => (
           <a href={mediaUrl(id, figure)}>

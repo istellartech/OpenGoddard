@@ -24,16 +24,20 @@ $$
 解析解はサイクロイド $x = a(\phi - \sin\phi)$、$y = a(1-\cos\phi)$ である。終点の深さが自由なので終点で水平となり、
 $a = l/\pi$、$y(t_f) = 2l/\pi \approx 0.637$、$t_f = \sqrt{\pi} \approx 1.772$ となる。
 
+## 手で書く順序
+
+三角関数を使って速さを水平・鉛直成分に分ける。まず3本の `dx` と初期条件を書く。終点の深さを固定していない点を、04との比較に使う。
+
 ## コードとの対応
 
-| 数式 | `main.py` |
+| 数式 | 例題のPythonファイル |
 | --- | --- |
-| 運動方程式 | `pointwise_dynamics` の `xp.stack((x[2] * xp.sin(theta), x[2] * xp.cos(theta), obj.g * xp.cos(theta)))` |
-| 境界条件 | `equality` の `result.equal(...)` 4本（終点は `result.equal(x[-1], obj.l)`） |
+| 運動方程式 | `dynamics` の `dx[0]`・`dx[1]`・`dx[2]` |
+| 境界条件 | `equality` の `result.equal(...)` 4本（終点は `result.equal(x[-1], p["l"])`） |
 | $y \ge 0$、$\theta \ge 0$、$t_f \ge 0.1$ | `inequality` の `result.lower_bound(y[1:], 0)` など |
-| $J = t_f$ | `cost` が `prob.time_final(-1)` を返す |
-| $\partial J/\partial t_f$ | `cost_derivative` が `prob.unit_time` を入れる（$t_f$ の無次元化のため） |
-| ノード数・初期推定 | `n = [20]`、$\theta$ は一定 30°、$x$・$y$ は直線 |
+| $J = t_f$ | `cost` が `problem.time_final(-1)` を返す |
+| 勾配の計算 | ライブラリが有限差分で計算する |
+| ノード数・初期推定 | ノード数 `[20]`、$\theta$ は一定 30°、$x$・$y$ は直線 |
 
 ## 結果
 
@@ -48,8 +52,8 @@ $a = l/\pi$、$y(t_f) = 2l/\pi \approx 0.637$、$t_f = \sqrt{\pi} \approx 1.772$
 
 <RunCommand id="brachistochrone" />
 
-- `Ball` の `l` を 2 にし、到達時刻が $\sqrt{2}$ 倍になることを確認する。
-- `inequality` のコメントアウトされた `result.upper_bound(y, x * np.tan(obj.theta0) + obj.h)` を有効にし、軌道が壁に沿う区間を確認する。
+- `PARAMETERS["l"]` を 2 にし、到達時刻が $\sqrt{2}$ 倍になることを確認する。
+- `inequality` のコメントアウトされた `result.upper_bound(y, x * np.tan(p["theta0"]) + p["h"])` を有効にし、軌道が壁に沿う区間を確認する。
 
 ## ソースコード
 

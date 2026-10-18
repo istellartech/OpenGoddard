@@ -1,7 +1,7 @@
 """What each example's video shows: scene, graphs, readout and references.
 
 Every getter takes one sampled phase (a dict of arrays keyed by the names in
-``Classic.states`` / ``controls``, or by the example's own export names).
+``ExampleSpec.states`` / ``controls``, or by the example's own export names).
 Analytic references are drawn only where the example states one.
 """
 
@@ -214,15 +214,90 @@ def minimum_energy_transfer(phases: list[Phase]) -> Flight:
     )
 
 
+def move_stop(phases: list[Phase]) -> Flight:
+    return Flight(
+        "rail",
+        "02. 加速して停止する移動",
+        ["加速", "減速"],
+        x=key("position"),
+        arrow=key("acceleration"),
+        arrow_label="加速度",
+        xlabel="位置 [m]",
+        panels=[
+            [Series("位置 [m]", key("position"), "{:.2f}", "m")],
+            [Series("速度 [m/s]", key("velocity"), "{:.2f}", "m/s")],
+            [Series("加速度 [m/s²]", key("acceleration"), "{:.2f}", "m/s²")],
+        ],
+        readout=[
+            Series("位置", key("position"), "{:.2f}", "m"),
+            Series("速度", key("velocity"), "{:.2f}", "m/s"),
+        ],
+    )
+
+
+def constrained_descent(phases: list[Phase]) -> Flight:
+    def decorate(ax):
+        ax.axhline(0.3, color="#57534e", linestyle="--")
+        ax.axhspan(0.3, 0.5, color="#a8a29e", alpha=0.5, hatch="//")
+        ax.plot([1], [0.2], "*", color="#059669", ms=16)
+
+    ghost, arrival = straight_line((1.0, 0.2), 9.81)
+    return Flight(
+        "track",
+        "04. 深さ制限付き最速降下",
+        ["最速降下"],
+        x=key("x"),
+        y=key("depth"),
+        xlabel="x [m]",
+        ylabel="深さ [m]（下向き）",
+        invert_y=True,
+        decorate=decorate,
+        ghost=ghost,
+        ghost_time=arrival,
+        ghost_label="同じ終点への直線の斜面",
+        panels=[
+            [Series("速さ [m/s]", key("speed"), "{:.3f}", "m/s")],
+            [Series("軌道角 [deg]", deg("theta"), "{:.1f}", "deg")],
+        ],
+        readout=[
+            Series("x", key("x"), "{:.3f}", "m"),
+            Series("深さ", key("depth"), "{:.3f}", "m"),
+        ],
+        note="深さの上限は0.3 m。40ノードで近似した軌道",
+    )
+
+
+def soft_landing(phases: list[Phase]) -> Flight:
+    return Flight(
+        "vertical",
+        "09. 月面への鉛直軟着陸（質量一定）",
+        ["自由落下", "減速"],
+        altitude=key("altitude"),
+        throttle=key("thrust"),
+        theme="moon",
+        altitude_label="高度 [m]",
+        altitude_unit="m",
+        coast_speedup=1.0,
+        panels=[
+            [Series("高度 [m]", key("altitude"), "{:.1f}", "m")],
+            [Series("速度 [m/s]", key("velocity"), "{:.2f}", "m/s")],
+            [Series("推力 [kN]", key("thrust", 1e-3), "{:.2f}", "kN")],
+        ],
+        readout=[
+            Series("高度", key("altitude"), "{:.1f}", "m"),
+            Series("速度", key("velocity"), "{:.2f}", "m/s"),
+        ],
+    )
+
+
 @dataclass
-class Classic:
-    """An example whose ``main()`` returns the solved Problem."""
+class ExampleSpec:
+    """The state/control names and scene for one numbered example."""
 
     states: list[str]
     controls: list[str]
     flight: Callable[[list[Phase]], Flight]
     prepare: Callable[[list[Phase]], None] | None = None
-    savefig_flag: bool = True
 
 
 # ---------------------------------------------------------------------------
@@ -378,31 +453,34 @@ def _fixed(flight: Flight) -> Callable[[list[Phase]], Flight]:
     return lambda phases: replace(flight)
 
 
-CLASSIC: dict[str, Classic] = {
-    "minimum_energy_transfer": Classic(
-        ["x"], ["u"], minimum_energy_transfer, savefig_flag=False
+SPECS: dict[str, ExampleSpec] = {
+    "minimum_energy_transfer": ExampleSpec(["x"], ["u"], minimum_energy_transfer),
+    "move_stop": ExampleSpec(["position", "velocity"], ["acceleration"], move_stop),
+    "constrained_descent": ExampleSpec(
+        ["x", "depth", "speed"], ["theta"], constrained_descent
     ),
-    "brachistochrone": Classic(["x", "y", "v"], ["theta"], brachistochrone),
-    "brachistochrone_tokyo_osaka": Classic(["x", "y", "v"], ["theta"], tokyo_osaka),
-    "simple_rocket_2d": Classic(["u", "v", "x", "y"], ["beta"], simple_rocket),
-    "goddard_0knot": Classic(
+    "soft_landing": ExampleSpec(["altitude", "velocity"], ["thrust"], soft_landing),
+    "brachistochrone": ExampleSpec(["x", "y", "v"], ["theta"], brachistochrone),
+    "brachistochrone_tokyo_osaka": ExampleSpec(["x", "y", "v"], ["theta"], tokyo_osaka),
+    "simple_rocket_2d": ExampleSpec(["u", "v", "x", "y"], ["beta"], simple_rocket),
+    "goddard_0knot": ExampleSpec(
         ["h", "v", "m"],
         ["T"],
         _fixed(goddard_flight("07. Goddard問題：単一区間", ["単一区間"])),
     ),
-    "goddard_1knot": Classic(
+    "goddard_1knot": ExampleSpec(
         ["h", "v", "m"],
         ["T"],
         _fixed(
             goddard_flight("08. Goddard問題：区間分割（knot 1つ）", ["区間1", "区間2"])
         ),
     ),
-    "rocket_ascent_single_stage": Classic(
+    "rocket_ascent_single_stage": ExampleSpec(
         ["R", "v", "m"],
         ["T"],
         _fixed(vertical_rocket_flight("10. 単段ロケットの鉛直上昇", ["単段"], False)),
     ),
-    "rocket_ascent_two_stage": Classic(
+    "rocket_ascent_two_stage": ExampleSpec(
         ["R", "v", "m"],
         ["T"],
         _fixed(
@@ -411,17 +489,17 @@ CLASSIC: dict[str, Classic] = {
             )
         ),
     ),
-    "rocket_ascent_polar_ssto": Classic(
+    "rocket_ascent_polar_ssto": ExampleSpec(
         ["R", "theta", "Vr", "Vt", "m"],
         ["Tr", "Tt"],
         _fixed(ascent_flight("12. 極座標：単段で軌道投入", ["単段"], False)),
     ),
-    "rocket_ascent_polar_tsto": Classic(
+    "rocket_ascent_polar_tsto": ExampleSpec(
         ["R", "theta", "Vr", "Vt", "m"],
         ["Tr", "Tt"],
         _fixed(ascent_flight("13. 極座標：2段で軌道投入", ["1段目", "2段目"], True)),
     ),
-    "polar_tsto_taiki": Classic(
+    "polar_tsto_taiki": ExampleSpec(
         ["R", "theta", "Vr", "Vt", "m"],
         ["Tr", "Tt"],
         _fixed(
@@ -430,158 +508,10 @@ CLASSIC: dict[str, Classic] = {
             )
         ),
     ),
-    "low_thrust_orbit_transfer": Classic(
+    "low_thrust_orbit_transfer": ExampleSpec(
         ["r", "vr", "vt"],
         ["ur1", "ur2", "ut1", "ut2"],
         _fixed(LOW_THRUST),
         prepare=low_thrust_xy,
     ),
 }
-
-
-# ---------------------------------------------------------------------------
-# Lessons with presets (examples/_shared.py exports)
-
-MOVE_PHASES = {
-    "accelerate": "加速",
-    "cruise": "定速",
-    "brake": "減速",
-    "transfer": "移動",
-    "ramp": "加速度を切り替え",
-    "ramp_down": "加速を弱める",
-    "ramp_brake": "減速へ移行",
-}
-DESCENT_PHASES = {
-    "descend": "降下",
-    "floor": "床に沿って移動",
-    "ascend": "上昇",
-    "cycloid": "サイクロイド",
-}
-LANDING_PHASES = {"coast": "慣性降下", "burn": "減速噴射"}
-
-
-def move_stop_reference(module, parameters):
-    """Exact piecewise-polynomial solution from the lesson's phase_plan()."""
-    durations, arcs, _ = module.phase_plan(parameters)
-    times, accel, speed, position = [], [], [], []
-    t0 = x0 = v0 = 0.0
-    for duration, (a, jerk) in zip(durations, arcs, strict=True):
-        tau = np.linspace(0, duration, 60)
-        times.append(t0 + tau)
-        accel.append(a + jerk * tau)
-        speed.append(v0 + a * tau + jerk * tau**2 / 2)
-        position.append(x0 + v0 * tau + a * tau**2 / 2 + jerk * tau**3 / 6)
-        t0, x0, v0 = t0 + duration, float(position[-1][-1]), float(speed[-1][-1])
-    cat = np.concatenate
-    return cat(times), cat(position), cat(speed), cat(accel)
-
-
-def shared_flight(
-    example_id: str, module, name: str, parameters, phase_names: list[str]
-) -> Flight:
-    if example_id == "move_stop":
-        t, x, v, a = move_stop_reference(module, parameters)
-        label = "解析解"
-        goal = (
-            "最短時間" if parameters.objective == "minimum_time" else "最小二乗操作量"
-        )
-        return Flight(
-            "rail",
-            f"02. 加速して停止する移動：{goal}（{name}）",
-            [MOVE_PHASES.get(n, n) for n in phase_names],
-            x=key("position"),
-            arrow=key("acceleration"),
-            arrow_label="加速度",
-            xlabel="位置 [m]",
-            panels=[
-                [Series("位置 [m]", key("position"), "{:.2f}", "m")],
-                [Series("速度 [m/s]", key("velocity"), "{:.2f}", "m/s")],
-                [Series("加速度 [m/s²]", key("acceleration"), "{:.2f}", "m/s²")],
-            ],
-            overlays={0: [(t, x, label)], 1: [(t, v, label)], 2: [(t, a, label)]},
-            readout=[
-                Series("位置", key("position"), "{:.2f}", "m"),
-                Series("速度", key("velocity"), "{:.2f}", "m/s"),
-                Series("加速度", key("acceleration"), "{:.2f}", "m/s²"),
-            ],
-        )
-    if example_id == "constrained_descent":
-        p = parameters
-        ghost, arrival = straight_line((p.distance, p.final_depth), p.gravity)
-
-        def decorate(ax):
-            if p.max_depth is not None:
-                ax.axhspan(
-                    p.max_depth,
-                    p.max_depth * 1.6 + 0.1,
-                    color="#a8a29e",
-                    alpha=0.5,
-                    zorder=0,
-                    hatch="//",
-                )
-                ax.axhline(p.max_depth, color="#57534e", lw=2.5, zorder=1)
-                ax.text(
-                    0.02,
-                    p.max_depth,
-                    f" 床 深さ {p.max_depth:g} m",
-                    transform=ax.get_yaxis_transform(),
-                    va="top",
-                    fontsize=11,
-                )
-            ax.plot(
-                [p.distance], [p.final_depth], "*", color="#059669", ms=16, zorder=5
-            )
-
-        floor = "床なし" if p.max_depth is None else f"床 {p.max_depth:g} m"
-        return Flight(
-            "track",
-            f"04. 深さ制限付き最速降下（{name}：{floor}, g = {p.gravity:g}）",
-            [DESCENT_PHASES.get(n, n) for n in phase_names],
-            x=key("x"),
-            y=key("depth"),
-            xlabel="x [m]",
-            ylabel="深さ [m]（下向き）",
-            invert_y=True,
-            decorate=decorate,
-            ghost=ghost,
-            ghost_time=arrival,
-            ghost_label="同じ終点への直線の斜面（解析解）",
-            panels=[
-                [Series("速さ [m/s]", key("speed"), "{:.3f}", "m/s")],
-                [Series("軌道角 θ [deg]（鉛直から）", deg("theta"), "{:.1f}", "deg")],
-            ],
-            readout=[
-                Series("x", key("x"), "{:.3f}", "m"),
-                Series("深さ", key("depth"), "{:.3f}", "m"),
-                Series("速さ", key("speed"), "{:.3f}", "m/s"),
-            ],
-        )
-    if example_id == "soft_landing":
-        readout = [
-            Series("高度", key("altitude"), "{:.1f}", "m"),
-            Series("速度", key("velocity"), "{:.2f}", "m/s"),
-            Series("推力", key("thrust", 1e-3), "{:.2f}", "kN"),
-        ]
-        panels = [
-            [Series("高度 [m]", key("altitude"), "{:.1f}", "m")],
-            [Series("速度 [m/s]（上向き正）", key("velocity"), "{:.2f}", "m/s")],
-            [Series("推力 [kN]", key("thrust", 1e-3), "{:.2f}", "kN")],
-        ]
-        if parameters.variable_mass:
-            panels.append([Series("質量 [kg]", key("mass"), "{:.1f}", "kg")])
-            readout.append(Series("質量", key("mass"), "{:.1f}", "kg"))
-        return Flight(
-            "vertical",
-            f"09. 月面への鉛直軟着陸（{name}）",
-            [LANDING_PHASES.get(n, n) for n in phase_names],
-            throttle=key("thrust"),
-            altitude=key("altitude"),
-            altitude_label="高度 [m]",
-            altitude_unit="m",
-            theme="moon",
-            panels=panels,
-            readout=readout,
-            note="着陸機は模式図、炎の長さは推力に比例",
-            coast_speedup=1.0,
-        )
-    raise KeyError(example_id)

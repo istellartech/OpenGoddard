@@ -1,11 +1,9 @@
 """Generate the videos, figures and data shown on the documentation site.
 
 Each example is solved with its own ``solve`` or ``main`` entry point and
-sampled per phase with the same barycentric interpolation as
-``examples._shared``. ``specs.py`` says what each video shows and
-``scenes.py`` draws it: an MP4, a poster PNG of the final frame, the JSON
-data, a comparison of presets where the lesson has them, and the static
-figures the example's own ``main()`` saves.
+sampled per phase with barycentric interpolation. ``specs.py`` describes the
+scene; ``scenes.py`` draws an MP4 and a poster PNG. The builder also saves
+the sampled JSON data and the figures from the example's ``plot()`` function.
 
 Outputs go to ``website/public/media/<example id>/`` with a ``manifest.json``
 that the site reads at build time. An example is regenerated only when its
@@ -54,10 +52,9 @@ from scenes import (  # noqa: E402
     PHASE_COLORS,
     SIZE,
     Phase,
-    render_comparison,
     render_flight,
 )
-from specs import CLASSIC, shared_flight  # noqa: E402
+from specs import SPECS  # noqa: E402
 
 from examples.catalog import EXAMPLES, find_example, load_example  # noqa: E402
 
@@ -65,7 +62,7 @@ SAMPLES = 241
 
 
 def sample_problem(prob, states, controls, samples=SAMPLES) -> list[Phase]:
-    """Sample a solved Problem like ``examples._shared.collect`` does."""
+    """Sample a solved Problem in physical units."""
     prob.time_update()
     phases = []
     for section in range(prob.number_of_section):
@@ -81,22 +78,17 @@ def sample_problem(prob, states, controls, samples=SAMPLES) -> list[Phase]:
     return phases
 
 
-def trajectory_phases(trajectory) -> list[Phase]:
-    return [
-        {key: np.asarray(value) for key, value in phase["samples"].items()}
-        for phase in trajectory.phases
-    ]
-
-
 # ---------------------------------------------------------------------------
 # Jobs
 
 
 def source_hash(example) -> str:
     digest = hashlib.sha256()
-    files = sorted((ROOT / "examples" / example.directory).rglob("*"))
+    files = [ROOT / "examples" / example.script, ROOT / "examples" / "catalog.py"]
+    if example.id == "polar_tsto_taiki":
+        files += sorted((ROOT / "examples" / "data").glob("*.csv"))
     files += sorted((ROOT / "src" / "OpenGoddard").glob("*.py"))
-    files += [ROOT / "examples" / "_shared.py"]
+    files += sorted((ROOT / "examples").glob("_*.py"))
     files += sorted(SCRIPTS.glob("*.py"))
     for path in files:
         if path.is_file() and "output" not in path.parts and path.suffix != ".pyc":
@@ -108,46 +100,28 @@ def source_hash(example) -> str:
 @dataclass
 class Manifest:
     id: str
-    directory: str
+    script: str
     title: str
     hash: str
     videos: list[dict[str, str]] = field(default_factory=list)
     figures: list[str] = field(default_factory=list)
-    comparison: str | None = None
     data: list[str] = field(default_factory=list)
     # Solver status per video; a failed solve is still drawn but flagged.
     solver: dict[str, dict[str, Any]] = field(default_factory=dict)
 
 
-def build_shared(example, module, out: Path, manifest: Manifest):
-    cases, flights = {}, {}
-    for name, parameters in module.PRESETS.items():
-        trajectory = module.solve(parameters, samples=SAMPLES)
-        manifest.solver[name] = {
-            "success": trajectory.solver["success"],
-            "message": trajectory.solver["message"],
-        }
-        trajectory.write_json(out / f"{name}.json")
-        manifest.data.append(f"{name}.json")
-        phases = trajectory_phases(trajectory)
-        names = [phase["name"] for phase in trajectory.phases]
-        flight = shared_flight(example.id, module, name, parameters, names)
-        render_flight(flight, phases, out / name)
-        cases[name], flights[name] = phases, flight
-        manifest.videos.append(
-            {"name": name, "video": f"{name}.mp4", "poster": f"{name}.png"}
-        )
-    title = f"{example.directory[:2]}. {example.title}：全プリセットの比較"
-    render_comparison(flights, cases, out / "comparison.png", title)
-    manifest.comparison = "comparison.png"
-
-
-def build_classic(example, module, out: Path, manifest: Manifest):
-    spec = CLASSIC[example.id]
-    output = ROOT / "examples" / example.directory / "output"
+def build_solution(example, module, out: Path, manifest: Manifest):
+    spec = SPECS[example.id]
+    output = ROOT / "examples" / "output" / example.id
     shutil.rmtree(output, ignore_errors=True)
     with contextlib.redirect_stdout(open(os.devnull, "w")):
-        prob = module.main(flag_savefig=True) if spec.savefig_flag else module.main()
+        if example.id == "minimum_energy_transfer":
+            prob = module.main()
+        else:
+            prob = module.solve()
+            figure = module.plot(prob)
+            output.mkdir(parents=True, exist_ok=True)
+            figure.savefig(output / "solution.png")
     plt.close("all")
     result = prob.result
     manifest.solver["solution"] = {
@@ -189,11 +163,8 @@ def build_example(identifier: str, force: bool = False) -> str:
     shutil.rmtree(out, ignore_errors=True)
     out.mkdir(parents=True)
     module = load_example(example.id)
-    manifest = Manifest(example.id, example.directory, example.title, digest)
-    if hasattr(module, "PRESETS"):
-        build_shared(example, module, out, manifest)
-    else:
-        build_classic(example, module, out, manifest)
+    manifest = Manifest(example.id, example.script, example.title, digest)
+    build_solution(example, module, out, manifest)
     manifest_path.write_text(
         json.dumps(asdict(manifest), ensure_ascii=False, indent=2) + "\n"
     )

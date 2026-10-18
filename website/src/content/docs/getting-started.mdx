@@ -20,8 +20,19 @@ pip install OpenGoddard
 git clone https://github.com/istellartech/OpenGoddard.git
 cd OpenGoddard
 uv sync --locked
-uv run python examples/01_minimum_energy_transfer/main.py
+uv run python examples/01_minimum_energy_transfer.py
 ```
+
+## 学習の進め方
+
+まず01の `main()` の `target` を変えて実行し、次に `dynamics` と境界条件を自分で書く。
+02以降はファイル冒頭の `PARAMETERS` を編集する。10〜14では `Rocket.__init__` に機体の条件をまとめる。
+各ページの「手で書く順序」に沿って、すでに学んだ式に新しい状態や制約を追加していく。
+
+01は普通の関数と配列の添字、02は加速・減速と区間接続、03は最速降下、04は深さの制約へと進む。
+各例題は1つのモデルと目的関数に絞り、そのファイルだけで条件設定・計算・描画まで読める。
+09は質量一定の着陸を扱う。燃料消費による質量変化は07のGoddard問題で学ぶ。
+10〜14ではクラスに機体の条件をまとめ、段分離や大気モデルを順に追加する。
 
 ## 問題の記述
 
@@ -34,45 +45,17 @@ $$
 
 [例題01](../examples/01-minimum-energy-transfer/)（$\dot{x}=u$、$x: 0 \to 2$、$J = T + \int u^2 dt$）での記述を示す。
 
-```py
-from OpenGoddard import DynamicsModel, Guess, LinearCallback, Problem
+import ExampleSource from '../../components/ExampleSource.astro';
 
-# 運動方程式 f：各ノードで独立に評価する
-def pointwise_dynamics(x, u, time, obj, section, xp):
-    return xp.stack((u[0],))
+<ExampleSource id="minimum_energy_transfer" open />
 
-# 境界条件 g = 0：変数について線形なので LinearCallback を付ける
-@LinearCallback
-def equality(problem, target):
-    state = problem.states_all_section(0)
-    result = problem.condition()
-    result.equal(state[0], 0)
-    result.equal(state[-1], target)
-    return result()
-
-target = 2.0
-problem = Problem([5, 8], [8], [1], [1], maxIterator=2)  # 時刻、ノード数、状態数、制御数
-problem.set_unit_time(3)
-problem.set_unit_states(0, 0, 2)
-problem.set_states(0, 0, Guess.linear(problem.time[0], 0, target))
-problem.set_controls(0, 0, Guess.constant(problem.time[0], target / 3))
-problem.set_controls_bounds(0, 0, 0, 3)
-problem.set_time_final_bounds(0, 5.1, 15)
-problem.dynamics = [DynamicsModel(pointwise_dynamics)]
-problem.equality = equality
-problem.cost = LinearCallback(lambda p, obj: p.time_final(0) - p.time_start(0))  # Φ
-problem.running_cost = lambda p, obj: p.controls_all_section(0) ** 2          # L
-
-result = problem.solve(target, maxiter=100, ftol=1e-11)  # SciPy の OptimizeResult
-```
-
-`solve()` の第1引数はコールバックの `obj` に渡される。上下限は不等式制約ではなく
+`solve()` の第1引数はコールバックの第2引数（例題01では `target`）に渡される。上下限は不等式制約ではなく
 `set_states_bounds`・`set_controls_bounds`・`set_time_final_bounds` で与える方が安定する。
 等式で固定した端点に同じ不等式を重ねてはならない。
 
 ## 動画の見方
 
-例題の動画は `main.py` の解を Matplotlib で描画したものである（[生成スクリプト](https://github.com/istellartech/OpenGoddard/tree/master/website/scripts)）。
+例題の動画は例題のPythonファイルの解を Matplotlib で描画したものである（[生成スクリプト](https://github.com/istellartech/OpenGoddard/tree/master/website/scripts)）。
 
 | 表示 | 意味 |
 | --- | --- |

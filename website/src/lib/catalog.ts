@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 
 export interface ExampleEntry {
   id: string;
-  directory: string;
+  stem: string;
   title: string;
   number: string;
 }
@@ -15,11 +15,11 @@ export const githubTree = 'https://github.com/istellartech/OpenGoddard/tree/mast
 export function examples(): ExampleEntry[] {
   const source = readFileSync(resolve(repoRoot, 'examples/catalog.py'), 'utf-8');
   const pattern = /Example\(\s*"([^"]+)",\s*"([^"]+)",\s*"([^"]+)",?\s*\)/g;
-  return [...source.matchAll(pattern)].map(([, id, directory, title]) => ({
+  return [...source.matchAll(pattern)].map(([, id, stem, title]) => ({
     id,
-    directory,
+    stem,
     title,
-    number: directory.slice(0, 2),
+    number: stem.slice(0, 2),
   }));
 }
 
@@ -33,7 +33,6 @@ export interface MediaManifest {
   id: string;
   videos: { name: string; video: string; poster: string }[];
   figures: string[];
-  comparison: string | null;
   data: string[];
   solver?: Record<string, { success: boolean; message: string }>;
 }

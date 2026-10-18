@@ -1,5 +1,5 @@
 ---
-// The example's main.py, read from the repository at build time.
+// The example's Python script, read from the repository at build time.
 import { Code } from '@astrojs/starlight/components';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -13,7 +13,7 @@ interface Props {
 
 const { id, open = false } = Astro.props;
 const example = findExample(id);
-const path = `examples/${example.directory}/main.py`;
+const path = `examples/${example.stem}.py`;
 const code = readFileSync(resolve(repoRoot, path), 'utf-8');
 ---
 

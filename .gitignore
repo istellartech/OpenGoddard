@@ -5,4 +5,4 @@ dist/
 .env
 
 # Generated example figures and trajectory exports
-/examples/*/output/
+/examples/output/
