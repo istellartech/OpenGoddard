@@ -1,6 +1,7 @@
 """End-to-end optimal-control problems with known analytic solutions."""
 
 import unittest
+import warnings
 from unittest.mock import patch
 
 import numpy as np
@@ -110,6 +111,22 @@ class AnalyticSolverTests(unittest.TestCase):
             self.assertAlmostEqual(result.fun, 2 * target, places=8)
             np.testing.assert_allclose(prob.controls_all_section(0), 1, atol=5e-6)
             self.assertEqual(len(prob.result_history), 1)
+
+    def test_finite_difference_trust_constr_with_one_inequality_residual(self):
+        # One phase without a user inequality leaves a single duration residual.
+        # x'=u, x(0)=0, x(1)=1, min integral(u^2 dt): u=1, objective=1.
+        prob = Problem([0, 1], [6], [1], [1])
+        prob.set_time_final_bounds(0, 1, 1)
+        prob.set_controls(0, 0, np.full(6, 0.5))
+        prob.dynamics = [integrator]
+        prob.equality = endpoints
+        prob.running_cost = lambda p, target: p.controls_all_section(0) ** 2
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            result = prob.solve(1, solver="trust-constr", maxiter=1000)
+        self.assertTrue(result.success, result.message)
+        self.assertAlmostEqual(result.fun, 1, places=6)
+        np.testing.assert_allclose(prob.controls_all_section(0), 1, atol=1e-4)
 
     def test_time_dependent_dynamics_see_current_time_grid(self):
         # min integral(u^2 dt), x'=t+u, x(2)=0, x(tf)=2.5: u=0, tf=3.

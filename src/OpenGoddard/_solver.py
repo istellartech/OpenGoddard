@@ -5,7 +5,8 @@ only validates solver settings, connects derivatives and records results.
 """
 
 import warnings
-from typing import cast
+from collections.abc import Callable
+from typing import Any, cast
 
 import numpy as np
 from scipy import optimize
@@ -107,6 +108,14 @@ def solve(
                     return provider.hessian(kind, weights)
 
                 constraint["hess"] = constraint_hessian
+        for constraint in constraints:
+            # SciPy's "2-point" Jacobian of a single residual is one-dimensional,
+            # which trust-constr cannot index (e.g. one phase, no user inequality).
+            fun = cast(Callable[[Any], Any], constraint["fun"])
+            if "jac" not in constraint and np.size(fun(problem.p)) == 1:
+                constraint["jac"] = lambda x, fun=fun: np.atleast_2d(
+                    optimize.approx_fprime(x, fun)
+                )
         constraints = [
             optimize.NonlinearConstraint(
                 constraint["fun"],
