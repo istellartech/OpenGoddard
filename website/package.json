@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
+    "check:media": "python3 scripts/check_media.py",
     "check:site": "python3 scripts/check_site.py",
     "preview": "astro preview"
   },

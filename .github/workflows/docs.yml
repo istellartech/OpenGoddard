@@ -9,6 +9,8 @@ on:
       - "examples/**"
       - "src/**"
       - ".github/workflows/docs.yml"
+      - "uv.lock"
+      - "pyproject.toml"
   workflow_dispatch:
 
 permissions:
@@ -21,12 +23,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
-    env:
-      MPLBACKEND: Agg
-      # Examples run in parallel processes; keep BLAS from oversubscribing.
-      OMP_NUM_THREADS: "1"
-      OPENBLAS_NUM_THREADS: "1"
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
@@ -39,19 +36,11 @@ jobs:
           node-version: 24
           cache: npm
           cache-dependency-path: website/package-lock.json
-      - name: Install ffmpeg and a Japanese font for the video labels
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg fonts-noto-cjk
-      - run: uv sync --locked
-
-      # Videos, posters and JSON are regenerated only when their inputs change.
-      - name: Restore generated media
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: website/public/media
-          key: media-${{ hashFiles('examples/**/*.py', 'examples/data/**', 'src/OpenGoddard/**/*.py', 'website/scripts/*.py', 'uv.lock') }}
-          restore-keys: media-
-      - name: Generate example videos and figures
-        run: uv run python website/scripts/build_media.py
+      # Media is generated locally and committed with its inputs. This check
+      # needs only the Python standard library, not a solve or a video encoder.
+      - name: Check committed media
+        run: npm run check:media
+        working-directory: website
 
       # starlight-pydocs runs Griffe through uvx to generate the API reference.
       - run: npm ci

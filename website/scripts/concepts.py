@@ -7,7 +7,6 @@ times along candidate curves.
 """
 
 import contextlib
-import hashlib
 import os
 import sys
 from functools import cache
@@ -17,12 +16,12 @@ import numpy as np
 from i18n import LANGUAGES, language, text
 from matplotlib import pyplot as plt
 from matplotlib.animation import FFMpegWriter
+from media_sources import CONCEPT_FILES, concepts_hash
 from scipy.integrate import quad
 from scipy.interpolate import BarycentricInterpolator
 from style import INK, LIMIT, MUTED, PHASE_COLORS
 
 ROOT = Path(__file__).resolve().parents[2]
-SCRIPTS = Path(__file__).resolve().parent
 OUT = ROOT / "website" / "public" / "media" / "concepts"
 BLUE, ORANGE, GREEN, VIOLET = PHASE_COLORS
 
@@ -472,20 +471,17 @@ def knots():
 
 def build_concepts(name="concepts", force=False) -> str:
     global OUT
-    digest = hashlib.sha256()
-    for path in sorted(SCRIPTS.glob("*.py")) + sorted(
-        (ROOT / "src" / "OpenGoddard").glob("*.py")
-    ):
-        digest.update(path.read_bytes())
-    for identifier in ("03_brachistochrone", "07_goddard_0knot", "08_goddard_1knot"):
-        digest.update((ROOT / "examples" / f"{identifier}.py").read_bytes())
+    digest = concepts_hash()
     outputs = [
         ROOT / "website/public/media/concepts",
         ROOT / "website/public/media/en/concepts",
     ]
     if not force and all(
-        (out / "hash.txt").exists()
-        and (out / "hash.txt").read_text() == digest.hexdigest()
+        all(
+            (out / name).is_file() and (out / name).stat().st_size
+            for name in CONCEPT_FILES
+        )
+        and (out / "hash.txt").read_text() == digest
         for out in outputs
     ):
         return "concepts: up to date (ja, en)"
@@ -501,7 +497,7 @@ def build_concepts(name="concepts", force=False) -> str:
             collocation()
             convergence()
             knots()
-        (OUT / "hash.txt").write_text(digest.hexdigest())
+        (OUT / "hash.txt").write_text(digest)
     return "concepts: built (ja, en)"
 
 

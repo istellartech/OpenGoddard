@@ -1,0 +1,56 @@
+{
+  "id": "rocket_ascent_polar_ssto",
+  "script": "12_rocket_ascent_polar_ssto.py",
+  "success": true,
+  "message": "Optimization terminated successfully",
+  "iterations": 386,
+  "objective": -0.043702663073365726,
+  "phases": [
+    {
+      "start_time": 0.0,
+      "final_time": 900.8781365013052,
+      "nodes": 30,
+      "start": {
+        "R": 6371000.0,
+        "theta": -9.344944115520911e-21,
+        "Vr": -6.876115684824405e-17,
+        "Vt": -4.3996465093617065e-17,
+        "m": 100000.0,
+        "Tr": 1452890.210114597,
+        "Tt": 230094.94251925536
+      },
+      "final": {
+        "R": 6771000.0,
+        "theta": 0.8012814525041473,
+        "Vr": -5.0931531829177324e-17,
+        "Vt": 7672.598648385013,
+        "m": 4370.266307336573,
+        "Tr": 270.85891942805944,
+        "Tt": 342763.0661136966
+      }
+    }
+  ],
+  "final_time": 900.8781365013052,
+  "knots": [],
+  "final_mass_kg": 4370.266307336573,
+  "initial_mass_kg": 100000.0,
+  "final_altitude_km": 400.0,
+  "target_altitude_km": 400.0,
+  "final_speed": 7672.598648385013,
+  "target_speed": 7672.598648385013,
+  "max_accel_G": 7.997708612602013,
+  "max_q_kPa": 53.79285299978115,
+  "burn_spans": [
+    [
+      0.0,
+      262.75612314621407
+    ],
+    [
+      885.8635008929501,
+      900.8781365013052
+    ]
+  ],
+  "downrange_km": 5104.964133903923,
+  "title": "極座標・単段軌道投入",
+  "hash": "fefe30e2e289f3beec758c942b4adb39c10ac65ca639ec10e2a8e7d66eb6c2b2"
+}

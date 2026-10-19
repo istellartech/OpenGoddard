@@ -1,0 +1,33 @@
+{
+  "id": "goddard_0knot",
+  "script": "07_goddard_0knot.py",
+  "success": true,
+  "message": "Optimization terminated successfully",
+  "iterations": 1,
+  "objective": -1.012832117263931,
+  "phases": [
+    {
+      "start_time": 0.0,
+      "final_time": 0.1989883336014757,
+      "nodes": 50,
+      "start": {
+        "h": 1.0,
+        "v": -4.581857360860375e-23,
+        "m": 1.0,
+        "T": 3.5
+      },
+      "final": {
+        "h": 1.012832117263931,
+        "v": -1.860487481731916e-22,
+        "m": 0.6,
+        "T": 0.0006554199209505811
+      }
+    }
+  ],
+  "final_time": 0.1989883336014757,
+  "final_height": 1.012832117263931,
+  "burnout_time": 0.07876621538391745,
+  "knots": [],
+  "title": "Goddard問題・単一区間",
+  "hash": "128c45e313e2d3ff35e9d173c4148ebe494cdbd3a3f1849dfa64d887a8653594"
+}

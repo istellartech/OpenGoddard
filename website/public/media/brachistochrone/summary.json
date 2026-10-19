@@ -1,0 +1,34 @@
+{
+  "id": "brachistochrone",
+  "script": "03_brachistochrone.py",
+  "success": true,
+  "message": "Optimization terminated successfully",
+  "iterations": 25,
+  "objective": 1.7724538634656748,
+  "phases": [
+    {
+      "start_time": 0.0,
+      "final_time": 1.7724538634656748,
+      "nodes": 20,
+      "start": {
+        "x": 9.072695358937159e-20,
+        "y": 1.5901583196383392e-20,
+        "v": -4.860313798033761e-20,
+        "theta": 2.606800082161103e-20
+      },
+      "final": {
+        "x": 1.0,
+        "y": 0.6365085471232569,
+        "v": 1.1282805923920198,
+        "theta": 1.5707944080351726
+      }
+    }
+  ],
+  "final_time": 1.7724538634656748,
+  "exact_final_time": 1.7724538509055159,
+  "straight_line_time": 2.1011502084156084,
+  "final_depth": 0.6365085471232569,
+  "exact_final_depth": 0.6366197723675814,
+  "title": "最速降下",
+  "hash": "d889437e0c1d1744a24b13dcb92394c4408d1ff613e596181bf32079c8b5ed73"
+}

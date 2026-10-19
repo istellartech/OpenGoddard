@@ -1,0 +1,32 @@
+{
+  "id": "simple_rocket_2d",
+  "script": "06_simple_rocket_2d.py",
+  "success": true,
+  "message": "Optimization terminated successfully",
+  "iterations": 1,
+  "objective": 2.0849239221243083,
+  "phases": [
+    {
+      "start_time": 0.0,
+      "final_time": 2.0849239221243083,
+      "nodes": 20,
+      "start": {
+        "vx": -2.7748859479262923e-21,
+        "vy": -4.08798070526891e-22,
+        "x": -7.7315665829518e-21,
+        "y": 1.2773676641888171e-20,
+        "beta": 1.3458080004392239
+      },
+      "final": {
+        "vx": 1.0,
+        "vy": 4.934300007627472e-21,
+        "x": 1.0427823775401244,
+        "y": 1.0,
+        "beta": -1.3445656182440169
+      }
+    }
+  ],
+  "final_time": 2.0849239221243083,
+  "title": "単純な2次元ロケット",
+  "hash": "0f416e15cc019397a30ef1bb8f51c5e576084b7df21eaff84317203c17cf9b4f"
+}

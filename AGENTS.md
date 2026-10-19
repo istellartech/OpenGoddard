@@ -12,7 +12,9 @@
 - `tests/`：unittest。
 - `website/`：Astro + Starlight + MDX の解説サイト。APIリファレンスは
   starlight-pydocs（Griffe）がdocstring（Google形式）から生成する。
-- `website/scripts/build_media.py`：例題を解いてMatplotlibで動画・図を `website/public/media/` に生成する。
+- `website/scripts/build_media.py`：ローカルで例題を解き、Matplotlibで日英の動画・図と
+  計算結果JSONを `website/public/media/` に生成する。生成物もGitで管理する。
+- `website/scripts/check_media.py`：標準ライブラリだけで生成物の不足・更新漏れ・求解失敗を検出する。
 
 ## コマンド
 
@@ -21,11 +23,14 @@ uv sync --extra autodiff
 uv run ruff check . && uv run ruff format --check .
 uv run ty check
 uv run python -m unittest discover -s tests
-uv run python website/scripts/build_media.py [ids...]   # 動画・図
-cd website && npm ci && npm run build                     # サイト
+# 図・動画の入力を変更した場合だけ実行（ffmpegと日本語フォントが必要）
+uv run python website/scripts/build_media.py [ids...]
+cd website && npm ci && npm run check:media && npm run build && npm run check:site
 ```
 
-CI（`.github/workflows/`）は上記を実行し、`master` のサイトをGitHub Pagesへ公開する。
+ライブラリのCI（`.github/workflows/ci.yml`）はlint・型・テスト・パッケージビルドを実行する。
+公開ワークフロー（`docs.yml`）はコミット済みメディアの検査・サイトのビルド・リンク検査を行い、
+`master` のサイトをGitHub Pagesへ公開する。Actionsでは数値計算・動画生成を行わない。
 
 ## 方針
 
@@ -33,6 +38,10 @@ CI（`.github/workflows/`）は上記を実行し、`master` のサイトをGitH
 - READMEは入口に留め、詳細はサイトに書く。数式・コード・結果の対応が分かる説明を重視する。
 - 動きは事前生成したMP4と静止画で見せる。React等のブラウザ側可視化や、閲覧者による
   再計算は必要になるまで追加しない。
+- 例題・入力CSV・ライブラリ・描画処理・翻訳ラベル・`uv.lock` を変更したら、ローカルで
+  メディアを再生成し、`website/public/media/` の図・動画・JSON・ハッシュをソースと一緒に
+  コミットする。文章だけの変更では再生成しない。ハッシュを手で更新して検査を回避しない。
+  対象IDの指定で一部を生成できるが、公開前は `npm run check:media` で全体の更新漏れを検査する。
 - 例題はパラメータ・モデル構築・求解・描画を分離し、動画生成でも再利用する。
 - 1例題は1つの物理モデルと1つの目的関数に絞る。プリセットや目的関数・モデルの切り替えは設けない。
 - 例題本体には数式・制約・目的関数・初期推定を明記する。初級ではデコレータ・

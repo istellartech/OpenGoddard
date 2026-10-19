@@ -1,0 +1,35 @@
+{
+  "id": "brachistochrone_tokyo_osaka",
+  "script": "05_brachistochrone_tokyo_osaka.py",
+  "success": true,
+  "message": "Optimization terminated successfully",
+  "iterations": 181,
+  "objective": 632.6540383349788,
+  "phases": [
+    {
+      "start_time": 0.0,
+      "final_time": 632.6540383349788,
+      "nodes": 30,
+      "start": {
+        "x": 7.853417340143457e-15,
+        "y": 1.15937059204193e-15,
+        "v": 1.3450831754372431e-16,
+        "theta": 0.04346019944941315
+      },
+      "final": {
+        "x": 600000.0,
+        "y": 4.251963096925886e-15,
+        "v": -0.0008353401308078256,
+        "theta": 2.104086904389139
+      }
+    }
+  ],
+  "final_time": 632.6540383349788,
+  "exact_final_time": 620.2296467642294,
+  "max_depth_km": 186.90993017603157,
+  "exact_max_depth_km": 190.98593171027443,
+  "max_speed": 1914.0553762822285,
+  "exact_max_speed": 1934.767237039479,
+  "title": "東京・大阪の最速降下",
+  "hash": "607a9c4f12ac6947820010599bdee28961225121ad0e79a0301984ee04af41c3"
+}

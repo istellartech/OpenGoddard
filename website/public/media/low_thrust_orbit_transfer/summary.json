@@ -1,0 +1,38 @@
+{
+  "id": "low_thrust_orbit_transfer",
+  "script": "15_low_thrust_orbit_transfer.py",
+  "success": true,
+  "message": "Optimization terminated successfully",
+  "iterations": 79,
+  "objective": 0.5787922868184534,
+  "phases": [
+    {
+      "start_time": 0.0,
+      "final_time": 54.99999999997845,
+      "nodes": 60,
+      "start": {
+        "r": 1.0,
+        "vr": 2.886690306107534e-28,
+        "vt": 1.0,
+        "ur1": 8.642248951481571e-15,
+        "ur2": 0.0011003813723799419,
+        "ut1": 0.009999999999997651,
+        "ut2": 0.0
+      },
+      "final": {
+        "r": 4.0,
+        "vr": 2.345207464615455e-28,
+        "vt": 0.5,
+        "ur1": 2.3581255264740853e-16,
+        "ur2": 0.01,
+        "ut1": 0.01,
+        "ut2": 0.0
+      }
+    }
+  ],
+  "final_time": 54.99999999997845,
+  "objective_delta_v": 0.5787922868184534,
+  "revolutions": 3.849565370233069,
+  "title": "低推力軌道遷移",
+  "hash": "92126eba9ab1afbc1edea9cec308c29d2287707f0b107b1864abf19e4a2b6ac8"
+}

@@ -87,6 +87,30 @@ to switch between translations of the current page (inside the menu on mobile).
 - [API reference](https://istellartech.github.io/OpenGoddard/en/api/OpenGoddard/):
   classes, solver options, derivatives, and mesh refinement.
 
+## Update the documentation
+
+The site source is in [website/](website/). With uv and Node.js 24 installed,
+build it using the committed figures, videos, and result JSON:
+
+```sh
+cd website
+npm ci
+npm run check:media
+npm run build
+npm run check:site
+```
+
+When changing examples, input data, the library, rendering code, translated
+figure labels, or `uv.lock`, regenerate the affected media locally from the
+repository root with `uv run python website/scripts/build_media.py` (optionally
+pass example IDs). Generation requires `uv sync --locked`, ffmpeg, and a Japanese
+font such as Noto Sans CJK JP or Hiragino Sans. Commit `website/public/media/`
+alongside the source changes. Text-only edits do not require regeneration.
+
+GitHub Actions checks the committed media for missing files and stale inputs,
+builds the site, and publishes `master` to GitHub Pages. It does not solve the
+examples or generate videos during publication.
+
 ## License
 
 [MIT](LICENSE)

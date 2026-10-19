@@ -1,0 +1,53 @@
+{
+  "id": "rocket_ascent_two_stage",
+  "script": "11_rocket_ascent_two_stage.py",
+  "success": true,
+  "message": "Optimization terminated successfully",
+  "iterations": 386,
+  "objective": -1.028902144067403,
+  "phases": [
+    {
+      "start_time": 0.0,
+      "final_time": 69.15687086923613,
+      "nodes": 25,
+      "start": {
+        "R": 6371000.0,
+        "v": 2.0668399520430643e-17,
+        "m": 5000.0,
+        "T": 98066.49999999994
+      },
+      "final": {
+        "R": 6384651.028456625,
+        "v": 179.21017205289107,
+        "m": 3200.0,
+        "T": 55.763874084084016
+      }
+    },
+    {
+      "start_time": 69.15687086923613,
+      "final_time": 307.26796618773426,
+      "nodes": 25,
+      "start": {
+        "R": 6384651.028456625,
+        "v": 179.21017205289107,
+        "m": 2000.0,
+        "T": 98066.4999999996
+      },
+      "final": {
+        "R": 6555135.559853425,
+        "v": 4.2942278628978905e-17,
+        "m": 800.0,
+        "T": 0.0
+      }
+    }
+  ],
+  "final_time": 307.26796618773426,
+  "final_altitude_km": 184.13555985342526,
+  "burnout_time": 152.49575423071047,
+  "max_thrust_N": 98066.5,
+  "knots": [
+    69.15687086923613
+  ],
+  "title": "2段ロケット上昇",
+  "hash": "e6cccae75a5abdfb99efc8c304eae391e806d5bd414102631657d844fe4e5fc4"
+}

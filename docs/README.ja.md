@@ -75,6 +75,28 @@ uv run python examples/01_minimum_energy_transfer.py
 - [例題](https://istellartech.github.io/OpenGoddard/examples/)：1次元の移動から軌道投入まで15題。数式・図・動画で解説。
 - [APIリファレンス](https://istellartech.github.io/OpenGoddard/api/OpenGoddard/)：クラス、ソルバーの設定、微分、メッシュ細分化の詳細。
 
+## 解説サイトを更新する
+
+サイトのソースは [website/](../website/) にあります。uvとNode.js 24を用意すると、
+コミット済みの図・動画・計算結果JSONを使ってビルドできます。
+
+```sh
+cd website
+npm ci
+npm run check:media
+npm run build
+npm run check:site
+```
+
+例題・入力データ・ライブラリ・描画処理・図の翻訳ラベル・`uv.lock` を変更した場合は、
+リポジトリのルートで `uv run python website/scripts/build_media.py` を実行し、
+`website/public/media/` の生成物をソースと一緒にコミットします。引数に例題IDを指定すると
+一部だけ生成できます。生成には `uv sync --locked`、ffmpegと日本語フォント
+（Noto Sans CJK JPやヒラギノ角ゴなど）が必要です。文章だけの修正では再生成は不要です。
+
+GitHub Actionsは生成物の不足・更新漏れを検査してサイトをビルドし、`master` を
+GitHub Pagesへ公開します。公開時に例題の求解や動画生成は行いません。
+
 ## ライセンス
 
 [MIT](../LICENSE)

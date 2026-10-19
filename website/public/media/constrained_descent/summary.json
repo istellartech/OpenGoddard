@@ -1,0 +1,33 @@
+{
+  "id": "constrained_descent",
+  "script": "04_constrained_descent.py",
+  "success": true,
+  "message": "Optimization terminated successfully",
+  "iterations": 177,
+  "objective": 0.6242365209791644,
+  "phases": [
+    {
+      "start_time": 0.0,
+      "final_time": 0.6242365209791644,
+      "nodes": 40,
+      "start": {
+        "x": 1.0284468324722741e-22,
+        "depth": 0.0,
+        "v": 6.417575469309971e-22,
+        "theta": 1.7244922381300682e-06
+      },
+      "final": {
+        "x": 1.0,
+        "depth": 0.2,
+        "v": 1.980908882306282,
+        "theta": 2.1844102877137628
+      }
+    }
+  ],
+  "final_time": 0.6242365209791644,
+  "max_depth": 0.300026970673568,
+  "floorless_time": 0.6205789854766937,
+  "floorless_max_depth": 0.3579319098405172,
+  "title": "深さ制限付き最速降下",
+  "hash": "e37e06dd7dd2ffd9a88da4069fdc5475a307efddadb9698d8535e60a8f441e08"
+}

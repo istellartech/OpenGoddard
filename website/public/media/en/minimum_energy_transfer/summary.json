@@ -1,0 +1,28 @@
+{
+  "id": "minimum_energy_transfer",
+  "script": "01_minimum_energy_transfer.py",
+  "success": true,
+  "message": "Optimization terminated successfully",
+  "iterations": 18,
+  "objective": 4.000000000000016,
+  "phases": [
+    {
+      "start_time": 5.0,
+      "final_time": 7.0000001041510735,
+      "nodes": 8,
+      "start": {
+        "x": -3.0579902862323516e-22,
+        "u": 1.0000001931754803
+      },
+      "final": {
+        "x": 2.0,
+        "u": 1.0000002042499831
+      }
+    }
+  ],
+  "duration": 2.0000001041510735,
+  "exact_duration": 2.0,
+  "exact_objective": 4.0,
+  "title": "最小操作量の移動",
+  "hash": "cb1a18227202ac6d71ce52dcff6841adfb2c244c4184f48351e3f252a432a229"
+}

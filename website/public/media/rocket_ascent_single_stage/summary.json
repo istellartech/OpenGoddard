@@ -1,0 +1,34 @@
+{
+  "id": "rocket_ascent_single_stage",
+  "script": "10_rocket_ascent_single_stage.py",
+  "success": true,
+  "message": "Optimization terminated successfully",
+  "iterations": 494,
+  "objective": -1.0102874634447778,
+  "phases": [
+    {
+      "start_time": 0.0,
+      "final_time": 187.93183706538034,
+      "nodes": 50,
+      "start": {
+        "R": 6371000.0,
+        "v": 2.826485887554161e-20,
+        "m": 5000.0,
+        "T": 98066.4999999999
+      },
+      "final": {
+        "R": 6436541.42960668,
+        "v": 5.0673647801833636e-20,
+        "m": 2000.0,
+        "T": 0.0
+      }
+    }
+  ],
+  "final_time": 187.93183706538034,
+  "final_altitude_km": 65.54142960667983,
+  "burnout_time": 113.54215156033395,
+  "max_thrust_N": 98066.5,
+  "knots": [],
+  "title": "単段ロケット上昇",
+  "hash": "049aa6b3b06e3860581373e322fe1132bc45bb8601da499102fb143d0bd8315d"
+}

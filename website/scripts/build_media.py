@@ -14,8 +14,9 @@ Outputs go to ``website/public/media/<example id>/`` (Japanese) and
 * ``animation.mp4`` and its poster ``animation.png``;
 * ``summary.json``: solver status and the numbers quoted on the page.
 
-An example is rebuilt only when its sources, the library or these scripts
-change, so CI can cache the directory. Run from the repository root::
+Generate locally and commit the outputs with their source changes. Publication
+checks their fingerprints but never regenerates them. Unchanged examples are
+skipped. Requires ffmpeg and a Japanese font. Run from the repository root::
 
     uv run python website/scripts/build_media.py            # everything
     uv run python website/scripts/build_media.py move_stop  # selected IDs
@@ -23,7 +24,6 @@ change, so CI can cache the directory. Run from the repository root::
 
 import argparse
 import contextlib
-import hashlib
 import json
 import os
 import shutil
@@ -46,6 +46,7 @@ sys.path.insert(0, str(SCRIPTS))
 import style  # noqa: E402, F401  (sets the Matplotlib style)
 from figures import Solution, animation, history_figure, scene_figure  # noqa: E402
 from i18n import LANGUAGES, language  # noqa: E402
+from media_sources import EXAMPLE_FILES, example_hash  # noqa: E402
 from specs import POST, SPECS  # noqa: E402
 
 from examples.catalog import EXAMPLES, find_example, load_example  # noqa: E402
@@ -118,26 +119,17 @@ def summarize(problem, sol: Solution, spec, module, example) -> dict:
     return _plain(summary)
 
 
-def source_hash(example) -> str:
-    digest = hashlib.sha256()
-    files = [ROOT / "examples" / example.script, ROOT / "examples" / "catalog.py"]
-    if example.id == "polar_tsto_taiki":
-        files += sorted((ROOT / "examples" / "data").glob("*.csv"))
-    files += sorted((ROOT / "src" / "OpenGoddard").glob("*.py"))
-    files += sorted(SCRIPTS.glob("*.py"))
-    for path in files:
-        digest.update(path.relative_to(ROOT).as_posix().encode())
-        digest.update(path.read_bytes())
-    return digest.hexdigest()
-
-
 def build_example(identifier: str, force: bool = False) -> str:
     example = find_example(identifier)
     outputs = [OUTPUT / example.id, OUTPUT / "en" / example.id]
-    digest = source_hash(example)
+    digest = example_hash(example.script)
     if not force and all(
-        (out / "summary.json").exists()
+        all(
+            (out / name).is_file() and (out / name).stat().st_size
+            for name in EXAMPLE_FILES
+        )
         and json.loads((out / "summary.json").read_text()).get("hash") == digest
+        and json.loads((out / "summary.json").read_text()).get("success") is True
         for out in outputs
     ):
         return f"{example.id}: up to date (ja, en)"
@@ -152,6 +144,8 @@ def build_example(identifier: str, force: bool = False) -> str:
     if example.id in POST:
         POST[example.id](sol)
     summary = summarize(problem, sol, spec, module, example)
+    if not summary["success"]:
+        raise RuntimeError(f"{example.id}: solver failed: {summary['message']}")
     summary["title"] = example.title
     summary["hash"] = digest
     # Solve once, then render the same trajectory in both languages.
