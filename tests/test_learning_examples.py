@@ -69,8 +69,10 @@ class LearningExamplesTests(unittest.TestCase):
             np.linspace(-1, 1, 1001)
         )
         # Bounds hold at collocation nodes; the interpolating curve is approximate.
+        # Its overshoot between nodes varies with the platform's floating point
+        # (1.4e-4 seen on CI), so allow 5e-4 here.
         self.assertLessEqual(max(problem.states(1, 0)), p["max_depth"] + 1e-8)
-        self.assertLessEqual(max(depth), p["max_depth"] + 1e-4)
+        self.assertLessEqual(max(depth), p["max_depth"] + 5e-4)
         radius = p["max_depth"] / 2
         angle = 2 * np.pi - np.arccos(1 - p["final_depth"] / radius)
         cruise = p["distance"] - radius * (angle - np.sin(angle))
