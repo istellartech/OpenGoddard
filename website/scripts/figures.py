@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+from i18n import text
 from matplotlib import pyplot as plt
 from matplotlib.animation import FFMpegWriter
 from matplotlib.patches import Polygon
@@ -44,12 +45,13 @@ class Solution:
 @dataclass
 class Quantity:
     key: str
-    label: str  # Japanese name with the symbol, e.g. "速さ $v$"
+    label: str  # Display name with its mathematical symbol.
     unit: str = ""
     scale: float = 1.0
 
     def axis_label(self) -> str:
-        return f"{self.label} [{self.unit}]" if self.unit else self.label
+        label = text(self.label)
+        return f"{label} [{self.unit}]" if self.unit else label
 
     def of(self, data: Data) -> np.ndarray:
         return np.asarray(data[self.key], dtype=float) * self.scale
@@ -108,7 +110,9 @@ class Spec:
 
 
 def _time_label(spec: Spec) -> str:
-    return f"時刻 $t$ [{spec.time_unit}]" if spec.time_unit else "時刻 $t$（無次元）"
+    return text(
+        f"時刻 $t$ [{spec.time_unit}]" if spec.time_unit else "時刻 $t$（無次元）"
+    )
 
 
 def _shade_phases(ax, sol: Solution, spec: Spec) -> None:
@@ -122,7 +126,7 @@ def _phase_legend(fig, sol: Solution, spec: Spec, y=1.0) -> None:
     if len(sol.dense) < 2 or not spec.phase_names:
         return
     handles = [
-        plt.Line2D([], [], color=phase_color(i), lw=2.5, label=name)
+        plt.Line2D([], [], color=phase_color(i), lw=2.5, label=text(name))
         for i, name in enumerate(spec.phase_names)
     ]
     fig.legend(
@@ -143,7 +147,7 @@ def _draw_panel(ax, panel: Panel, sol: Solution, spec: Spec, nodes=True) -> list
         for section, (dense, node) in enumerate(zip(sol.dense, sol.nodes)):
             color = phase_color(section)
             kwargs = {"color": color, "ls": styles[qi % 2], "zorder": 3}
-            label = quantity.label if many and section == 0 else None
+            label = text(quantity.label) if many and section == 0 else None
             if not panel.step:
                 (line,) = ax.plot(
                     dense["time"], quantity.of(dense), label=label, **kwargs
@@ -163,10 +167,10 @@ def _draw_panel(ax, panel: Panel, sol: Solution, spec: Spec, nodes=True) -> list
                     zorder=4,
                     label=label if panel.step else None,
                 )
-    for value, text in panel.limits:
+    for value, label in panel.limits:
         ax.axhline(value, color=LIMIT, lw=1.1, ls=(0, (2, 2)), zorder=2)
         ax.annotate(
-            text,
+            text(label),
             (1, value),
             xycoords=("axes fraction", "data"),
             xytext=(-2, 3),
@@ -177,10 +181,18 @@ def _draw_panel(ax, panel: Panel, sol: Solution, spec: Spec, nodes=True) -> list
             fontsize=8,
         )
     if panel.references is not None:
-        for t, y, text in panel.references(sol):
-            ax.plot(t, y, color=REFERENCE, lw=1.2, ls=(0, (3, 2)), zorder=5, label=text)
+        for t, y, label in panel.references(sol):
+            ax.plot(
+                t,
+                y,
+                color=REFERENCE,
+                lw=1.2,
+                ls=(0, (3, 2)),
+                zorder=5,
+                label=text(label),
+            )
     _shade_phases(ax, sol, spec)
-    ax.set_title(panel.title or panel.quantities[0].axis_label(), fontsize=10)
+    ax.set_title(text(panel.title) or panel.quantities[0].axis_label(), fontsize=10)
     if many or panel.references is not None:
         ax.legend(loc="best", fontsize=8, handlelength=2.4)
     return artists
@@ -235,10 +247,18 @@ def scene_figure(sol: Solution, spec: Spec, path: Path) -> None:
     ax.plot(x0[0], y0[0], "o", ms=7, color=INK, zorder=6)
     ax.plot(x1[-1], y1[-1], "s", ms=7, color=INK, zorder=6)
     ax.annotate(
-        "始点", (x0[0], y0[0]), xytext=(6, 6), textcoords="offset points", fontsize=9
+        text("始点"),
+        (x0[0], y0[0]),
+        xytext=(6, 6),
+        textcoords="offset points",
+        fontsize=9,
     )
     ax.annotate(
-        "終点", (x1[-1], y1[-1]), xytext=(6, 6), textcoords="offset points", fontsize=9
+        text("終点"),
+        (x1[-1], y1[-1]),
+        xytext=(6, 6),
+        textcoords="offset points",
+        fontsize=9,
     )
     _phase_legend(fig, sol, spec, y=1.08)
     fig.savefig(path, bbox_inches="tight", pad_inches=0.08)
@@ -323,7 +343,7 @@ def _scene_axes(ax, scene: Scene, sol: Solution) -> None:
         ax.text(
             0.01,
             0.01,
-            scene.label,
+            text(scene.label),
             transform=ax.transAxes,
             fontsize=8,
             color=MUTED,
@@ -523,9 +543,11 @@ def animation(sol: Solution, spec: Spec, stem: Path) -> None:
             ghost.set_data([gx], [gy])
         lines = [f"$t$ = {time:.3g} {spec.time_unit}".rstrip()]
         if len(sol.dense) > 1 and spec.phase_names:
-            lines.append(spec.phase_names[section])
+            lines.append(text(spec.phase_names[section]))
         for q in scene.readout:
-            lines.append(f"{q.label} = {_fmt(_at(sol, q.of, time))} {q.unit}".rstrip())
+            lines.append(
+                f"{text(q.label)} = {_fmt(_at(sol, q.of, time))} {q.unit}".rstrip()
+            )
         clock.set_text("\n".join(lines))
         for cursor in cursors:
             cursor.set_xdata([time, time])

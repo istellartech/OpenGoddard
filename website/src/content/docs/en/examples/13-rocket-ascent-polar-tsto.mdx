@@ -1,0 +1,187 @@
+---
+title: 13. Two-stage orbital insertion in polar coordinates
+description: Optimize stage separation and stage-dependent thrust to maximize mass delivered to a 500 km circular orbit.
+sidebar:
+  order: 13
+---
+
+import ExampleFigure from '../../../../components/ExampleFigure.astro';
+import RunCommand from '../../../../components/RunCommand.astro';
+import SolverNote from '../../../../components/SolverNote.astro';
+import Value from '../../../../components/Value.astro';
+
+<p class="lead">
+  Most launch vehicles discard an empty first stage instead of carrying its tanks and engines to orbit.
+  Add stage separation to the two-dimensional ascent in Example 12 and optimize when to separate and how each stage should thrust.
+</p>
+
+<div class="og-facts">
+
+| Item | Definition |
+| --- | --- |
+| States | Radius $R$, angle $\theta$, radial and tangential velocities $V_r,V_t$, mass $m$ |
+| Controls | Thrust components $T_r,T_t$ |
+| Objective | Maximize second-stage mass at orbital insertion |
+| Phases | Two phases, 20 nodes each; free separation and final times |
+| New concepts | Two-dimensional staging and phase-dependent vehicle parameters |
+
+</div>
+
+## Situation
+
+Launch mass is 20 t, including a 1 t second stage.
+First-phase mass cannot fall below 2 t. At separation, the second stage starts at 1 t;
+the discarded mass is the pre-separation mass minus 1 t.
+
+The second-stage engine has higher specific impulse (350 s versus 300 s) but much lower thrust (14.7 kN versus 294 kN).
+The target is a 500 km circular orbit. Earth rotation is neglected, and acceleration is limited to 8 G.
+
+## Formulation
+
+### Coordinates
+
+Use the [polar coordinates of Example 12](../12-rocket-ascent-polar-ssto/#coordinates).
+Altitude is $R-R_e$, downrange distance is $R_e\theta$, and radial and tangential components are local vertical and horizontal components.
+
+### Phases and linkage
+
+At the optimized separation time $t_s$, position and velocity are continuous while mass resets:
+
+$$
+\begin{aligned}
+R(t_s^+)&=R(t_s^-),&\theta(t_s^+)&=\theta(t_s^-),\\
+V_r(t_s^+)&=V_r(t_s^-),&V_t(t_s^+)&=V_t(t_s^-),\\
+m(t_s^+)&=1\ \mathrm t.
+\end{aligned}
+$$
+
+Disable automatic mass continuity and impose the linkage explicitly
+([linking phases](../../guide/usage/#linking-phases)).
+
+### Dynamics
+
+For stage $i=1,2$,
+
+$$
+\begin{aligned}
+\dot R&=V_r,&\dot\theta&=V_t/R,\\
+\dot V_r&=(T_r-D_r)/m-\mu/R^2+V_t^2/R,\\
+\dot V_t&=(T_t-D_t)/m-V_rV_t/R,\\
+\dot m&=-\sqrt{T_r^2+T_t^2}/(g_0I_{sp,i}).
+\end{aligned}
+$$
+
+$$
+V=\sqrt{V_r^2+V_t^2},\qquad
+D_r=\tfrac12\rho(h)V_rVC_{D,i}A_i,\qquad
+D_t=\tfrac12\rho(h)V_tVC_{D,i}A_i,
+$$
+
+$$
+\rho(h)=1.225e^{-h/8500},\qquad g(R)=\mu/R^2.
+$$
+
+The polar velocity terms express centrifugal acceleration and conservation of angular momentum.
+
+### Boundary conditions
+
+$$
+R(0)=R_e,\quad\theta(0)=0,\quad V_r(0)=V_t(0)=0,\quad m(0)=20\ \mathrm t,
+$$
+
+$$
+R(t_f)=R_e+500\ \mathrm{km},\qquad V_r(t_f)=0,\qquad V_t(t_f)=\sqrt{\mu/R(t_f)}.
+$$
+
+Target speed is about 7616.6 m/s. Final angle and time are free.
+
+### Constraints
+
+$$
+\begin{aligned}
+R&\ge R_e,\\
+2\ \mathrm t\le m\le20\ \mathrm t&\quad\text{(phase 1)},\\
+200\ \mathrm{kg}\le m\le1\ \mathrm t&\quad\text{(phase 2)},\\
+\sqrt{T_r^2+T_t^2}&\le T_{\max,i},\\
+-T_{\max,i}&\le T_r,T_t\le T_{\max,i},\\
+\left|\frac{\boldsymbol T-\boldsymbol D}{m}\right|&\le8g_0.
+\end{aligned}
+$$
+
+Unlike Example 12, thrust components can be negative, allowing downward and backward thrust.
+The second-stage mass lower bound is its 200 kg dry mass.
+Acceleration excludes gravity.
+
+### Objective and parameters
+
+$$
+J=-m(t_f)/(20\ \mathrm t).
+$$
+
+| Parameter | Stage 1 | Stage 2 |
+| --- | --- | --- |
+| Phase-start mass | 20 t | 1 t |
+| Mass lower bound | 2 t | 200 kg |
+| $C_D,A$ | 0.2, 3.14 m² | 0.2, 3.14 m² |
+| $I_{sp}$ | 300 s | 350 s |
+| $T_{\max}$ | 294.2 kN | 14.7 kN |
+
+Use $R_e=6371$ km, $g_0=9.80665$ m/s², and $\mu=3.986\times10^{14}$ m³/s².
+Units follow Example 12 with mass scaled by 20 t.
+
+### Initial guess
+
+Use times $0\to100\to200$ s. Radius and angle rise cubically to target altitude and 25°.
+Radial velocity is zero; tangential velocity increases linearly to target.
+Mass decreases cubically from 20 to 2 t and from 1 t to 200 kg in the respective phases.
+Radial and tangential thrust decrease cubically from 0.9 and 0.1 times each stage's maximum to zero.
+
+## Results
+
+<SolverNote id="rocket_ascent_polar_tsto" />
+
+<ExampleFigure id="rocket_ascent_polar_tsto" kind="scene" caption="Altitude versus downrange distance, exaggerated vertically. Blue and orange show the two stages; dots are nodes and orange arrows indicate thrust at selected powered nodes." />
+
+<ExampleFigure id="rocket_ascent_polar_tsto" kind="history" caption="Altitude, velocities, mass, thrust magnitude, thrust elevation, and non-gravitational acceleration. Dashed vertical lines mark separation; red lines mark thrust and acceleration limits." />
+
+<ExampleFigure id="rocket_ascent_polar_tsto" kind="animation" caption="Ascent with velocity, thrust magnitude, and elevation histories. Coasting is played faster." />
+
+- Separation occurs at <Value id="rocket_ascent_polar_tsto" k="knots.0" d={1} /> s, with mass <Value id="rocket_ascent_polar_tsto" k="phases.0.final.m" d={0} /> kg at the phase-1 lower bound.
+- Tangential speed at separation is <Value id="rocket_ascent_polar_tsto" k="phases.0.final.Vt" d={0} /> m/s, so stage 1 supplies much of the orbital speed.
+- Stage 2 burns until about <Value id="rocket_ascent_polar_tsto" k="burn_spans.2.1" d={0} /> s, coasts, then burns again from about <Value id="rocket_ascent_polar_tsto" k="burn_spans.3.0" d={0} /> to <Value id="rocket_ascent_polar_tsto" k="final_time" d={0} /> s.
+- Delivered mass is <Value id="rocket_ascent_polar_tsto" k="final_mass_kg" d={1} /> kg; subtracting 200 kg of dry structure leaves capacity for payload and remaining propellant.
+- Final altitude and speed are <Value id="rocket_ascent_polar_tsto" k="final_altitude_km" d={1} /> km and <Value id="rocket_ascent_polar_tsto" k="final_speed" d={1} /> m/s.
+- Maximum node acceleration reaches <Value id="rocket_ascent_polar_tsto" k="max_accel_G" d={2} /> G.
+
+## Explanation
+
+### Throttle near first-stage burnout
+
+Applying 294 kN to a 2 t vehicle would produce about 15 G, exceeding the 8 G limit.
+The first stage must throttle near separation. With few nodes, its interpolated thrust oscillates,
+and acceleration can exceed 8 G **between** nodes even though the node constraints hold.
+
+### A long coast and Hohmann-like transfer
+
+The second stage accelerates near 100–150 km altitude, then coasts around Earth to 500 km apogee.
+Insertion occurs <Value id="rocket_ascent_polar_tsto" k="downrange_km" d={0} /> km downrange.
+A final burn circularizes the orbit. This resembles a **Hohmann transfer**: accelerate low, coast outward, and circularize at apogee.
+The low-thrust upper stage produces longer burns, with a coast exceeding 30 minutes in this solution.
+
+### Why staging helps
+
+Discarding roughly 1 t of first-stage structure leaves a lighter vehicle for the second-stage engine,
+which is also more efficient in near-vacuum conditions.
+Unlike Example 12's very optimistic 1% dry mass, staging permits less extreme structural assumptions.
+
+## Try it
+
+- Raise stage-2 `Isp` from 350 to 450 and compare delivered mass and burn duration.
+- Relax `MaxG` from 8 to 15 and inspect throttling and oscillations near separation.
+- Increase `[20, 20]` to `[30, 30]` nodes and compare thrust oscillation.
+
+## Run
+
+<RunCommand id="rocket_ascent_polar_tsto" />
+
+[View the Python source on GitHub](https://github.com/istellartech/OpenGoddard/blob/master/examples/13_rocket_ascent_polar_tsto.py).

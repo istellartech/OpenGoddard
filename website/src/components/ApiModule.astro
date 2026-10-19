@@ -1,0 +1,31 @@
+---
+import type { ComponentProps } from 'astro/types';
+import { ModuleDoc } from 'starlight-pydocs/components';
+import { isEnglish } from '../lib/i18n';
+
+type Props = ComponentProps<typeof ModuleDoc>;
+
+// Pydocs pre-renders docstring Markdown without a file path or page locale.
+// Its code frames therefore carry the default Japanese labels. Localize only
+// those UI attributes when reusing the generated docstrings on English pages.
+function localize(value: unknown): unknown {
+  if (typeof value === 'string') {
+    return value
+      .replaceAll('title="クリップボードにコピー"', `title="${Astro.locals.t('expressiveCode.copyButtonTooltip')}"`)
+      .replaceAll('data-copied="コピーしました！"', `data-copied="${Astro.locals.t('expressiveCode.copyButtonCopied')}"`)
+      .replaceAll('>ターミナルウィンドウ<', `>${Astro.locals.t('expressiveCode.terminalWindowFallbackTitle')}<`);
+  }
+  if (Array.isArray(value)) return value.map(localize);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, localize(child)]));
+  }
+  return value;
+}
+
+const props = Astro.props;
+const scope = isEnglish(Astro.currentLocale)
+  ? { ...props.scope, rendered: localize(props.scope.rendered) as typeof props.scope.rendered }
+  : props.scope;
+---
+
+<ModuleDoc {...props} scope={scope} />

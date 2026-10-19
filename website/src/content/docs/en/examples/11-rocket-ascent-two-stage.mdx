@@ -1,0 +1,165 @@
+---
+title: 11. Two-stage rocket ascent
+description: Model a mass jump at stage separation and maximize altitude with stage-specific propellant budgets.
+sidebar:
+  order: 11
+---
+
+import ExampleFigure from '../../../../components/ExampleFigure.astro';
+import RunCommand from '../../../../components/RunCommand.astro';
+import SolverNote from '../../../../components/SolverNote.astro';
+import Value from '../../../../components/Value.astro';
+
+<p class="lead">
+  Empty tanks and engines become dead weight. Discarding them lets the remaining propellant accelerate a lighter vehicle.
+  How much higher can a two-stage rocket fly with the same 3000 kg of propellant as Example 10?
+</p>
+
+<div class="og-facts">
+
+| Item | Definition |
+| --- | --- |
+| States | Radius $R$, upward velocity $v$, mass $m$ |
+| Control | Thrust $T$ |
+| Objective | Maximize final altitude |
+| Phases | Two stages, 25 nodes each; free separation and final times |
+| New concepts | Discontinuous mass and explicit phase linkage |
+
+</div>
+
+## Situation
+
+Initial mass is 5000 kg. The atmosphere, gravity, engine efficiency, and thrust limit match [Example 10](../10-rocket-ascent-single-stage/).
+The difference is **stage separation**:
+
+- Stage 1 has total mass 3000 kg, including 1800 kg of propellant and 1200 kg of structure.
+- Stage 2 has total mass 2000 kg, including 1200 kg of propellant and 800 kg of structure.
+- After stage 1 consumes its own propellant, its 1200 kg structure is discarded.
+
+Each stage's dry-to-wet mass ratio is `Mc = 0.4`. Total propellant remains 3000 kg, but only 800 kg of dry structure reaches the endpoint.
+Each stage can consume only its own propellant. Separate phase polynomials represent the instantaneous mass drop.
+
+## Formulation
+
+### Dynamics
+
+Both phases use
+
+$$
+\dot R=v,\qquad\dot v=\frac{T-D}m-\frac{GM}{R^2},\qquad\dot m=-\frac{T}{g_0I_{sp}},
+$$
+
+$$
+D=\tfrac12\rho(R-R_e)v^2C_dA,\qquad\rho(h)=\rho_0e^{-h/H}.
+$$
+
+See [Example 10](../10-rocket-ascent-single-stage/#dynamics) for the model terms.
+
+### Phases and linkage
+
+At separation time $t_1$,
+
+$$
+\begin{aligned}
+R^{(1)}(t_1)&=R^{(2)}(t_1),\\
+v^{(1)}(t_1)&=v^{(2)}(t_1),\\
+m^{(2)}(t_1)&=2000\ \mathrm{kg},\\
+m^{(1)}(t_1)&=m^{(2)}(t_1)+1200\ \mathrm{kg}.
+\end{aligned}
+$$
+
+Thus stage 1 ends at 3200 kg and stage 2 begins at 2000 kg.
+The propellant budgets are exactly $5000-3200=1800$ kg and $2000-800=1200$ kg.
+Disable automatic state continuity and write these equations explicitly
+([linking phases](../../guide/usage/#linking-phases)).
+
+### Boundary conditions
+
+$$
+R(0)=R_e,\quad v(0)=0,\quad m(0)=5000\ \mathrm{kg},\qquad
+v(t_f)=0,\quad m(t_f)=800\ \mathrm{kg}.
+$$
+
+The endpoint is the highest point after both stages have consumed their propellant.
+
+### Constraints and objective
+
+$$
+0\le T\le98066.5\ \mathrm N,\quad R\ge R_e,\quad v\ge0,
+$$
+
+$$
+\begin{aligned}
+3200\le m\le5000\ \mathrm{kg}&\quad\text{(phase 1)},\\
+800\le m\le2000\ \mathrm{kg}&\quad\text{(phase 2)},
+\end{aligned}
+$$
+
+$$
+t_1\ge10\ \mathrm s,\qquad t_f\ge10\ \mathrm s,\qquad J=-R(t_f)/R_e.
+$$
+
+The same maximum thrust applies to both stages.
+
+### Parameters and scaling
+
+Use `Mc = 0.4`, $C_d=0.2$, $A=10$ m², $I_{sp}=300$ s, $\rho_0=1.225$ kg/m³, and $H=8500$ m.
+Earth constants and units match Example 10: radius $R_e$, speed $\sqrt{GM/R_e}$, and mass 5000 kg.
+
+### Initial guess
+
+Use phase times $0\to300\to600$ s. Radius rises cubically from the surface to 50 km altitude, with zero velocity.
+Mass decreases linearly from 5000 to 3200 kg in phase 1 and from 2000 to 800 kg in phase 2.
+Thrust decreases cubically from maximum to zero over the full time interval.
+
+## Results
+
+<SolverNote id="rocket_ascent_two_stage" />
+
+<ExampleFigure id="rocket_ascent_two_stage" kind="history" caption="Altitude, velocity, mass, and thrust. Blue and orange identify the stages, each with 25 nodes. The vertical dashed line marks separation; red marks maximum thrust." />
+
+<ExampleFigure id="rocket_ascent_two_stage" kind="animation" caption="Vertical ascent colored by stage, alongside velocity and thrust histories." />
+
+- Maximum altitude: <Value id="rocket_ascent_two_stage" k="final_altitude_km" d={1} /> km, about 2.8 times the single-stage value <Value id="rocket_ascent_single_stage" k="final_altitude_km" d={1} /> km.
+- Stage 1 burns out around 64 s, then coasts briefly before separation at <Value id="rocket_ascent_two_stage" k="knots.0" d={1} /> s.
+- Mass drops from <Value id="rocket_ascent_two_stage" k="phases.0.final.m" d={0} /> kg to <Value id="rocket_ascent_two_stage" k="phases.1.start.m" d={0} /> kg, exactly the discarded 1200 kg.
+- Stage 2 ignites at separation; total burnout occurs around <Value id="rocket_ascent_two_stage" k="burnout_time" d={0} /> s, and the highest point at <Value id="rocket_ascent_two_stage" k="final_time" d={0} /> s.
+
+## Explanation
+
+### Why discard structure?
+
+Ignoring gravity and drag, the rocket equation gives
+
+$$
+\Delta v=g_0I_{sp}\ln\frac{m_{\text{start}}}{m_{\text{end}}}.
+$$
+
+A single stage has mass ratio 5000/2000 = 2.5.
+Discarding structure before the second burn lets the same propellant accelerate a much lighter vehicle.
+Peak speed rises from roughly 780 m/s to 1420 m/s, greatly increasing altitude.
+
+### First-stage burn and separation
+
+Stage 1 uses maximum thrust for about 22 s, then throttles to limit drag, consuming its 1800 kg around 64 s.
+It coasts for a few seconds before separation. With no thrust during that interval, carrying the empty structure has little effect on the modeled motion;
+the separation time effectively chooses when stage 2 ignites.
+
+Fixing the stage-specific propellant budgets matters. Otherwise the optimizer favors early separation and unrealistically assigns more propellant to stage 2 than its tank can hold.
+
+### Second-stage thrust
+
+The second stage again shows maximum, intermediate, and zero thrust.
+Its maximum-thrust interval is short because it starts with speed and a lighter vehicle.
+Oscillation near burnout remains a limitation of representing each stage's entire control with one polynomial.
+
+## Try it
+
+- Remove `result.equal(m2[0], obj.M0_2nd)` and widen the mass bounds to `set_states_bounds(2, 0, obj.Mdry_1st + obj.Mdry_2nd, obj.M0)` and `set_states_bounds(2, 1, obj.Mdry_2nd, obj.M0 - obj.Mdry_1st)`. Separation moves to the 10 s lower bound and altitude may reach about 261 km, but stage 2 starts near 3530 kg, exceeding its 2000 kg capacity.
+- Lower `Mc` from 0.4 to 0.3. Lighter structure can increase altitude to roughly 476 km.
+
+## Run
+
+<RunCommand id="rocket_ascent_two_stage" />
+
+[View the Python source on GitHub](https://github.com/istellartech/OpenGoddard/blob/master/examples/11_rocket_ascent_two_stage.py).

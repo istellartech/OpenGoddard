@@ -2,18 +2,20 @@
 // Warn when the generated solution did not converge.
 import { Aside } from '@astrojs/starlight/components';
 import { summary } from '../lib/catalog';
+import { isEnglish } from '../lib/i18n';
 
 interface Props {
   id: string;
 }
 
 const data = summary(Astro.props.id);
+const english = isEnglish(Astro.currentLocale);
 ---
 
 {
   data && !data.success && (
-    <Aside type="caution" title="ソルバーが収束を報告していません">
-      <code>{data.message}</code>。図は計算が止まった時点の値です。
+    <Aside type="caution" title={english ? 'The solver did not report convergence' : 'ソルバーが収束を報告していません'}>
+      <code>{data.message}</code>{english ? '. Figures show the values when the solver stopped.' : '。図は計算が止まった時点の値です。'}
     </Aside>
   )
 }

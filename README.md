@@ -5,7 +5,7 @@ control. It uses the Legendre–Gauss–Lobatto pseudospectral method to turn eq
 of motion, constraints, and an objective into a numerical optimization problem
 solved with SciPy.
 
-[日本語](docs/README.ja.md) · [Documentation (Japanese)](https://istellartech.github.io/OpenGoddard/)
+[日本語README](docs/README.ja.md) · [Documentation (English)](https://istellartech.github.io/OpenGoddard/en/) · [解説サイト（日本語）](https://istellartech.github.io/OpenGoddard/)
 
 ## What you can solve
 
@@ -75,13 +75,16 @@ settings in detail.
 
 ## Learn and use
 
-- [Introduction](https://istellartech.github.io/OpenGoddard/) (Japanese):
+The documentation is available in English and Japanese. Use the language selector
+to switch between translations of the current page (inside the menu on mobile).
+
+- [Introduction](https://istellartech.github.io/OpenGoddard/en/):
   what optimal control is, direct vs. indirect methods, and the LGL pseudospectral method.
-- [Writing a problem](https://istellartech.github.io/OpenGoddard/guide/usage/):
+- [Writing a problem](https://istellartech.github.io/OpenGoddard/en/guide/usage/):
   from equations to code, step by step.
-- [Examples](https://istellartech.github.io/OpenGoddard/examples/):
+- [Examples](https://istellartech.github.io/OpenGoddard/en/examples/):
   15 problems with equations, figures, and videos, from a 1-D move to orbit insertion.
-- [API reference](https://istellartech.github.io/OpenGoddard/api/OpenGoddard/):
+- [API reference](https://istellartech.github.io/OpenGoddard/en/api/OpenGoddard/):
   classes, solver options, derivatives, and mesh refinement.
 
 ## License

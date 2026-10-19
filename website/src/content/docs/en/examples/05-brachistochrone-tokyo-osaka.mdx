@@ -1,0 +1,147 @@
+---
+title: 05. Fastest descent from Tokyo to Osaka
+description: Design a 600 km gravity-powered tunnel and use scaling to solve a problem in physical units.
+sidebar:
+  order: 5
+---
+
+import ExampleFigure from '../../../../components/ExampleFigure.astro';
+import RunCommand from '../../../../components/RunCommand.astro';
+import SolverNote from '../../../../components/SolverNote.astro';
+import Value from '../../../../components/Value.astro';
+
+<p class="lead">
+  Dig a tunnel from Tokyo to Osaka and let a frictionless vehicle travel under gravity alone.
+  It accelerates downhill and slows uphill, arriving at rest. What tunnel shape gives the shortest journey?
+</p>
+
+<div class="og-facts">
+
+| Item | Definition |
+| --- | --- |
+| States | Horizontal distance $x$, depth $y$, speed $v$ |
+| Control | Tunnel angle $\theta$ from downward vertical |
+| Objective | Minimize $t_f$ |
+| Phases | One phase, 30 nodes, free final time |
+| New concepts | Physical units and variable scaling with `set_unit_*` |
+
+</div>
+
+## Situation
+
+This thought experiment extends [Example 03](../03-brachistochrone/) to a horizontal distance of 600 km.
+The endpoints are at the **same height**, so conservation of energy gives zero arrival speed.
+We simplify the Earth to a flat surface with constant gravity 9.8 m/s², neglecting curvature, changing gravity at depth, friction, and drag.
+
+Distances are hundreds of thousands of meters, time hundreds of seconds, and angles around one radian.
+These different magnitudes make **scaling** essential.
+
+## Formulation
+
+### Dynamics
+
+Depth is positive downward; $\theta=90^\circ$ is horizontal, and larger angles climb:
+
+$$
+\dot{x}=v\sin\theta,\qquad\dot{y}=v\cos\theta,\qquad\dot{v}=g\cos\theta.
+$$
+
+Gravity's component along the tunnel changes speed. Energy gives $v=\sqrt{2gy}$.
+
+### Boundary conditions
+
+$$
+x(0)=y(0)=v(0)=0,\qquad x(t_f)=l,\quad y(t_f)=0.
+$$
+
+The vehicle starts at rest at the surface in Tokyo and reaches the surface in Osaka, $l=600$ km away.
+
+### Constraints and objective
+
+$$
+0\le x\le l,\qquad y\ge0,\qquad0\le\theta\le\pi,\qquad J=t_f.
+$$
+
+The trajectory stays between the cities, below ground, and does not reverse horizontally.
+These bounds restrict the search to the intended region.
+
+### Parameters
+
+| Symbol | Parameter | Value |
+| --- | --- | --- |
+| $g$ | `PARAMETERS["g"]` | 9.8 m/s² |
+| $l$ | `PARAMETERS["l"]` | 600 000 m |
+| $h$ | `PARAMETERS["h"]`, guessed maximum depth | 300 000 m |
+
+### Scaling
+
+| Variable | Unit | Approximate internal range |
+| --- | --- | --- |
+| $x$ | 300 000 m | 0–2 |
+| $y$ | 100 000 m | 0–1.9 |
+| $v$ | 3000 m/s | 0–0.65 |
+| $\theta$ | 1 rad | 0–3.1 |
+| $t$ | 100 s | 0–6.2 |
+
+The optimizer uses values divided by these units. Equations, conditions, and results remain in physical units.
+Scaling changes numerical behavior **without changing the mathematical answer** ([scaling](../../guide/usage/#scaling)).
+The velocity unit equals distance unit divided by time unit to balance the dynamics.
+
+### Initial guess
+
+Use time 0 to 600 s. Horizontal position increases linearly from 0 to 600 km.
+Depth is V-shaped: the first 15 nodes descend to 300 km and the last 15 rise back to zero.
+Angle increases linearly from 0 to $\pi$; speed starts at zero at all nodes.
+
+## Results
+
+<SolverNote id="brachistochrone_tokyo_osaka" />
+
+<ExampleFigure id="brachistochrone_tokyo_osaka" kind="scene" caption="Tunnel shape. The green line is the surface; endpoint markers identify Tokyo and Osaka. The blue curve through 30 nodes nearly overlaps the analytic cycloid (black dashed)." />
+
+<ExampleFigure id="brachistochrone_tokyo_osaka" kind="history" caption="Depth in km, speed in km/s, and direction in degrees. Black dashed curves show the analytic solution." />
+
+<ExampleFigure id="brachistochrone_tokyo_osaka" kind="animation" caption="Travel through the tunnel, with depth and speed histories and a cursor at the current time." />
+
+- Duration: <Value id="brachistochrone_tokyo_osaka" k="final_time" d={1} /> s, about 10 minutes 20 seconds; analytic value: <Value id="brachistochrone_tokyo_osaka" k="exact_final_time" d={1} /> s.
+- Maximum depth at the midpoint: <Value id="brachistochrone_tokyo_osaka" k="max_depth_km" d={1} /> km, versus <Value id="brachistochrone_tokyo_osaka" k="exact_max_depth_km" d={1} /> km analytically.
+- Peak speed: <Value id="brachistochrone_tokyo_osaka" k="max_speed" d={2} scale={1e-3} /> km/s, versus <Value id="brachistochrone_tokyo_osaka" k="exact_max_speed" d={2} scale={1e-3} /> km/s analytically.
+- Angle changes almost linearly from straight down (0°) to straight up (180°).
+
+## Explanation
+
+### A complete cycloid arch
+
+The cycloid is
+
+$$
+x=a(\phi-\sin\phi),\qquad y=a(1-\cos\phi).
+$$
+
+Unlike Example 03, the endpoint returns to the original height. The trajectory spans $\phi=0$ to $2\pi$,
+so $a=l/(2\pi)\approx95.5$ km. Therefore
+
+$$
+y_{\max}=\frac{l}{\pi}\approx191\ \text{km},\qquad
+ t_f=\sqrt{\frac{2\pi l}{g}},\qquad v_{\max}=\sqrt{2gy_{\max}}.
+$$
+
+Duration is proportional to $\sqrt l$: quadrupling distance only doubles time because the longer tunnel is deeper and allows higher speeds.
+
+### Accuracy and scaling
+
+With 30 nodes, duration differs from the analytic result by about 0.04 s (less than 0.01%), and maximum depth by about 1 km.
+Without scaling, the optimizer must handle distances up to 600 000 alongside angles near 3, making its search poorly balanced.
+With representative units, all variables have comparable magnitudes.
+
+## Try it
+
+- Set `l` to 400000 (roughly Tokyo to Nagoya). Expect duration about 506 s and maximum depth about 127 km.
+- Set `unit_x`, `unit_y`, and `unit_t` to 1 in `make_problem`. The mathematical answer is unchanged, but the solver may fail with `Inequality constraints incompatible`.
+- Change guessed maximum depth `h` to 150000 or 500000. Compare convergence to durations near 620.2 s, differing by only about 0.03 s.
+
+## Run
+
+<RunCommand id="brachistochrone_tokyo_osaka" />
+
+[View the Python source on GitHub](https://github.com/istellartech/OpenGoddard/blob/master/examples/05_brachistochrone_tokyo_osaka.py).

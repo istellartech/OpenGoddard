@@ -8,6 +8,7 @@ problem has a closed-form solution.
 
 import numpy as np
 from figures import Panel, Quantity, Scene, Solution, Spec
+from i18n import text
 from scipy.integrate import cumulative_trapezoid
 from scipy.optimize import brentq
 from style import MUTED, REFERENCE
@@ -16,7 +17,7 @@ Q = Quantity
 
 
 def _dashed(ax, x, y, label=None):
-    ax.plot(x, y, color=REFERENCE, lw=1.3, ls=(0, (3, 2)), zorder=5, label=label)
+    ax.plot(x, y, color=REFERENCE, lw=1.3, ls=(0, (3, 2)), zorder=5, label=text(label))
 
 
 def _deg(name):
@@ -161,7 +162,7 @@ def _brach_decorate(ax, sol):
         radius * (1 - np.cos(phi)),
         "サイクロイド（解析解）",
     )
-    ax.plot([0, 1], [0, 2 / np.pi], color=MUTED, lw=1, ls=":", label="直線の斜面")
+    ax.plot([0, 1], [0, 2 / np.pi], color=MUTED, lw=1, ls=":", label=text("直線の斜面"))
     ax.legend(loc="upper right")
 
 
@@ -227,7 +228,13 @@ def _descent_decorate(ax, sol):
     ax.axhspan(0.3, 1.0, color="#e7e5e4", zorder=0)
     ax.axhline(0.3, color="#a8a29e", lw=1.5)
     ax.text(
-        0.5, 0.39, "床（深さ 0.3 m）", ha="center", va="center", fontsize=9, color=MUTED
+        0.5,
+        0.39,
+        text("床（深さ 0.3 m）"),
+        ha="center",
+        va="center",
+        fontsize=9,
+        color=MUTED,
     )
     ax.plot([1.0], [0.2], "x", color=REFERENCE, ms=8, mew=2)
     ax.legend(loc="upper right")
@@ -295,7 +302,7 @@ def _osaka_decorate(ax, sol):
     for x, name in ((0, "東京"), (600, "大阪")):
         ax.plot([x], [0], "v", color="#4d7c0f", ms=8, zorder=5)
         ax.annotate(
-            name,
+            text(name),
             (x, 0),
             xytext=(0, 8),
             textcoords="offset points",
@@ -596,7 +603,7 @@ def _ascent_decorate(ax, sol):
     ax.text(
         0.99,
         0.02,
-        "高度方向を拡大して表示",
+        text("高度方向を拡大して表示"),
         transform=ax.transAxes,
         ha="right",
         fontsize=8,
@@ -724,10 +731,10 @@ def _orbit_post(sol: Solution):
 
 def _orbit_decorate(ax, sol):
     a = np.linspace(0, 2 * np.pi, 300)
-    for r, text in ((1, "初期軌道 r = 1"), (4, "目標軌道 r = 4")):
+    for r, label in ((1, "初期軌道 r = 1"), (4, "目標軌道 r = 4")):
         ax.plot(r * np.cos(a), r * np.sin(a), color=MUTED, lw=1, ls=(0, (3, 3)))
         ax.annotate(
-            text,
+            text(label),
             (r * np.cos(-0.6), r * np.sin(-0.6)),
             fontsize=8,
             color=MUTED,

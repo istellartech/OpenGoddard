@@ -4,6 +4,7 @@ import { Code } from '@astrojs/starlight/components';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { findExample, githubTree, repoRoot } from '../lib/catalog';
+import { isEnglish } from '../lib/i18n';
 
 interface Props {
   id: string;
@@ -15,12 +16,14 @@ const { id, open = false } = Astro.props;
 const example = findExample(id);
 const path = `examples/${example.stem}.py`;
 const code = readFileSync(resolve(repoRoot, path), 'utf-8');
+const english = isEnglish(Astro.currentLocale);
+const lines = code.split('\n').length;
 ---
 
 <details class="example-source" open={open}>
-  <summary><code>{path}</code> の全文（{code.split('\n').length}行）</summary>
+  <summary><code>{path}</code> {english ? `— full source (${lines} lines)` : `の全文（${lines}行）`}</summary>
   <Code code={code} lang="py" title={path} />
 </details>
 <p>
-  <a href={`${githubTree}/${path}`}>GitHubで見る</a>
+  <a href={`${githubTree}/${path}`}>{english ? 'View on GitHub' : 'GitHubで見る'}</a>
 </p>

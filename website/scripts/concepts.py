@@ -10,9 +10,11 @@ import contextlib
 import hashlib
 import os
 import sys
+from functools import cache
 from pathlib import Path
 
 import numpy as np
+from i18n import LANGUAGES, language, text
 from matplotlib import pyplot as plt
 from matplotlib.animation import FFMpegWriter
 from scipy.integrate import quad
@@ -50,15 +52,15 @@ def candidate_curves():
 
     fig, ax = plt.subplots(figsize=(7.2, 3.6), layout="constrained")
     curves = [
-        ("直線", lambda x: yf * x, lambda x: yf + 0 * x, MUTED),
+        (text("直線"), lambda x: yf * x, lambda x: yf + 0 * x, MUTED),
         (
-            "ゆるい曲線",
+            text("ゆるい曲線"),
             lambda x: yf * (1 - (1 - x) ** 1.5),
             lambda x: 1.5 * yf * (1 - x) ** 0.5,
             VIOLET,
         ),
         (
-            "深すぎる曲線",
+            text("深すぎる曲線"),
             lambda x: yf * (1 - (1 - x) ** 6) + 0.35 * np.sin(np.pi * x),
             lambda x: 6 * yf * (1 - x) ** 5 + 0.35 * np.pi * np.cos(np.pi * x),
             GREEN,
@@ -67,7 +69,7 @@ def candidate_curves():
     xs = np.linspace(0, 1, 300)
     for name, shape, dshape, color in curves:
         t = travel_time(shape, dshape)
-        ax.plot(xs, shape(xs), color=color, lw=2, label=f"{name}：{t:.3f} s")
+        ax.plot(xs, shape(xs), color=color, lw=2, label=text(f"{name}：{t:.3f} s"))
     radius = 1 / np.pi
     phi = np.linspace(0, np.pi, 300)
     ax.plot(
@@ -75,12 +77,12 @@ def candidate_curves():
         radius * (1 - np.cos(phi)),
         color=BLUE,
         lw=3,
-        label=f"最適な曲線（サイクロイド）：{np.sqrt(np.pi):.3f} s",
+        label=text(f"最適な曲線（サイクロイド）：{np.sqrt(np.pi):.3f} s"),
     )
     ax.plot([0], [0], "o", color=INK, ms=7)
     ax.plot([xf], [yf], "s", color=INK, ms=7)
     ax.annotate(
-        "A（静止から出発）",
+        text("A（静止から出発）"),
         (0, 0),
         xytext=(8, -2),
         textcoords="offset points",
@@ -89,11 +91,11 @@ def candidate_curves():
     ax.annotate("B", (xf, yf), xytext=(-14, 6), textcoords="offset points", fontsize=9)
     ax.invert_yaxis()
     ax.set_aspect("equal")
-    ax.set(xlabel="水平位置 $x$ [m]", ylabel="深さ $y$ [m]")
+    ax.set(xlabel=text("水平位置 $x$ [m]"), ylabel=text("深さ $y$ [m]"))
     ax.legend(
         loc="center left",
         bbox_to_anchor=(1.01, 0.5),
-        title="A から B までの所要時間",
+        title=text("A から B までの所要時間"),
         title_fontsize=9,
     )
     _save(fig, "candidate_curves")
@@ -132,7 +134,9 @@ def shooting_vs_collocation():
             color=INK if color == BLUE else MUTED,
         )
     ax.plot([target], [0], "*", color=LIMIT, ms=13, zorder=5)
-    ax.set_title("シューティング：初期値を推定して積分し、外れたら直す", fontsize=9.5)
+    ax.set_title(
+        text("シューティング：初期値を推定して積分し、外れたら直す"), fontsize=9.5
+    )
     ax.set(xlabel="$x$", ylabel="$y$")
     ax.set_xlim(-0.5, 12.5)
     ax.set_ylim(-0.4, 4.4)
@@ -156,11 +160,15 @@ def shooting_vs_collocation():
         mfc="white",
         mec=MUTED,
         mew=1.2,
-        label="初期推定のノード",
+        label=text("初期推定のノード"),
     )
-    ax.plot(xn, yn, "o", ms=5, mfc="white", mec=BLUE, mew=1.4, label="収束したノード")
+    ax.plot(
+        xn, yn, "o", ms=5, mfc="white", mec=BLUE, mew=1.4, label=text("収束したノード")
+    )
     ax.plot([target], [0], "*", color=LIMIT, ms=13, zorder=5)
-    ax.set_title("コロケーション：全ノードの値を同時に動かして整合させる", fontsize=9.5)
+    ax.set_title(
+        text("コロケーション：全ノードの値を同時に動かして整合させる"), fontsize=9.5
+    )
     ax.set(xlabel="$x$")
     ax.legend(loc="upper right", fontsize=8)
     _save(fig, "shooting_vs_collocation")
@@ -185,9 +193,9 @@ def lgl_nodes():
     ax.spines["left"].set_visible(False)
     ax.grid(False)
     ax.set_xlim(-1.35, 1.05)
-    ax.set_xlabel("正規化時間 $\\tau$")
-    ax.plot([], [], "o", color=BLUE, label="LGLノード")
-    ax.plot([], [], "|", color=MUTED, ms=8, label="等間隔の点（比較）")
+    ax.set_xlabel(text("正規化時間 $\\tau$"))
+    ax.plot([], [], "o", color=BLUE, label=text("LGLノード"))
+    ax.plot([], [], "|", color=MUTED, ms=8, label=text("等間隔の点（比較）"))
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, 1.28), ncols=2)
     _save(fig, "lgl_nodes")
 
@@ -212,38 +220,44 @@ def interpolation():
             ax.clear()
         tau = _lgl(n)[0]
         uni = np.linspace(-1, 1, n)
-        left.plot(fine, runge(fine), color=INK, lw=2.4, label="元の関数")
+        left.plot(fine, runge(fine), color=INK, lw=2.4, label=text("元の関数"))
         left.plot(
             fine,
             BarycentricInterpolator(uni, runge(uni))(fine),
             color=ORANGE,
             lw=1.5,
-            label="等間隔の点で補間",
+            label=text("等間隔の点で補間"),
         )
         left.plot(
             fine,
             BarycentricInterpolator(tau, runge(tau))(fine),
             color=BLUE,
             lw=1.8,
-            label="LGLノードで補間",
+            label=text("LGLノードで補間"),
         )
         left.plot(uni, runge(uni), "x", color=ORANGE, ms=6, mew=1.5)
         left.plot(tau, runge(tau), "o", color=BLUE, ms=4.5)
         left.set_ylim(-0.6, 1.6)
         left.set_xlabel("$\\tau$")
-        left.set_title(f"N = {n} 点の多項式で $1/(1+25\\tau^2)$ を補間", fontsize=10)
+        left.set_title(
+            text(f"N = {n} 点の多項式で $1/(1+25\\tau^2)$ を補間"), fontsize=10
+        )
         left.legend(loc="upper right", fontsize=8)
         k = counts.index(shown) + 1
         right.semilogy(
-            counts[:k], errors["lgl"][:k], "o-", color=BLUE, label="LGLノード"
+            counts[:k], errors["lgl"][:k], "o-", color=BLUE, label=text("LGLノード")
         )
         right.semilogy(
-            counts[:k], errors["uniform"][:k], "x-", color=ORANGE, label="等間隔の点"
+            counts[:k],
+            errors["uniform"][:k],
+            "x-",
+            color=ORANGE,
+            label=text("等間隔の点"),
         )
         right.set_xlim(2, 32)
         right.set_ylim(1e-4, 1e4)
-        right.set_xlabel("点の数 N")
-        right.set_title("補間の最大誤差（対数目盛り）", fontsize=10)
+        right.set_xlabel(text("点の数 N"))
+        right.set_title(text("補間の最大誤差（対数目盛り）"), fontsize=10)
         right.legend(loc="upper left", fontsize=8)
 
     fig, axes = plt.subplots(
@@ -298,7 +312,7 @@ def differentiation():
         BarycentricInterpolator(tau, values)(fine),
         color=BLUE,
         lw=2,
-        label="ノード値を通る多項式 $x(\\tau)$",
+        label=text("ノード値を通る多項式 $x(\\tau)$"),
     )
     ax.plot(
         tau,
@@ -308,7 +322,7 @@ def differentiation():
         mfc="white",
         mec=BLUE,
         mew=1.6,
-        label="ノード値 $X_k$（最適化変数）",
+        label=text("ノード値 $X_k$（最適化変数）"),
     )
     for t, v, s in zip(tau, values, slopes):
         h = 0.13
@@ -319,8 +333,8 @@ def differentiation():
             lw=2.4,
             solid_capstyle="round",
         )
-    ax.plot([], [], color=ORANGE, lw=2.4, label="傾き $\\sum_k D_{ik} X_k$")
-    ax.set_xlabel("正規化時間 $\\tau$")
+    ax.plot([], [], color=ORANGE, lw=2.4, label=text("傾き $\\sum_k D_{ik} X_k$"))
+    ax.set_xlabel(text("正規化時間 $\\tau$"))
     ax.legend(loc="lower right", fontsize=8.5)
     _save(fig, "differentiation")
 
@@ -338,8 +352,8 @@ def collocation():
         1, 2, figsize=(7.6, 3.0), layout="constrained", sharey=True
     )
     for ax, values, title in (
-        (axes[0], guess, "初期推定：傾きが運動方程式と合わない"),
-        (axes[1], solution, "解：すべてのノードで傾きが一致"),
+        (axes[0], guess, text("初期推定：傾きが運動方程式と合わない")),
+        (axes[1], solution, text("解：すべてのノードで傾きが一致")),
     ):
         ax.plot(tfine, BarycentricInterpolator(tau, values)(fine), color=BLUE, lw=2)
         ax.plot(t, values, "o", ms=6, mfc="white", mec=BLUE, mew=1.5)
@@ -352,11 +366,11 @@ def collocation():
             )
             ax.plot([ti - h, ti + h], [v - s2 * h, v + s2 * h], color=ORANGE, lw=1.6)
         ax.set_title(title, fontsize=9.5)
-        ax.set_xlabel("時刻 $t$")
-    axes[0].plot([], [], color=BLUE, lw=3, alpha=0.35, label="多項式の傾き $DX$")
-    axes[0].plot([], [], color=ORANGE, lw=1.6, label="運動方程式 $f(X)=-X$")
+        ax.set_xlabel(text("時刻 $t$"))
+    axes[0].plot([], [], color=BLUE, lw=3, alpha=0.35, label=text("多項式の傾き $DX$"))
+    axes[0].plot([], [], color=ORANGE, lw=1.6, label=text("運動方程式 $f(X)=-X$"))
     axes[0].legend(loc="lower left", fontsize=8)
-    axes[0].set_ylabel("状態 $x$")
+    axes[0].set_ylabel(text("状態 $x$"))
     _save(fig, "collocation")
 
 
@@ -371,7 +385,8 @@ def _load(identifier):
     return load_example(identifier)
 
 
-def convergence():
+@cache
+def _convergence_values():
     from OpenGoddard import Guess, Problem
 
     module = _load("brachistochrone")
@@ -395,29 +410,40 @@ def convergence():
         if result.success:
             counts.append(n)
             errors.append(max(abs(problem.time_final(-1) - np.sqrt(np.pi)), 1e-16))
+    return counts, errors
+
+
+def convergence():
+    counts, errors = _convergence_values()
     fig, ax = plt.subplots(figsize=(7.2, 2.8), layout="constrained")
     ax.semilogy(counts, errors, "o-", color=BLUE)
-    ax.set_xlabel("ノード数 N")
-    ax.set_ylabel("所要時間の誤差")
-    ax.set_title("例題03（最速降下）：解析解 $\\sqrt{\\pi}$ との差", fontsize=10)
+    ax.set_xlabel(text("ノード数 N"))
+    ax.set_ylabel(text("所要時間の誤差"))
+    ax.set_title(text("例題03（最速降下）：解析解 $\\sqrt{\\pi}$ との差"), fontsize=10)
     _save(fig, "convergence")
     return dict(zip(counts, errors))
 
 
-def knots():
+@cache
+def _knot_solutions():
     results = {}
     for identifier in ("goddard_0knot", "goddard_1knot"):
         module = _load(identifier)
         with contextlib.redirect_stdout(open(os.devnull, "w")):
             results[identifier] = module.solve()
+    return results
+
+
+def knots():
+    results = _knot_solutions()
     fig, axes = plt.subplots(
         1, 2, figsize=(7.6, 2.9), layout="constrained", sharey=True
     )
     for ax, (identifier, title) in zip(
         axes,
         (
-            ("goddard_0knot", "例題07：1区間（多項式1本）"),
-            ("goddard_1knot", "例題08：2区間に分割"),
+            ("goddard_0knot", text("例題07：1区間（多項式1本）")),
+            ("goddard_1knot", text("例題08：2区間に分割")),
         ),
     ):
         problem = results[identifier]
@@ -438,14 +464,14 @@ def knots():
             ax.axvline(problem.time_final(0), color=MUTED, ls=(0, (4, 3)), lw=1)
         ax.axhline(3.5, color=LIMIT, ls=(0, (2, 2)), lw=1)
         ax.set_title(title, fontsize=10)
-        ax.set_xlabel("時刻 $t$（無次元）")
-    axes[0].set_ylabel("推力 $T$")
+        ax.set_xlabel(text("時刻 $t$（無次元）"))
+    axes[0].set_ylabel(text("推力 $T$"))
     axes[0].set_ylim(-0.6, 4.2)
     _save(fig, "knots")
 
 
 def build_concepts(name="concepts", force=False) -> str:
-    OUT.mkdir(parents=True, exist_ok=True)
+    global OUT
     digest = hashlib.sha256()
     for path in sorted(SCRIPTS.glob("*.py")) + sorted(
         (ROOT / "src" / "OpenGoddard").glob("*.py")
@@ -453,19 +479,30 @@ def build_concepts(name="concepts", force=False) -> str:
         digest.update(path.read_bytes())
     for identifier in ("03_brachistochrone", "07_goddard_0knot", "08_goddard_1knot"):
         digest.update((ROOT / "examples" / f"{identifier}.py").read_bytes())
-    stamp = OUT / "hash.txt"
-    if not force and stamp.exists() and stamp.read_text() == digest.hexdigest():
-        return "concepts: up to date"
-    candidate_curves()
-    shooting_vs_collocation()
-    lgl_nodes()
-    interpolation()
-    differentiation()
-    collocation()
-    convergence()
-    knots()
-    stamp.write_text(digest.hexdigest())
-    return "concepts: built"
+    outputs = [
+        ROOT / "website/public/media/concepts",
+        ROOT / "website/public/media/en/concepts",
+    ]
+    if not force and all(
+        (out / "hash.txt").exists()
+        and (out / "hash.txt").read_text() == digest.hexdigest()
+        for out in outputs
+    ):
+        return "concepts: up to date (ja, en)"
+    for locale, out in zip(LANGUAGES, outputs):
+        OUT = out
+        OUT.mkdir(parents=True, exist_ok=True)
+        with language(locale):
+            candidate_curves()
+            shooting_vs_collocation()
+            lgl_nodes()
+            interpolation()
+            differentiation()
+            collocation()
+            convergence()
+            knots()
+        (OUT / "hash.txt").write_text(digest.hexdigest())
+    return "concepts: built (ja, en)"
 
 
 if __name__ == "__main__":

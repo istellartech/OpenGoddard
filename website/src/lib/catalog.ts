@@ -1,6 +1,7 @@
 // Read the learning order from examples/catalog.py so it is defined only once.
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { localePrefix } from './i18n';
 
 export interface ExampleEntry {
   id: string;
@@ -49,8 +50,8 @@ export function mediaUrl(...parts: string[]): string {
   return `${import.meta.env.BASE_URL.replace(/\/$/, '')}/media/${parts.join('/')}`;
 }
 
-export function exampleHref(id: string): string {
+export function exampleHref(id: string, locale?: string): string {
   const example = findExample(id);
   const base = import.meta.env.BASE_URL.replace(/\/$/, '');
-  return `${base}/examples/${example.number}-${example.id.replaceAll('_', '-')}/`;
+  return `${base}/${localePrefix(locale)}examples/${example.number}-${example.id.replaceAll('_', '-')}/`;
 }

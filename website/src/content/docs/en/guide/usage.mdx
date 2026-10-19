@@ -1,0 +1,255 @@
+---
+title: Writing a problem
+description: Translate equations into OpenGoddard functions, from phases and constraints to initial guesses, solving, and output.
+---
+
+import ExampleSource from '../../../../components/ExampleSource.astro';
+
+<p class="lead">
+  Write each part of the mathematical problem as a Python function, register it with <code>Problem</code>, and solve.
+  We use <a href="../../examples/02-move-stop/">Example 02</a>: move 10 m and stop in minimum time.
+</p>
+
+The problem is ([notation](../../theory/optimal-control/)):
+
+$$
+\begin{aligned}
+&\text{Minimize}&&J=t_f\\
+&\text{Dynamics}&&\dot{x}=v,\quad\dot{v}=a\\
+&\text{Boundary conditions}&&x(0)=0,\ v(0)=0,\ x(t_f)=10,\ v(t_f)=0\\
+&\text{Constraints}&&-2\le a\le2.
+\end{aligned}
+$$
+
+The optimum switches once from acceleration to braking, so Example 02 uses two phases.
+One phase also works, but a single polynomial oscillates around the switch.
+
+## Overview
+
+| Mathematical element | OpenGoddard representation |
+| --- | --- |
+| Phases, nodes, and numbers of states and controls | `Problem(...)` arguments |
+| Dynamics $\dot{\boldsymbol{x}}=\boldsymbol{f}$ | `dynamics(problem, obj, section)`, registered per phase |
+| Boundary conditions $\boldsymbol{\psi}=\boldsymbol{0}$ | `equality(problem, obj)` |
+| Path constraints $\boldsymbol{g}\ge\boldsymbol{0}$ | `inequality(problem, obj)` or bounds |
+| Terminal cost $\Phi$ | `cost(problem, obj)` |
+| Running cost integrand $L$ | `running_cost(problem, obj)`; integration is automatic |
+| Initial guess | `set_states`, `set_controls`, and `Guess` |
+
+Every callback receives the value passed to `solve(obj)` as its second argument. Use it for physical parameters such as distance and gravity.
+
+## 1. Set the problem size
+
+```py
+from OpenGoddard import Dynamics, Guess, Problem
+
+problem = Problem(
+    [0, 2.24, 4.47],  # Initial guesses for phase boundary times: phases + 1
+    [12, 12],         # Nodes per phase
+    [2, 2],           # States per phase: x, v
+    [1, 1],           # Controls per phase: a
+)
+```
+
+The first argument contains **initial guesses**, not fixed final times. The optimizer moves the knot and final times.
+States and controls use **zero-based indices**: state 0 is $x$, state 1 is $v$, and control 0 is $a$.
+
+## 2. Write the dynamics
+
+```py
+def dynamics(problem, p, section):
+    v = problem.states(1, section)     # Velocity at every node in this phase
+    a = problem.controls(0, section)   # Acceleration at every node
+    dx = Dynamics(problem, section)
+    dx[0] = v   # dx/dt = v
+    dx[1] = a   # dv/dt = a
+    return dx()
+
+problem.dynamics = [dynamics, dynamics]  # One callback per phase
+```
+
+`problem.states(i, section)` returns a NumPy array for all nodes of state `i` in that phase.
+Compute the right-hand side with **array operations across all nodes**.
+Assign each component to `Dynamics` and return `dx()`. Write in physical units; `Dynamics` applies scaling.
+For phase-dependent models, branch on `section` or register different functions.
+
+## 3. Write boundary conditions
+
+```py
+def equality(problem, p):
+    x = problem.states_all_section(0)  # Position across all phases
+    v = problem.states_all_section(1)
+    c = problem.condition()
+    c.equal(x[0], 0)
+    c.equal(v[0], 0)
+    c.equal(x[-1], p["distance"])
+    c.equal(v[-1], 0)
+    return c()
+
+problem.equality = equality
+```
+
+LGL nodes include both endpoints, so `[0]` and `[-1]` refer to initial and final values.
+`c.equal(left, right)` registers `left - right = 0`.
+State continuity between phases is imposed automatically; see [linking phases](#linking-phases).
+
+## 4. Write path constraints
+
+Use explicit bounds for simple state and control limits:
+
+```py
+for section in range(2):
+    problem.set_controls_bounds(0, section, -2, 2)
+```
+
+Use `inequality` for more general constraints, such as $\sqrt{a_x^2+a_y^2}\le8\,\text{G}$.
+Conditions use the direction “value ≥ 0”:
+
+```py
+def inequality(problem, p):
+    a = problem.controls_all_section(0)
+    c = problem.condition()
+    c.lower_bound(a, -2)  # a >= -2
+    c.upper_bound(a, 2)   # a <= 2
+    return c()
+```
+
+Constraints hold at nodes. Interpolating polynomials may slightly exceed them between nodes.
+
+## 5. Write the objective
+
+```py
+def cost(problem, p):
+    return problem.time_final(-1)  # Final time of the last phase
+
+problem.cost = cost
+```
+
+For an integral cost, return the integrand at every node. The library applies quadrature weights and phase durations:
+
+```py
+def running_cost(problem, p):
+    a = problem.controls_all_section(0)
+    return a**2  # Adds the integral of a² to J
+
+problem.running_cost = running_cost
+```
+
+To maximize a quantity, return its negative: `return -h[-1]` for maximum final altitude.
+
+## 6. Supply an initial guess
+
+A physically plausible guess usually improves convergence. `Guess` constructs common shapes from a time array:
+
+```py
+time = problem.time_all_section
+problem.set_states_all_section(0, Guess.linear(time, 0, 10))
+problem.set_states_all_section(1, Guess.constant(time, 2.0))
+problem.set_controls(0, 0, Guess.constant(problem.time[0], 2))
+problem.set_controls(0, 1, Guess.constant(problem.time[1], -2))
+```
+
+| Function | Shape |
+| --- | --- |
+| `Guess.constant(time, c)` | Constant |
+| `Guess.linear(time, y0, yf)` | Line between endpoint values |
+| `Guess.cubic(time, y0, dy0, yf, dyf)` | Cubic matching endpoint values and slopes |
+
+Example 02 itself uses constant-speed motion as a rough initial guess; optimization corrects the endpoint velocities and acceleration.
+
+## 7. Solve
+
+```py
+result = problem.solve(PARAMETERS, maxiter=300, ftol=1e-9)
+print(result.success, result.message)
+print("tf =", problem.time_final(-1))
+```
+
+The first argument becomes `obj` in callbacks. Optimizer options are forwarded to SciPy:
+
+| Argument | Meaning |
+| --- | --- |
+| `maxiter` | Maximum iterations per solve |
+| `ftol` | SLSQP convergence tolerance |
+| `solver` | `"SLSQP"` (default) or `"trust-constr"` |
+
+After reaching the iteration limit, the library can restart from the current solution, up to `Problem(..., maxIterator=n)` retries.
+The solved values replace the initial values in `problem`; inspect `result.success` for convergence.
+
+## 8. Extract results
+
+```py
+t = problem.time_all_section
+x = problem.states_all_section(0)
+a = problem.controls_all_section(0)
+problem.to_csv("result.csv")  # Time, states, and controls
+```
+
+These are **node values**. For smooth plots, interpolate each phase with the polynomial through its nodes.
+This site uses `scipy.interpolate.BarycentricInterpolator`.
+
+## Linking phases
+
+By default, all states are continuous across each adjacent phase boundary.
+For jumps such as stage separation, disable automatic continuity and write the linkage conditions in `equality`:
+
+```py
+problem.knot_states_smooth = [False]  # Disable continuity at the single knot
+
+def equality(problem, obj):
+    c = problem.condition()
+    R1, R2 = problem.states(0, 0), problem.states(0, 1)
+    m1, m2 = problem.states(2, 0), problem.states(2, 1)
+    c.equal(R1[-1], R2[0])         # Continuous position
+    c.equal(m1[-1], m2[0] + 1200)  # Discard 1200 kg of first-stage structure
+    ...
+    return c()
+```
+
+See [Example 11](../../examples/11-rocket-ascent-two-stage/).
+
+## Scaling
+
+In rocket problems, radius may be $6.4\times10^6$ m, mass $10^4$ kg, and time $10^2$ s.
+These different magnitudes can hinder optimization. Specify a **representative unit** for each variable:
+
+```py
+problem.set_unit_states_all_section(0, 6.371e6)  # Radius unit [m]
+problem.set_unit_states_all_section(2, 5000)    # Mass unit [kg]
+problem.set_unit_controls_all_section(0, 1e5)  # Thrust unit [N]
+problem.set_unit_time(800)                     # Time unit [s]
+```
+
+Internally, optimization uses values divided by these units, typically near one.
+Dynamics, conditions, and output stay in **physical units**. Scale condition residuals with `Condition`'s `unit=` argument too.
+
+## Checking accuracy
+
+With `DynamicsModel`, you can estimate between-node residuals and refine inaccurate phases automatically.
+The model receives state and control arrays (components × nodes) and returns the dynamics in the same shape:
+
+```py
+from OpenGoddard import DynamicsModel
+
+def move(x, u, t, p, section, xp):
+    position, velocity = x
+    (acceleration,) = u
+    return xp.stack([velocity, acceleration])
+
+problem.dynamics = [DynamicsModel(move), DynamicsModel(move)]
+problem.solve(PARAMETERS)
+print(problem.estimate_error(PARAMETERS)["max_error"])
+problem.solve_adaptive(PARAMETERS, tolerance=1e-6)
+```
+
+`xp` is NumPy or `autograd.numpy`. Using `xp` rather than `np` also enables structured or automatic derivatives
+with `derivatives="structured"` or `derivatives="autograd"`.
+
+## Full source of Example 02
+
+The example separates parameters, problem construction, solving, and plotting into functions.
+The repository source below retains its original Japanese comments.
+
+<ExampleSource id="move_stop" />
+
+See the [API reference](../../api/OpenGoddard/) for function and class specifications, or [troubleshooting](../troubleshooting/) when a solve fails.

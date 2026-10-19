@@ -1,0 +1,147 @@
+---
+title: 03. Fastest descent
+description: Find the frictionless track that takes a ball from rest to a vertical line 1 m away in minimum time.
+sidebar:
+  order: 3
+---
+
+import ExampleFigure from '../../../../components/ExampleFigure.astro';
+import RunCommand from '../../../../components/RunCommand.astro';
+import SolverNote from '../../../../components/SolverNote.astro';
+import Value from '../../../../components/Value.astro';
+
+<p class="lead">
+  Release a ball from rest on a frictionless track. What shape reaches a point 1 m horizontally away fastest?
+  A straight line is shortest, but it is not fastest. Johann Bernoulli posed this classical problem in 1696.
+</p>
+
+<div class="og-facts">
+
+| Item | Definition |
+| --- | --- |
+| States | Horizontal position $x$, depth $y$, speed $v$ |
+| Control | Track angle $\theta$, measured from downward vertical |
+| Objective | Minimize arrival time $t_f$ |
+| Phases | One phase, 20 nodes, free final time |
+| New concepts | Nonlinear dynamics, inequality constraints, a free terminal depth, analytic comparison |
+
+</div>
+
+## Situation
+
+Rather than searching directly for a track, choose the ball's **direction at each instant**.
+A steep descent builds speed but makes little horizontal progress; a shallow track advances horizontally but accelerates slowly.
+The fastest path balances these effects by descending steeply first, then turning horizontally.
+
+Only terminal horizontal position is fixed. Depth is free, so the target is a vertical line.
+Gravity and horizontal distance are both set to 1.
+
+## Formulation
+
+### Dynamics
+
+Depth is positive **downward**. Angle $\theta=0$ points down, and $\theta=90^\circ$ is horizontal.
+
+$$
+\dot{x}=v\sin\theta,\qquad\dot{y}=v\cos\theta,\qquad\dot{v}=g\cos\theta.
+$$
+
+The first two equations resolve velocity into components. Only the component of gravity along the track accelerates the ball.
+Since $v\dot v=g\dot y$, energy is conserved:
+
+$$
+\tfrac12v^2=gy,\qquad v=\sqrt{2gy}.
+$$
+
+### Boundary conditions
+
+$$
+x(0)=y(0)=v(0)=0,\qquad x(t_f)=l.
+$$
+
+Terminal depth and speed are left to optimization.
+
+### Constraints
+
+$$
+y\ge0,\qquad\theta\ge0,\qquad t_f\ge0.1.
+$$
+
+The depth inequality excludes the initial node, already fixed by an equality.
+The angle condition restricts the intended forward-moving solution, and the time bound prevents a degenerate duration.
+Inequalities are written as nonnegative residuals.
+
+### Objective and parameters
+
+$$
+J=t_f.
+$$
+
+| Symbol | Parameter | Value |
+| --- | --- | --- |
+| $g$ | `PARAMETERS["g"]` | 1 m/s² |
+| $l$ | `PARAMETERS["l"]` | 1 m |
+
+### Initial guess
+
+Use time 0 to 2, horizontal position linear from 0 to 1, depth linear from 0 to $1/\sqrt3$, and constant direction $30^\circ$.
+Speed starts from zero at all nodes. The guess is not dynamically consistent; optimization corrects it.
+
+## Results
+
+<SolverNote id="brachistochrone" />
+
+<ExampleFigure id="brachistochrone" kind="scene" caption="The track, with depth increasing downward. Blue interpolation through 20 nodes overlaps the analytic cycloid (black dashed). The gray dotted line joins the same endpoints directly." />
+
+<ExampleFigure id="brachistochrone" kind="history" caption="Speed and track angle in degrees. Dots are node values, blue curves are interpolants, and black dashed curves are analytic." />
+
+<ExampleFigure id="brachistochrone" kind="animation" caption="A ball on the fastest track (blue) compared with a ball on the straight track (white). The straight-track ball is still traveling when the cycloid reaches the endpoint." />
+
+- Arrival time: <Value id="brachistochrone" k="final_time" d={6} /> s, agreeing to about seven digits with $\sqrt\pi=$ <Value id="brachistochrone" k="exact_final_time" d={6} /> s.
+- The straight track takes <Value id="brachistochrone" k="straight_line_time" d={3} /> s. The longer cycloid is about 16% faster.
+- Final depth: <Value id="brachistochrone" k="final_depth" d={4} /> m, versus $2/\pi=$ <Value id="brachistochrone" k="exact_final_depth" d={4} /> m; final speed: <Value id="brachistochrone" k="phases.0.final.v" d={3} /> m/s.
+- Direction changes nearly linearly from downward to horizontal: <Value id="brachistochrone" k="phases.0.final.theta" d={1} scale={57.29577951308232} />° at the end.
+
+## Explanation
+
+### The cycloid
+
+The fastest descent curve is a **cycloid**, traced by a point on a circle rolling beneath a horizontal ceiling:
+
+$$
+x=a(\phi-\sin\phi),\qquad y=a(1-\cos\phi).
+$$
+
+It points down at $\phi=0$ and becomes horizontal at its deepest point, $\phi=\pi$.
+An optical analogy explains the shape: Snell's law for a minimum-time path requires $\sin\theta/v$ to remain constant.
+Since $v=\sqrt{2gy}$, the required curve has $\sin\theta/\sqrt y$ constant, which gives the cycloid.
+
+### Why finish horizontally?
+
+Terminal depth is free, so a downward velocity component at arrival contributes nothing to reaching the target line sooner.
+The best endpoint directs all speed horizontally. Thus $a\pi=l$ and
+
+$$
+y(t_f)=\frac{2l}{\pi},\qquad t_f=\sqrt{\frac{\pi l}{g}}.
+$$
+
+For $g=l=1$, $t_f\approx1.7725$. Along the cycloid, $\theta=\phi/2$ and $\phi$ grows linearly with time,
+so the angle history is a straight line.
+
+### Numerical accuracy
+
+The dynamics are nonlinear because of trigonometric terms and products of states and controls.
+The smooth solution nevertheless gives about seven-digit agreement with 20 nodes
+([convergence plot](../../theory/pseudospectral/#checking-accuracy)).
+
+## Try it
+
+- Set `l` to 2: duration becomes $\sqrt{2\pi}\approx2.507$ s and final depth $4/\pi\approx1.273$ m.
+- Set `g` to 4: the track is unchanged, but duration halves to about 0.886 s.
+- Reduce 20 nodes to 8 or 7 and compare errors (roughly $10^{-7}$ and $10^{-5}$). With 5 or 6 nodes, success can be reported despite errors exceeding 0.2 s. Solver success and accuracy are different checks.
+
+## Run
+
+<RunCommand id="brachistochrone" />
+
+[View the Python source on GitHub](https://github.com/istellartech/OpenGoddard/blob/master/examples/03_brachistochrone.py).

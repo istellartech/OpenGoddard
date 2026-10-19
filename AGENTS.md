@@ -40,3 +40,7 @@ CI（`.github/workflows/`）は上記を実行し、`master` のサイトをGitH
 - 番号付き例題は補助ファイルをimportせず、そのファイルだけで条件設定から描画まで読める形にする。
   コメントには変数の意味・単位・具体的な計算を書く。
 - サイトは `base: '/OpenGoddard'` で公開される。リンクやメディアのパスはこれに合わせる。
+- サイトの日本語はルート、英語は `/en/`。`website/src/content/docs/` の本文を変更するときは
+  対応する `en/` のページも更新する。APIは両言語とも同じdocstringから生成する。
+  図・動画のラベルは `website/scripts/i18n.py` で翻訳し、計算結果は両言語で共有する。
+  サイトのビルド後は `cd website && npm run check:site` で言語切り替え・リンク・メディアを検証する。

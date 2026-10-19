@@ -1,0 +1,127 @@
+---
+title: 06. A simple two-dimensional rocket
+description: Choose the direction of a fixed-magnitude acceleration to reach a prescribed height and velocity in minimum time.
+sidebar:
+  order: 6
+---
+
+import ExampleFigure from '../../../../components/ExampleFigure.astro';
+import RunCommand from '../../../../components/RunCommand.astro';
+import SolverNote from '../../../../components/SolverNote.astro';
+import Value from '../../../../components/Value.astro';
+
+<p class="lead">
+  A vehicle can change its acceleration direction but not its magnitude.
+  Starting at rest, how can it reach horizontal flight at height 1 m as quickly as possible?
+  This is a simplified rocket guidance problem without gravity or air.
+</p>
+
+<div class="og-facts">
+
+| Item | Definition |
+| --- | --- |
+| States | Horizontal and vertical velocities $u,v$; position $x,y$ |
+| Control | Acceleration angle $\beta$ from horizontal |
+| Objective | Minimize $t_f$ |
+| Phases | One phase, 20 nodes, free final time |
+| New concepts | Two-dimensional motion and direction as a control |
+
+</div>
+
+## Situation
+
+Orbital ascent requires building height, then horizontal speed, and reaching the target with no vertical velocity.
+Here we isolate the steering question:
+
+- Motion is planar, without gravity or drag.
+- Acceleration magnitude is fixed at $a=1$ m/s².
+- The vehicle starts at rest and must finish at $y=1$ m with $u=1$ m/s and $v=0$.
+- Final horizontal position is free.
+
+Accelerating only upward gains height but leaves vertical speed and no horizontal speed.
+Accelerating only sideways gains no height. Steering must meet both requirements together.
+
+## Formulation
+
+### Dynamics
+
+$$
+\dot u=a\cos\beta,\qquad\dot v=a\sin\beta,\qquad\dot x=u,\qquad\dot y=v.
+$$
+
+Angle $\beta=0$ points horizontally forward; $90^\circ$ points up; negative angles point downward.
+
+### Boundary conditions
+
+$$
+u(0)=v(0)=x(0)=y(0)=0,\qquad u(t_f)=1,\quad v(t_f)=0,\quad y(t_f)=1.
+$$
+
+There is no condition on $x(t_f)$.
+
+### Constraints, objective, and parameter
+
+$$
+-\frac\pi2\le\beta\le\frac\pi2,\qquad J=t_f,\qquad a=1\ \mathrm{m/s^2}.
+$$
+
+The acceleration direction stays in the forward half-plane.
+
+### Initial guess
+
+For time 0 to 2 s, let $s=t/2$:
+
+- $u=s$ and $x=s^2$.
+- $y=3s^2-2s^3$ and $v=3s(1-s)$.
+- $\beta=\arctan\bigl(3(1-2s)\bigr)$, turning from upward to downward.
+
+## Results
+
+<SolverNote id="simple_rocket_2d" />
+
+<ExampleFigure id="simple_rocket_2d" kind="scene" caption="Trajectory in blue, node positions in white, and acceleration directions as orange arrows. A black circle and square mark the start and finish." />
+
+<ExampleFigure id="simple_rocket_2d" kind="history" caption="Position x and height y (top), horizontal and vertical velocities (middle), and acceleration angle β (bottom). Red dotted lines mark ±90°." />
+
+<ExampleFigure id="simple_rocket_2d" kind="animation" caption="The vehicle's trajectory and direction beside velocity and angle histories. The black vertical cursor marks the current time." />
+
+- Minimum duration: <Value id="simple_rocket_2d" k="final_time" d={3} /> s.
+- Final horizontal position: <Value id="simple_rocket_2d" k="phases.0.final.x" d={3} /> m.
+- Angle varies smoothly from <Value id="simple_rocket_2d" k="phases.0.start.beta" d={2} /> rad (about 77°) to <Value id="simple_rocket_2d" k="phases.0.final.beta" d={2} /> rad (about −77°).
+
+## Explanation
+
+### Gain height, then cancel vertical speed
+
+Early acceleration points almost upward to build vertical speed. Later it points downward to cancel that speed exactly at $y=1$.
+Horizontal speed grows most rapidly around the middle, when $\beta$ passes through zero.
+The fixed acceleration is allocated between reaching the height target and reaching 1 m/s horizontally.
+Without gravity, the upward and downward portions are nearly symmetric.
+
+### The linear tangent law
+
+For this problem, optimal steering has the form
+
+$$
+\tan\beta(t)=c_1-c_2t.
+$$
+
+This **linear tangent law** underlies practical rocket guidance.
+The free final horizontal position makes the denominator constant in this case.
+The computed $\tan\beta$ is almost linear, while $\beta$ itself forms an S-shaped curve, changing slowly near its endpoints and quickly near the middle.
+The initial guess has the same general form.
+
+[Indirect methods](../../theory/methods/) derive this property from optimality conditions.
+OpenGoddard obtains it directly from the dynamics and constraints without requiring the steering law in advance.
+
+## Try it
+
+- Set `PARAMETERS["a"]` to 2 and compare duration, trajectory, and steering.
+- Add a final horizontal-position equality. The tangent of the steering angle is no longer a linear function of time.
+- Change the node count from 20 to 10 or 40 and compare the stable digits of the minimum duration.
+
+## Run
+
+<RunCommand id="simple_rocket_2d" />
+
+[View the Python source on GitHub](https://github.com/istellartech/OpenGoddard/blob/master/examples/06_simple_rocket_2d.py).

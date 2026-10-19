@@ -1,0 +1,238 @@
+---
+title: 14. Two-stage orbital insertion from Taiki
+description: Deliver a 100 kg payload from Taiki, Hokkaido, to a 561 km circular orbit using tabulated atmosphere, Mach-dependent drag, and pressure-dependent engine performance.
+sidebar:
+  order: 14
+---
+
+import ExampleFigure from '../../../../components/ExampleFigure.astro';
+import RunCommand from '../../../../components/RunCommand.astro';
+import SolverNote from '../../../../components/SolverNote.astro';
+import Value from '../../../../components/Value.astro';
+
+<p class="lead">
+  Replace Example 13's simplified parameters with a small launch vehicle, tabulated atmosphere and drag,
+  an initial velocity from Earth rotation, and engine performance that changes with ambient pressure.
+  Which parts of the optimal trajectory change, and which remain similar?
+</p>
+
+<div class="og-facts">
+
+| Item | Definition |
+| --- | --- |
+| States | Radius $R$, angle $\theta$, radial and tangential velocities $V_r,V_t$, mass $m$ |
+| Controls | Thrust components $T_r,T_t$ |
+| Objective | Maximize second-stage mass at insertion |
+| Phases | Two phases, 20 and 30 nodes; free separation and final times |
+| New concepts | Tabulated models, rotational initial velocity, pressure-dependent thrust and specific impulse |
+
+</div>
+
+## Situation
+
+Launch a 1.8 m diameter rocket from Taiki, Hokkaido (about 42.5° N), carrying a 100 kg payload to a 561 km circular orbit at 96.7° inclination.
+This inclination is slightly retrograde, a type used for Sun-synchronous Earth-observation orbits.
+Compared with [Example 13](../13-rocket-ascent-polar-tsto/), the model adds:
+
+- **Atmosphere tables:** linearly interpolated density, pressure, and sound speed from the US Standard Atmosphere between 0 and 86 km. Density and pressure are zero above 86 km.
+- **Mach-dependent drag:** a coefficient table with a transonic peak.
+- **Earth rotation:** the launch site already has velocity in an inertial frame.
+- **Ambient-pressure corrections:** thrust and specific impulse improve as pressure decreases.
+
+## Formulation
+
+### Coordinates
+
+Use the [polar coordinates of Example 12](../12-rocket-ascent-polar-ssto/#coordinates).
+Velocities are measured in a frame that does not rotate with Earth.
+This is a planar approximation, rather than a full three-dimensional inclination model.
+
+### Phases and linkage
+
+At optimized separation time $t_s$,
+
+$$
+R(t_s^+)=R(t_s^-),\quad\theta(t_s^+)=\theta(t_s^-),\quad
+V_r(t_s^+)=V_r(t_s^-),\quad V_t(t_s^+)=V_t(t_s^-),\quad m(t_s^+)=m_2.
+$$
+
+Position and velocity remain continuous; mass resets to the initial second-stage mass.
+
+### Dynamics
+
+$$
+\begin{aligned}
+\dot R&=V_r,&\dot\theta&=V_t/R,\\
+\dot V_r&=(T_r-D_r)/m-\mu/R^2+V_t^2/R,\\
+\dot V_t&=(T_t-D_t)/m-V_rV_t/R,\\
+\dot m&=-\sqrt{T_r^2+T_t^2}/\{g_0I_{sp,i}(h)\}.
+\end{aligned}
+$$
+
+The centrifugal and angular-momentum terms are unchanged from Example 13.
+The same $\mu$ defines gravity and target circular speed.
+
+### Atmosphere and drag
+
+Density $\rho(h)$, pressure $p(h)$, and sound speed $a(h)$ are interpolated from tables:
+
+$$
+V=\sqrt{V_r^2+V_t^2},\qquad M=V/a(h),
+$$
+
+$$
+D_r=\tfrac12\rho(h)V_rVC_D(M)A,\qquad
+D_t=\tfrac12\rho(h)V_tVC_D(M)A.
+$$
+
+The drag coefficient is about 0.28 at subsonic speeds, peaks near 0.68 around Mach 1.2–1.4,
+and falls to about 0.34 near Mach 4.5. Values outside the table are linearly extrapolated.
+The 1.8 m diameter gives area $A\approx2.54$ m².
+
+### Pressure-dependent thrust and specific impulse
+
+Reference performance is sea-level for stage 1 (261 s) and vacuum for stage 2 (322 s).
+With nozzle exit areas $A_{e,i}$ and launch altitude $h_0=10$ m,
+
+$$
+\Delta T_1(h)=\{p(h_0)-p(h)\}A_{e,1},\qquad
+\Delta T_2(h)=-p(h)A_{e,2}.
+$$
+
+`Rocket.delta_thrust` computes these corrections. Specific impulse changes consistently:
+
+$$
+\dot m_{\mathrm{ref},i}=\frac{T_{\max,i}}{g_0I_{sp,i}},\qquad
+I_{sp,i}(h)=I_{sp,i}+\frac{\Delta T_i(h)}{g_0\dot m_{\mathrm{ref},i}}.
+$$
+
+The thrust limit becomes $T_{\max,i}+\Delta T_i(h)$.
+At that limit, mass flow remains $\dot m_{\mathrm{ref},i}$ regardless of altitude: lower external pressure gives more thrust at the same propellant flow.
+For stage 1, the vacuum correction adds about 41.6 kN and raises specific impulse to about 294 s.
+Stage 2 operates in nearly zero pressure, so its correction is small.
+
+### Earth rotation and initial velocity
+
+At latitude $\phi$, the launch site's eastward speed is
+
+$$
+v_{\mathrm{site}}=\omega R_e\cos\phi\approx342.5\ \mathrm{m/s}.
+$$
+
+For orbit inclination $i$, launch azimuth $A_z$ satisfies $\sin A_z=\cos i/\cos\phi$.
+Projecting rotation into the modeled direction gives
+
+$$
+V_0=v_{\mathrm{site}}\sin A_z=\omega R_e\cos i\approx-54.2\ \mathrm{m/s}.
+$$
+
+Latitude cancels in this projection. The retrograde target requires a slightly westward azimuth, about −9° from north,
+so rotation opposes the modeled flight direction.
+The cross-plane component, about 338 m/s, is omitted by the two-dimensional model.
+Drag uses the modeled velocity directly; atmospheric co-rotation is not included.
+
+### Boundary conditions
+
+$$
+\begin{aligned}
+R(0)&=R_e+10\ \mathrm m,&\theta(0)&=0,\\
+V_r(0)&=0,&V_t(0)&=V_0,&m(0)&=m_1+m_2,\\
+R(t_f)&=R_e+561\ \mathrm{km},&V_r(t_f)&=0,&V_t(t_f)&=\sqrt{\mu/R(t_f)}.
+\end{aligned}
+$$
+
+Stage masses are $m_1=13000$ kg and $m_2=1566.7$ kg including payload, giving launch mass 14566.7 kg.
+Target speed is about 7583.0 m/s.
+
+### Constraints
+
+$$
+\begin{aligned}
+R&\ge R_e,\\
+m_{d,1}+m_2\le m\le m_1+m_2&\quad\text{(phase 1)},\\
+m_{d,2}+m_{\mathrm{pl}}\le m\le m_2&\quad\text{(phase 2)},\\
+\sqrt{T_r^2+T_t^2}&\le T_{\max,i}+\Delta T_i(h),\\
+q=\tfrac12\rho V^2&\le500\ \mathrm{kPa},\\
+\left|\frac{\boldsymbol T-\boldsymbol D}{m}\right|&\le20g_0.
+\end{aligned}
+$$
+
+The mass lower bounds are 2866.7 kg for phase 1 and 320 kg (220 kg structure + 100 kg payload) for phase 2.
+Thrust direction is free. Dynamic pressure measures aerodynamic loading; its 500 kPa limit is generous.
+Acceleration excludes gravity.
+
+### Objective and parameters
+
+$$
+J=-m(t_f)/(13000\ \mathrm{kg}).
+$$
+
+| Parameter | Stage 1 | Stage 2 |
+| --- | --- | --- |
+| Dry mass | 1300 kg | 220 kg |
+| Structural fraction | 10% | 15% |
+| Wet stage mass, excluding payload | 13000 kg | 1466.7 kg |
+| Payload | — | 100 kg |
+| Reference maximum thrust | 33.3 tf (326.6 kN) | 4.2 tf (41.2 kN) |
+| Reference specific impulse | 261 s, sea level | 322 s, vacuum |
+| Engines / nozzle expansion ratio | 9 / 20 | 1 / 140 |
+| Total nozzle exit area | 0.411 m² | 0.319 m² |
+
+The throat diameter is 53.9 mm. Use $R_e=6371$ km, $g_0=9.80665$ m/s², $\mu=3.986\times10^{14}$ m³/s²,
+latitude 42.506°, rotation rate $7.2921159\times10^{-5}$ rad/s, and inclination 96.7°.
+Scaling follows Examples 12–13 with mass unit 13000 kg.
+
+### Initial guess
+
+Use times $0\to200\to800$ s. Radius and angle increase cubically to target altitude and 25°.
+Radial velocity is zero; tangential velocity grows linearly from $V_0$ to target.
+Mass decreases cubically to the phase lower bounds.
+Thrust components decrease cubically from $0.9T_{\max,i}$ radially and $0.1T_{\max,i}$ tangentially to zero.
+
+## Results
+
+<SolverNote id="polar_tsto_taiki" />
+
+<ExampleFigure id="polar_tsto_taiki" kind="scene" caption="Altitude versus downrange distance, exaggerated vertically. Blue and orange show stages 1 and 2; dots are nodes and arrows show thrust direction at selected powered nodes." />
+
+<ExampleFigure id="polar_tsto_taiki" kind="history" caption="Altitude, velocities, mass, thrust magnitude, elevation, and dynamic pressure. Dashed vertical lines mark separation. Red thrust lines are reference limits; the actual first-stage limit rises with altitude." />
+
+<ExampleFigure id="polar_tsto_taiki" kind="animation" caption="Ascent with velocity, thrust, and elevation histories. Engine-off portions play faster." />
+
+- Separation: <Value id="polar_tsto_taiki" k="knots.0" d={1} /> s, at mass <Value id="polar_tsto_taiki" k="phases.0.final.m" d={1} /> kg and tangential speed <Value id="polar_tsto_taiki" k="phases.0.final.Vt" d={0} /> m/s. The first-stage mass lower bound is active.
+- The upper stage burns until about <Value id="polar_tsto_taiki" k="burn_spans.0.1" d={0} /> s, then coasts, and burns again from <Value id="polar_tsto_taiki" k="burn_spans.1.0" d={0} /> to <Value id="polar_tsto_taiki" k="final_time" d={0} /> s.
+- Delivered mass: <Value id="polar_tsto_taiki" k="final_mass_kg" d={1} /> kg, slightly above 320 kg. The 100 kg payload is carried with some propellant remaining.
+- Final altitude: <Value id="polar_tsto_taiki" k="final_altitude_km" d={1} /> km; speed: <Value id="polar_tsto_taiki" k="final_speed" d={1} /> m/s.
+- Maximum node dynamic pressure: <Value id="polar_tsto_taiki" k="max_q_kPa" d={1} /> kPa; acceleration: <Value id="polar_tsto_taiki" k="max_accel_G" d={2} /> G. Both limits are inactive.
+
+## Explanation
+
+### The trajectory structure remains similar
+
+The vehicle rises, turns horizontal, accelerates with the upper stage, coasts to target apogee, and circularizes.
+More detailed atmosphere and engine models change the numbers while retaining this Hohmann-like structure.
+Simple models help identify the pattern; detailed ones refine the estimates.
+
+### What changes with a detailed model?
+
+- Drag coefficient increases about 2.4-fold near sonic speed. Dynamic pressure peaks early, then falls with density.
+- Rotation costs about 54 m/s in this westward projection; an eastward target could benefit instead.
+- First-stage thrust and specific impulse increase with altitude. Nodes above the reference red thrust line can therefore remain feasible.
+
+### First-stage thrust zigzags
+
+The solver reports convergence, but first-stage thrust varies strongly between nodes.
+Final mass appears relatively insensitive to the detailed timing of first-stage thrust, so do not interpret each oscillation as a meaningful flight feature.
+More nodes or thrust-rate constraints can improve the representation.
+
+## Try it
+
+- Lower `MaxQ` from 500000 to 30000 Pa. Inspect the clipped dynamic-pressure peak and reduction in final mass.
+- Change `inclination` from 96.7° to 45°. The projected rotational initial speed becomes positive; compare delivered mass.
+- Raise `Mpayload` from 100 to 150 kg and check whether final mass still exceeds dry mass plus payload.
+
+## Run
+
+<RunCommand id="polar_tsto_taiki" />
+
+[View the Python source on GitHub](https://github.com/istellartech/OpenGoddard/blob/master/examples/14_polar_tsto_taiki.py).

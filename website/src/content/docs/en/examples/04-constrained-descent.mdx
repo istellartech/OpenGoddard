@@ -1,0 +1,140 @@
+---
+title: 04. Fastest descent with a depth limit
+description: Find a minimum-time track when a floor prevents descending below 0.3 m.
+sidebar:
+  order: 4
+---
+
+import ExampleFigure from '../../../../components/ExampleFigure.astro';
+import RunCommand from '../../../../components/RunCommand.astro';
+import SolverNote from '../../../../components/SolverNote.astro';
+import Value from '../../../../components/Value.astro';
+
+<p class="lead">
+  Descending deeper builds speed, but what happens if the track cannot go below a prescribed depth?
+  A segment along the floor appears, changing the shape of the fastest path.
+</p>
+
+<div class="og-facts">
+
+| Item | Definition |
+| --- | --- |
+| States | Horizontal position $x$, depth $y$, speed $v$ |
+| Control | Angle $\theta$ from downward vertical |
+| Objective | Minimize $t_f$ |
+| Phases | One phase, 40 nodes, free final time |
+| New concepts | State bounds as path constraints; a boundary arc |
+
+</div>
+
+## Situation
+
+As in [Example 03](../03-brachistochrone/), a ball slides without friction under gravity.
+Here the endpoint is fixed at $(1,0.2)$ m, and a **floor** limits depth to 0.3 m.
+Without the floor, the fastest path descends below the destination, then climbs back up.
+We ask how the floor changes that solution. Gravity is 9.81 m/s².
+
+## Formulation
+
+### Dynamics
+
+Depth is positive downward. Angle $0$ points down, $90^\circ$ is horizontal, and angles above $90^\circ$ climb upward:
+
+$$
+\dot{x}=v\sin\theta,\qquad\dot{y}=v\cos\theta,\qquad\dot{v}=g\cos\theta.
+$$
+
+On the uphill segment, $\cos\theta<0$ and the ball slows down. Energy conservation still gives $v=\sqrt{2gy}$.
+
+### Boundary conditions
+
+$$
+x(0)=y(0)=v(0)=0,\qquad x(t_f)=1,\quad y(t_f)=0.2.
+$$
+
+Terminal speed is not prescribed, but energy determines it as $\sqrt{2\cdot9.81\cdot0.2}\approx1.98$ m/s.
+
+### Constraints
+
+$$
+0\le y\le0.3,\qquad v\ge0,\qquad0\le\theta\le\pi,\qquad0.01\le t_f\le5.
+$$
+
+The depth upper bound is the floor. Bounds apply at **every node** and therefore act as path constraints.
+The other bounds keep optimization within the intended physical range.
+
+### Objective and parameters
+
+$$
+J=t_f.
+$$
+
+| Symbol | Parameter | Value |
+| --- | --- | --- |
+| $g$ | `gravity` | 9.81 m/s² |
+| $l$ | `distance` | 1 m |
+| $y_f$ | `final_depth` | 0.2 m |
+| $y_{\max}$ | `max_depth` | 0.3 m |
+
+### Initial guess
+
+For time 0 to 0.7 s, let $s=t/0.7$ and set
+
+$$
+x=ls,\qquad y=y_fs+0.2\sin(\pi s),\qquad v=\sqrt{2gy}.
+$$
+
+The depth bulges downward and returns to the target. Angle increases linearly from 0 to 2 rad (about 115°).
+
+## Results
+
+<SolverNote id="constrained_descent" />
+
+<ExampleFigure id="constrained_descent" kind="scene" caption="The optimized track with depth increasing downward. The gray region is forbidden. The blue interpolant passes through 40 nodes; black dashed shows the unconstrained fastest track." />
+
+<ExampleFigure id="constrained_descent" kind="history" caption="Depth, speed, and angle in degrees. The red dotted line is the 0.3 m depth limit." />
+
+<ExampleFigure id="constrained_descent" kind="animation" caption="Ball motion alongside depth, speed, and angle histories. The vertical cursor marks the current time." />
+
+- Arrival time: <Value id="constrained_descent" k="final_time" d={4} /> s, slightly longer than the floorless value <Value id="constrained_descent" k="floorless_time" d={4} /> s.
+- Without the floor, maximum depth would be <Value id="constrained_descent" k="floorless_max_depth" d={3} /> m; with it, depth is limited to <Value id="constrained_descent" k="max_depth" d={3} /> m.
+- The path descends, follows the floor horizontally, then climbs. On the floor, angle is 90° and speed is constant.
+- Final angle: <Value id="constrained_descent" k="phases.0.final.theta" d={0} scale={57.29577951308232} />°; final speed: <Value id="constrained_descent" k="phases.0.final.v" d={3} /> m/s.
+
+## Explanation
+
+### The boundary arc
+
+The floor blocks the deepest, fastest part of the unconstrained curve.
+The next best choice is to spend time at the greatest allowed depth, where speed reaches $\sqrt{2gy_{\max}}\approx2.43$ m/s.
+A segment that remains on an active constraint, $y=y_{\max}$, is a **boundary arc**.
+Its control is fixed by the constraint: $\theta=90^\circ$ keeps depth constant.
+Cycloid segments join this arc tangentially on entry and exit.
+
+### Why the time penalty is small
+
+The floor excludes only a short part of the unconstrained path. Speed along the floor is still high,
+so the arrival-time increase is less than 1%.
+
+### Terminal direction
+
+Unlike Example 03, depth is fixed at the endpoint. The ball must climb from the floor to 0.2 m,
+so it arrives on an uphill segment rather than horizontally.
+
+### Limits of one polynomial
+
+The rate of change of angle changes abruptly at the ends of the boundary arc.
+One polynomial rounds these corners. Since bounds hold only at nodes, interpolation can exceed the floor slightly,
+by around $10^{-5}$ m. More nodes make the corners clearer.
+
+## Try it
+
+- Set `max_depth` to 0.4. The floor lies below the unconstrained maximum depth (about 0.358 m), becomes inactive, and duration approaches 0.6206 s.
+- Set it to 0.25. The boundary arc becomes longer and duration rises to about 0.636 s.
+- Use `solve(nodes=20)` and compare the angle near the boundary-arc transitions with the 40-node result.
+
+## Run
+
+<RunCommand id="constrained_descent" />
+
+[View the Python source on GitHub](https://github.com/istellartech/OpenGoddard/blob/master/examples/04_constrained_descent.py).

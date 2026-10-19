@@ -1,0 +1,155 @@
+---
+title: 09. Vertical soft landing on the Moon
+description: Minimize fuel for a lander descending from 100 m at 10 m/s, with zero velocity at touchdown.
+sidebar:
+  order: 9
+---
+
+import ExampleFigure from '../../../../components/ExampleFigure.astro';
+import RunCommand from '../../../../components/RunCommand.astro';
+import SolverNote from '../../../../components/SolverNote.astro';
+import Value from '../../../../components/Value.astro';
+
+<p class="lead">
+  A lunar lander must fire its engine to touch down at zero speed.
+  Does it save more fuel by braking gently early, or by waiting and braking hard at the end?
+  This problem has an analytic solution for comparison.
+</p>
+
+<div class="og-facts">
+
+| Item | Definition |
+| --- | --- |
+| States | Altitude $h$, velocity $v$ (positive upward) |
+| Control | Thrust $T$ |
+| Objective | Minimize the thrust integral, proportional to propellant use |
+| Phases | Two phases, 12 nodes each; free knot and final times |
+| New concepts | An integral objective and an optimized switching time |
+
+</div>
+
+## Situation
+
+The lander starts 100 m above the surface, descending at 10 m/s. Lunar gravity is 1.62 m/s².
+Its upward engine thrust ranges from zero to 4000 N. Mass is held constant at 1000 kg,
+approximating a maneuver whose propellant use is small relative to vehicle mass.
+
+Propellant use is proportional to **impulse**, the time integral of thrust.
+We split time into a coast phase and a braking phase, leaving the switching time to optimization.
+
+## Formulation
+
+### Dynamics
+
+$$
+\dot h=v,\qquad\dot v=\frac Tm-g.
+$$
+
+Upward is positive, so descent has $v<0$. Both phases use the same equations.
+
+### Phases and linkage
+
+At the unknown switch $t_1$, altitude and velocity remain continuous:
+
+$$
+h^{(1)}(t_1)=h^{(2)}(t_1),\qquad v^{(1)}(t_1)=v^{(2)}(t_1).
+$$
+
+Thrust may jump. Both $t_1$ and $t_f$ are free.
+
+### Boundary conditions and constraints
+
+$$
+h(0)=100,\quad v(0)=-10,\qquad h(t_f)=v(t_f)=0,
+$$
+
+$$
+0\le T\le4000\ \mathrm N,\qquad0\le h\le100\ \mathrm m,\qquad v\le0.
+$$
+
+The lander cannot go underground, rise above its initial altitude, or reverse into upward flight.
+
+### Objective
+
+$$
+J=\frac1{T_{\max}t_u}\int_0^{t_f}T\,dt,\qquad t_u=\sqrt{h_0/g}\approx7.86\ \mathrm s.
+$$
+
+The constant factor makes the objective roughly order one without changing the optimum.
+This is a **running cost** ([cost forms](../../theory/optimal-control/#two-forms-of-cost)).
+
+### Parameters and scaling
+
+Use $h_0=100$ m, $v_0=-10$ m/s, $g=1.62$ m/s², $m=1000$ kg, and $T_{\max}=4000$ N.
+Representative units are 100 m, $\sqrt{h_0g}\approx12.7$ m/s, $t_u$, and 4000 N.
+
+### Initial guess
+
+Use the analytic solution below: free fall followed by maximum thrust, including its switching and final times.
+This checks whether the numerical solution preserves the analytic answer.
+
+## Results
+
+<SolverNote id="soft_landing" />
+
+<ExampleFigure id="soft_landing" kind="history" caption="Altitude, velocity, and thrust. Blue and orange identify the two 12-node phases. Black dashed curves are analytic; the vertical dashed line marks ignition, and the red line is maximum thrust." />
+
+<ExampleFigure id="soft_landing" kind="animation" caption="Free fall followed by powered braking. Flame indicates thrust; velocity and thrust histories show the current time alongside the analytic solution." />
+
+- Thrust is zero throughout phase 1 and 4000 N throughout phase 2.
+- Ignition time: <Value id="soft_landing" k="switch_time" d={3} /> s, at altitude <Value id="soft_landing" k="phases.0.final.h" d={1} /> m and velocity <Value id="soft_landing" k="phases.0.final.v" d={2} /> m/s.
+- Touchdown time: <Value id="soft_landing" k="final_time" d={3} /> s; impulse: <Value id="soft_landing" k="impulse_Ns" d={0} /> N·s.
+- Analytic ignition and touchdown times are <Value id="soft_landing" k="exact_switch_time" d={3} /> s and <Value id="soft_landing" k="exact_final_time" d={3} /> s, matching the numerical result.
+
+## Explanation
+
+### Less fuel means less time in this model
+
+Integrate the velocity equation and use the endpoint conditions:
+
+$$
+\int_0^{t_f}T\,dt=m\bigl(|v_0|+gt_f\bigr).
+$$
+
+The initial descent speed must be canceled regardless of the thrust schedule.
+The other term is **gravity loss**, which increases with time spent airborne.
+Thus minimizing fuel here is equivalent to minimizing touchdown time.
+
+The fastest safe descent uses zero thrust as long as possible, then maximum upward braking.
+Intermediate thrust prolongs the maneuver and increases gravity loss. The optimum is **bang-bang control**.
+
+### Calculate the switching time
+
+Let $b=T_{\max}/m-g=2.38$ m/s², and let $v_s$ be the positive magnitude of descent velocity at ignition.
+Free-fall distance plus braking distance equals initial altitude:
+
+$$
+\frac{v_s^2-v_0^2}{2g}+\frac{v_s^2}{2b}=h_0.
+$$
+
+Therefore
+
+$$
+v_s=\sqrt{\frac{(v_0^2+2gh_0)b}{b+g}},\qquad
+ t_1=\frac{v_s-|v_0|}{g},\qquad t_f=t_1+\frac{v_s}{b}.
+$$
+
+For comparison, constant gentle braking from the start needs deceleration 0.5 m/s² and takes 20 s.
+Its impulse is 42 400 N·s, about 1.6 times the optimum.
+
+### Why optimize the knot?
+
+Thrust jumps from zero to 4000 N at ignition. Putting that jump at a free knot lets each phase use a constant control without polynomial oscillations.
+Unlike Example 08, the switching time is determined by optimization.
+
+## Try it
+
+- Lower `max_thrust` to 3000 N. Compare the earlier ignition, longer duration, and larger impulse with the formulas.
+- Set `initial_velocity` to zero and inspect the free-fall phase.
+- Replace the thrust guess `[0, p["max_thrust"]]` by `[2000, 2000]` and check whether the solver returns to the same solution.
+
+## Run
+
+<RunCommand id="soft_landing" />
+
+[View the Python source on GitHub](https://github.com/istellartech/OpenGoddard/blob/master/examples/09_soft_landing.py).

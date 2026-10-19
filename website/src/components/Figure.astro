@@ -1,6 +1,7 @@
 ---
 // An image or video from public/media with a caption.
 import { hasMedia, mediaUrl } from '../lib/catalog';
+import { isEnglish, localePrefix } from '../lib/i18n';
 
 interface Props {
   /** Path below public/media, e.g. "concepts/lgl_nodes.png". */
@@ -12,7 +13,9 @@ interface Props {
 }
 
 const { src, poster, alt = '', caption } = Astro.props;
-const parts = src.split('/');
+const prefix = localePrefix(Astro.currentLocale);
+const english = isEnglish(Astro.currentLocale);
+const parts = (prefix + src).split('/');
 const exists = hasMedia(...parts);
 const isVideo = src.endsWith('.mp4');
 ---
@@ -21,7 +24,7 @@ const isVideo = src.endsWith('.mp4');
   exists ? (
     <figure class="og-figure">
       {isVideo ? (
-        <video controls preload="metadata" playsinline muted poster={poster ? mediaUrl(poster) : undefined}>
+        <video controls preload="metadata" playsinline muted aria-label={alt || caption} poster={poster ? mediaUrl(prefix + poster) : undefined}>
           <source src={mediaUrl(...parts)} type="video/mp4" />
         </video>
       ) : (
@@ -36,7 +39,9 @@ const isVideo = src.endsWith('.mp4');
     </figure>
   ) : (
     <p class="og-missing">
-      図 <code>{src}</code> は未生成です。<code>uv run python website/scripts/build_media.py</code> で生成されます。
+      {english ? 'Figure ' : '図 '}<code>{src}</code>
+      {english ? ' has not been generated. Generate it with ' : ' は未生成です。'}
+      <code>uv run python website/scripts/build_media.py</code>{english ? '.' : ' で生成されます。'}
     </p>
   )
 }

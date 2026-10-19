@@ -1,0 +1,60 @@
+---
+title: Troubleshooting
+description: What to check when a solution fails to converge, looks wrong, or takes too long.
+---
+
+<p class="lead">
+  Direct methods improve a solution starting from an initial guess. Depending on the formulation,
+  they may fail to converge or settle on an unintended solution. Check these common causes in order.
+</p>
+
+## Check the result first
+
+If `result.success` is `False`, inspect `result.message`:
+
+| Message | Meaning and action |
+| --- | --- |
+| `Iteration limit reached` | Increase `maxiter`, or allow more automatic retries with `Problem(..., maxIterator=n)`. |
+| `Positive directional derivative for linesearch` | The solver cannot find an improving direction. Common causes are conflicting constraints, poor scaling, or a distant initial guess. |
+| `Inequality constraints incompatible` | No nearby point satisfies the constraints together. Check boundary conditions against bounds. |
+
+Even `success=True` means only that a local solution of the discretized problem was found.
+Plot the trajectory, check its physical behavior, and compare results at different node counts.
+
+## Improve the initial guess
+
+The initial guess often has the largest effect:
+
+- Match endpoint values with `Guess.linear` or `Guess.cubic`.
+- Choose a final-time guess near the expected duration.
+- For switching controls such as thrust, start each phase near its expected value: maximum or zero, for example.
+- Solve a simpler problem first, with fewer nodes or relaxed constraints, and reuse its solution. `problem.refine(nodes)` creates a new problem with an interpolated initial guess.
+
+## Scale the variables
+
+Large differences in magnitude make convergence difficult. Use `set_unit_states`, `set_unit_controls`, and `set_unit_time`
+to make the internal variables roughly order one ([scaling](../usage/#scaling)).
+Scale constraint residuals similarly with `Condition`'s `unit=` argument.
+
+## Review the constraints
+
+- Give simple bounds through `set_states_bounds`, `set_controls_bounds`, and `set_time_final_bounds` rather than `inequality` when possible.
+- Avoid repeating an equality as a touching inequality at the same node. If initial mass is fixed by an equality, apply mass inequalities to `m[1:]` to exclude that node.
+- Set a lower bound on final time with `set_time_final_bounds` to prevent zero-duration phases.
+
+## Handle discontinuities
+
+A single polynomial oscillates near abrupt thrust switches and stage separation.
+Split the trajectory into phases near the expected switch ([Example 08](../../examples/08-goddard-1knot/)).
+The knot time can be optimized, so its exact value need not be known beforehand.
+
+## Adjust the node count
+
+- Too few nodes give poor accuracy. For smooth solutions, start around 10–30 and increase the count until results stabilize.
+- Too many nodes slow the solve and can impair convergence. Splitting phases is often more effective than increasing the degree of one polynomial.
+
+## Speed up the solve
+
+By default, objective and constraint derivatives are approximated by finite differences.
+Writing the dynamics with `DynamicsModel` enables `solve(..., derivatives="structured")`, which can be much faster.
+For larger problems, also try `solver="trust-constr"`.

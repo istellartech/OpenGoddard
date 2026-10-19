@@ -36,6 +36,7 @@ dependencies = [
 [project.urls]
 Homepage = "https://github.com/istellartech/OpenGoddard"
 Repository = "https://github.com/istellartech/OpenGoddard"
+Documentation = "https://istellartech.github.io/OpenGoddard/en/"
 
 [project.optional-dependencies]
 autodiff = ["autograd>=1.9.1,<2"]

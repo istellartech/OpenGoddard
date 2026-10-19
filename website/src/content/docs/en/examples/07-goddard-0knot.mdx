@@ -1,0 +1,129 @@
+---
+title: 07. Goddard problem with one phase
+description: Maximize the altitude of a vertical rocket with fixed propellant, accounting for drag and changing mass.
+sidebar:
+  order: 7
+---
+
+import ExampleFigure from '../../../../components/ExampleFigure.astro';
+import RunCommand from '../../../../components/RunCommand.astro';
+import SolverNote from '../../../../components/SolverNote.astro';
+import Value from '../../../../components/Value.astro';
+
+<p class="lead">
+  How should a rocket vary its thrust to reach the greatest altitude with a fixed amount of propellant?
+  This classical optimal control problem was posed by R. H. Goddard.
+</p>
+
+<div class="og-facts">
+
+| Item | Definition |
+| --- | --- |
+| States | Radial height $h$, upward velocity $v$, mass $m$ |
+| Control | Thrust $T$ |
+| Objective | Maximize final height $h(t_f)$ |
+| Phases | One phase, 50 nodes, free final time |
+| New concepts | Mass consumption, maximization, and limitations near control discontinuities |
+
+</div>
+
+## Situation
+
+Burning propellant makes the vehicle lighter, increasing acceleration for the same thrust.
+Flying faster increases drag quadratically, but climbing higher reduces atmospheric density.
+Maximum thrust from the start wastes energy against drag; very gentle thrust prolongs gravity losses.
+The optimum balances both losses with a time-varying thrust.
+
+All quantities are **dimensionless**, with Earth radius, surface gravity, and initial mass normalized to 1.
+Here $h$ is measured from the planet's center; height above the surface is $h-1$.
+
+## Formulation
+
+### Dynamics
+
+$$
+\dot h=v,\qquad\dot v=\frac{T-D(h,v)}m-g(h),\qquad\dot m=-\frac Tc.
+$$
+
+$$
+D(h,v)=D_cv^2\exp\!\left(-H_c\frac{h-h_0}{h_0}\right),\qquad
+ g(h)=g_0\left(\frac{h_0}h\right)^2.
+$$
+
+Drag scales with speed squared and decreases exponentially with altitude.
+Gravity decreases with squared distance from the center.
+Exhaust velocity $c$ determines propellant consumption: larger $c$ uses less mass for the same thrust.
+
+### Boundary conditions
+
+$$
+h(0)=1,\quad v(0)=0,\quad m(0)=1,\qquad v(t_f)=0,\quad m(t_f)=0.6.
+$$
+
+Start at rest on the surface. Finish at the highest point, with zero velocity and all available propellant consumed.
+
+### Constraints and objective
+
+$$
+0\le T\le3.5,\quad h\ge1,\quad v\ge0,\quad0.6\le m\le1,\qquad J=-h(t_f).
+$$
+
+Minimizing negative height maximizes height. Maximum thrust is 3.5 times initial weight.
+
+### Parameters
+
+| Symbol | Meaning | Value |
+| --- | --- | --- |
+| $h_0,g_0,m_0$ | Initial radius, surface gravity, initial mass | 1 |
+| $D_c$ | Drag coefficient factor | 310 |
+| $H_c$ | Atmospheric decay factor | 500 |
+| $c$ | Exhaust velocity | 0.5 |
+| $T_{\max}$ | Maximum thrust | 3.5 |
+| $m_f$ | Dry mass | 0.6 |
+
+### Initial guess
+
+Use final time 0.3, cubic height from 1 to 1.01, cubic mass from 1 to 0.6, zero velocity,
+and a cubic thrust decrease from maximum to zero.
+
+## Results
+
+<SolverNote id="goddard_0knot" />
+
+<ExampleFigure id="goddard_0knot" kind="history" caption="Height, velocity, mass, and thrust. Dots are the 50 optimized nodes; curves are polynomial interpolants." />
+
+<ExampleFigure id="goddard_0knot" kind="animation" caption="Vertical ascent. Flame length represents thrust. The unpowered portion plays at twice the speed." />
+
+- Final radial height: <Value id="goddard_0knot" k="final_height" d={4} />, about 1.3% of the planet's radius above the surface.
+- Burnout occurs around <Value id="goddard_0knot" k="burnout_time" d={3} />; the rocket coasts to its highest point at <Value id="goddard_0knot" k="final_time" d={3} />.
+- Thrust follows maximum → intermediate → zero.
+
+## Explanation
+
+### Intermediate thrust: a singular arc
+
+Maximum thrust initially builds speed against gravity. As drag grows, throttling back maintains a speed that balances drag and gravity losses.
+This interval of thrust strictly between its bounds is a **singular arc**.
+As the atmosphere thins, the rocket consumes the remaining propellant and coasts upward.
+
+Unlike the bang-bang control in [Example 02](../02-move-stop/), the intermediate thrust must be determined by the physical balance.
+It can be difficult to handle with [indirect methods](../../theory/methods/), but a direct formulation needs no special treatment.
+
+### Thrust oscillations
+
+The interpolated thrust oscillates and falls gradually near burnout, although the true optimum switches discontinuously to zero.
+One polynomial through 50 nodes cannot represent that jump accurately
+([multiple phases](../../theory/pseudospectral/#multiple-phases)).
+[Example 08](../08-goddard-1knot/) splits near burnout to reduce the oscillation.
+
+## Try it
+
+- Change the node count from 50 to 30 or 80 and compare oscillations and final height.
+- Reduce `PARAMETERS["Dc"]` and check whether the singular arc shortens and maximum-thrust operation lasts longer.
+- Lower `T_max` and compare the time spent at the thrust limit.
+
+## Run
+
+<RunCommand id="goddard_0knot" />
+
+[View the Python source on GitHub](https://github.com/istellartech/OpenGoddard/blob/master/examples/07_goddard_0knot.py).

@@ -1,0 +1,133 @@
+---
+title: 02. Accelerate and stop
+description: Move a cart 10 m from rest to rest in minimum time with bounded acceleration.
+sidebar:
+  order: 2
+---
+
+import ExampleFigure from '../../../../components/ExampleFigure.astro';
+import RunCommand from '../../../../components/RunCommand.astro';
+import SolverNote from '../../../../components/SolverNote.astro';
+import Value from '../../../../components/Value.astro';
+
+<p class="lead">
+  Move a stationary cart 10 m and stop exactly at the destination. Acceleration is limited to ±2 m/s².
+  When should you accelerate, and when should you brake, to arrive as soon as possible?
+</p>
+
+<div class="og-facts">
+
+| Item | Definition |
+| --- | --- |
+| States | Position $x$, velocity $v$ |
+| Control | Acceleration $a$ |
+| Objective | Minimize arrival time $t_f$ |
+| Phases | Two phases, 12 nodes each; free knot and final times |
+| New concepts | Two states, control bounds, and phase splitting |
+
+</div>
+
+## Situation
+
+[Example 01](../01-minimum-energy-transfer/) chose velocity directly. A real vehicle instead controls **acceleration**.
+Velocity accumulates from acceleration and cannot change instantly, so both position and velocity are states.
+Braking too early wastes time; braking too late overshoots the destination.
+
+## Formulation
+
+### Dynamics
+
+$$
+\dot{x}=v,\qquad\dot{v}=a.
+$$
+
+There is no friction or drag. The control affects position through two successive integrations.
+
+### Boundary conditions
+
+$$
+x(0)=0,\quad v(0)=0,\qquad x(t_f)=10,\quad v(t_f)=0.
+$$
+
+The final time is unknown.
+
+### Constraints
+
+$$
+-2\le a\le2.
+$$
+
+Positive acceleration speeds up the cart; negative acceleration brakes it. The same bounds apply in both phases.
+
+### Phases
+
+Split time at an unknown $t_1$. Position and velocity are continuous at the knot, but acceleration may jump.
+The optimum has one acceleration switch, so the knot can represent it exactly.
+
+### Objective and parameters
+
+$$
+J=t_f.
+$$
+
+| Symbol | Parameter | Value |
+| --- | --- | --- |
+| $d$ | `PARAMETERS["distance"]` | 10 m |
+| $a_{\max}$ | `PARAMETERS["max_acceleration"]` | 2 m/s² |
+
+### Initial guess
+
+Use phase times $0\to3\to6$ s, position linear from 0 to $d$, constant velocity $d/6$, and zero acceleration.
+This does not satisfy the zero endpoint velocities. The solver adjusts times, states, and controls to satisfy them and shorten the motion.
+
+## Results
+
+<SolverNote id="move_stop" />
+
+<ExampleFigure id="move_stop" kind="history" caption="Position, velocity, and acceleration. Blue and orange show acceleration and braking phases, with 12 nodes each. Black dashed curves are analytic; the gray vertical line marks the knot, and red dotted lines mark ±2 m/s²." />
+
+<ExampleFigure id="move_stop" kind="animation" caption="Cart motion on the left, with its trail colored by phase. Velocity and acceleration histories on the right show the current time with a vertical cursor." />
+
+- Arrival time: <Value id="move_stop" k="final_time" d={3} /> s, agreeing with $2\sqrt5=$ <Value id="move_stop" k="exact_final_time" d={3} /> s.
+- Switching time: <Value id="move_stop" k="phases.0.final_time" d={3} /> s, at position <Value id="move_stop" k="phases.0.final.x" d={2} /> m and peak velocity <Value id="move_stop" k="phases.0.final.v" d={3} /> m/s.
+- Acceleration is $+2$ throughout phase 1 and $-2$ throughout phase 2. The velocity history is triangular.
+
+## Explanation
+
+### Why maximum acceleration and maximum braking?
+
+The **area under the velocity curve is distance**, fixed at 10 m. We want that area with the smallest possible width in time.
+The curve must start and finish at zero, and its slopes cannot exceed $\pm2$.
+The narrowest possible shape is a triangle with the steepest allowed rise and fall.
+A trapezoid or rounded curve needs more time for the same area.
+
+A control that stays at one bound or the other and switches between them is **bang-bang control**
+([indirect derivation](../../theory/methods/#example-minimum-time-move-and-stop)).
+
+### Duration
+
+Symmetry places the switch at $x=d/2$. From $a_{\max}t_1^2/2=d/2$,
+
+$$
+t_1=\sqrt{\frac{d}{a_{\max}}},\qquad t_f=2\sqrt{\frac{d}{a_{\max}}}=2\sqrt5.
+$$
+
+Peak velocity is $\sqrt{d\,a_{\max}}=\sqrt{20}$ m/s.
+
+### Why split the phases?
+
+A smooth polynomial cannot represent the acceleration jump accurately and oscillates near it.
+With a knot at the switch, acceleration is constant in each phase and position and velocity remain continuous
+([multiple phases](../../theory/pseudospectral/#multiple-phases)).
+
+## Try it
+
+- Set distance to 40. Arrival time doubles to $2\sqrt{40/2}\approx8.94$ s: quadrupling distance doubles time.
+- Change the time guess from `Problem([0, 3, 6], ...)` to `Problem([0, 1, 6], ...)`. The solver may report success with a knot near 1.32 s, a switch spread across several nodes within phase 2, and duration about 4.50 s. This shows why knot placement matters.
+- Call `solve(nodes=4)` instead of `solve()`. The phasewise polynomial solution remains accurate with fewer nodes.
+
+## Run
+
+<RunCommand id="move_stop" />
+
+[View the Python source on GitHub](https://github.com/istellartech/OpenGoddard/blob/master/examples/02_move_stop.py).

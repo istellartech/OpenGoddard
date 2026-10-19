@@ -1,0 +1,137 @@
+---
+title: 10. Single-stage rocket ascent
+description: Maximize the altitude of a vertical rocket using physical units, atmospheric drag, variable gravity, and mass consumption.
+sidebar:
+  order: 10
+---
+
+import ExampleFigure from '../../../../components/ExampleFigure.astro';
+import RunCommand from '../../../../components/RunCommand.astro';
+import SolverNote from '../../../../components/SolverNote.astro';
+import Value from '../../../../components/Value.astro';
+
+<p class="lead">
+  Apply the Goddard problem to a rocket described in meters, seconds, kilograms, and newtons.
+  How should thrust vary to carry a 5000 kg rocket as high as possible with 3000 kg of propellant?
+</p>
+
+<div class="og-facts">
+
+| Item | Definition |
+| --- | --- |
+| States | Distance from Earth's center $R$, vertical velocity $v$, mass $m$ |
+| Control | Thrust $T$ |
+| Objective | Maximize final radius, hence altitude |
+| Phases | One phase, 50 nodes, free final time |
+| New concepts | Physical rocket parameters, specific impulse, and scaling |
+
+</div>
+
+## Situation
+
+The rocket flies vertically from the surface, burning propellant and becoming lighter.
+Drag grows with speed but decreases with atmospheric density. Gravity also decreases with altitude.
+As in [Example 07](../07-goddard-0knot/), maximum thrust throughout is not necessarily optimal.
+Here all equations use physical units.
+
+## Formulation
+
+### Dynamics
+
+$$
+\dot R=v,\qquad\dot v=\frac{T-D}m-\frac{GM}{R^2},\qquad
+\dot m=-\frac{T}{g_0I_{sp}},
+$$
+
+$$
+D=\tfrac12\rho(R-R_e)v^2C_dA,\qquad\rho(h)=\rho_0e^{-h/H}.
+$$
+
+$R$ is distance from Earth's center; altitude is $h=R-R_e$.
+**Specific impulse** $I_{sp}$ measures engine efficiency; $g_0I_{sp}$ is effective exhaust velocity.
+Larger $I_{sp}$ uses less propellant for the same thrust.
+Atmospheric density falls by a factor $1/e$ per scale height $H=8500$ m.
+
+### Boundary conditions
+
+$$
+R(0)=R_e,\quad v(0)=0,\quad m(0)=5000\ \mathrm{kg},\qquad
+v(t_f)=0,\quad m(t_f)=2000\ \mathrm{kg}.
+$$
+
+The endpoint is the highest point after consuming all 3000 kg of propellant.
+
+### Constraints and objective
+
+$$
+0\le T\le T_{\max},\quad R\ge R_e,\quad v\ge0,\quad
+2000\le m\le5000\ \mathrm{kg},\quad t_f\ge10\ \mathrm s,
+$$
+
+$$
+T_{\max}=2m(0)g_0=98066.5\ \mathrm N,\qquad J=-\frac{R(t_f)}{R_e}.
+$$
+
+Dividing by Earth radius scales the objective without changing its optimum.
+
+### Parameters
+
+| Symbol | Meaning | Value |
+| --- | --- | --- |
+| $GM$ | Earth gravitational parameter | $3.986004418\times10^{14}$ m³/s² |
+| $R_e$ | Earth radius | 6371 km |
+| $g_0$ | Standard gravity | 9.80665 m/s² |
+| $m_0,m_f$ | Initial and dry masses | 5000, 2000 kg |
+| $C_d,A$ | Drag coefficient and area | 0.2, 10 m² |
+| $I_{sp}$ | Specific impulse | 300 s |
+| $\rho_0,H$ | Surface density and scale height | 1.225 kg/m³, 8500 m |
+
+At maximum thrust, consumption is about 33.3 kg/s, so all propellant would be exhausted in 90 s.
+
+### Scaling
+
+Use radius unit $R_e$, velocity unit $\sqrt{GM/R_e}\approx7.91$ km/s, mass unit 5000 kg,
+time unit about 805 s, and thrust unit about 49.1 kN.
+Equations and output stay in physical units ([scaling](../../guide/usage/#scaling)).
+
+### Initial guess
+
+Use time 0 to 600 s, cubic radius from $R_e$ to $R_e+50$ km with zero endpoint slopes, and zero velocity.
+Mass is cubic from 5000 to 2000 kg, with initial slope −0.6 kg/s and final slope zero.
+Thrust decreases cubically from maximum to zero with zero endpoint slopes.
+
+## Results
+
+<SolverNote id="rocket_ascent_single_stage" />
+
+<ExampleFigure id="rocket_ascent_single_stage" kind="history" caption="Altitude, velocity, mass, and thrust through 50 nodes. The red dotted line marks maximum thrust, about 98 kN." />
+
+<ExampleFigure id="rocket_ascent_single_stage" kind="animation" caption="Vertical ascent beside velocity and thrust histories. The black vertical cursor marks the current time." />
+
+- Maximum altitude: <Value id="rocket_ascent_single_stage" k="final_altitude_km" d={1} /> km.
+- Burnout: about <Value id="rocket_ascent_single_stage" k="burnout_time" d={0} /> s; highest point: <Value id="rocket_ascent_single_stage" k="final_time" d={0} /> s.
+- Thrust follows maximum → intermediate → zero, as in Example 07.
+
+## Explanation
+
+For about the first 20 s, maximum thrust builds speed. As drag grows, thrust falls to roughly 70–80 kN,
+balancing drag and gravity losses along a **singular arc**.
+Once the atmosphere thins, the rocket consumes the remaining propellant and coasts upward.
+Throttling extends the burn beyond the 90 s maximum-thrust duration.
+The physical structure matches the dimensionless Goddard problem.
+
+Thrust oscillations and a rounded burnout transition arise from representing a discontinuity with one polynomial.
+Splitting near burnout, as in Example 08, can improve this representation
+([multiple phases](../../theory/pseudospectral/#multiple-phases)).
+
+## Try it
+
+- Set `self.Cd` to zero and compare the singular arc and maximum altitude with the drag-free result.
+- Raise `self.Isp` from 300 to 450 and inspect the increase in altitude.
+- Lower `self.max_thrust`, the initial thrust-to-weight ratio, to 1.5 and compare maximum-thrust and intermediate-thrust durations.
+
+## Run
+
+<RunCommand id="rocket_ascent_single_stage" />
+
+[View the Python source on GitHub](https://github.com/istellartech/OpenGoddard/blob/master/examples/10_rocket_ascent_single_stage.py).

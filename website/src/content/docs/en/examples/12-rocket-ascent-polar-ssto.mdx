@@ -1,0 +1,175 @@
+---
+title: 12. Single-stage orbital insertion in polar coordinates
+description: Maximize mass delivered to a 400 km circular orbit by optimizing thrust magnitude and direction.
+sidebar:
+  order: 12
+---
+
+import ExampleFigure from '../../../../components/ExampleFigure.astro';
+import RunCommand from '../../../../components/RunCommand.astro';
+import SolverNote from '../../../../components/SolverNote.astro';
+import Value from '../../../../components/Value.astro';
+
+<p class="lead">
+  Reaching orbit requires more than altitude: a vehicle also needs enough <strong>horizontal speed</strong> to keep falling around Earth.
+  How should thrust turn from upward to horizontal to deliver the greatest mass to orbit?
+</p>
+
+<div class="og-facts">
+
+| Item | Definition |
+| --- | --- |
+| States | Radius $R$, angle $\theta$, radial and tangential velocities $V_r,V_t$, mass $m$ |
+| Controls | Radial and tangential thrust $T_r,T_t$ |
+| Objective | Maximize final mass |
+| Phases | One phase, 30 nodes, free final time |
+| New concepts | Polar dynamics, two thrust components, multiple path constraints |
+
+</div>
+
+## Situation
+
+A 100 t rocket starts at rest and must enter a **400 km circular orbit**.
+At arrival it needs the target altitude, zero radial velocity, and circular speed about 7.67 km/s.
+The dry vehicle is 1 t and propellant accounts for 99% of initial mass.
+Maximizing final mass measures how much propellant can remain. Earth rotation is neglected.
+Thrust and the acceleration felt by the vehicle are limited.
+
+## Formulation
+
+### Coordinates
+
+- $R$ is distance from Earth's center; altitude is $h=R-R_e$.
+- $\theta$ is angular distance from the launch site; downrange distance is $R_e\theta$.
+- $V_r$ is outward radial (vertical) velocity; $V_t$ is tangential (local horizontal) velocity.
+- $T_r,T_t$ are thrust components. Magnitude is $|T|=\sqrt{T_r^2+T_t^2}$ and elevation is $\arctan(T_r/T_t)$ in this nonnegative quadrant.
+
+Components avoid introducing a steering angle that becomes undefined at zero thrust and adds trigonometric nonlinearities.
+
+### Dynamics
+
+$$
+\begin{aligned}
+\dot R&=V_r, &\dot\theta&=V_t/R,\\
+\dot V_r&=(T_r-D_r)/m-\mu/R^2+V_t^2/R,\\
+\dot V_t&=(T_t-D_t)/m-V_rV_t/R,\\
+\dot m&=-\sqrt{T_r^2+T_t^2}/(g_0I_{sp}).
+\end{aligned}
+$$
+
+The centrifugal term $V_t^2/R$ balances gravity on a circular orbit.
+The term $-V_rV_t/R$ expresses conservation of angular momentum: without tangential force, $RV_t$ stays constant as radius changes.
+
+$$
+V=\sqrt{V_r^2+V_t^2},\qquad
+D_r=\tfrac12\rho(h)V_rVC_DA,\qquad D_t=\tfrac12\rho(h)V_tVC_DA,
+$$
+
+$$
+\rho(h)=1.225e^{-h/8500},\qquad g(R)=\mu/R^2.
+$$
+
+Drag opposes velocity. The same gravitational parameter $\mu$ is used for the dynamics and target circular speed.
+
+### Boundary conditions
+
+$$
+\begin{aligned}
+R(0)&=R_e,&\theta(0)&=0,&V_r(0)&=V_t(0)=0,&m(0)&=100\ \mathrm t,\\
+R(t_f)&=R_e+400\ \mathrm{km},&V_r(t_f)&=0,&V_t(t_f)&=\sqrt{\mu/R(t_f)}.
+\end{aligned}
+$$
+
+Target speed is about 7672.6 m/s. Final angle and time are free.
+
+### Constraints
+
+$$
+\begin{aligned}
+R&\ge R_e,\\
+0&\le T_r,T_t\le T_{\max},\\
+\sqrt{T_r^2+T_t^2}&\le T_{\max},\\
+1\ \mathrm t&\le m\le100\ \mathrm t,\\
+\left|\frac{\boldsymbol T-\boldsymbol D}{m}\right|&\le8g_0.
+\end{aligned}
+$$
+
+Thrust cannot point downward or backward. Its magnitude is limited to 1.5 times initial weight, about 1471 kN.
+The 8 G limit is **non-gravitational acceleration**, as measured by an accelerometer. All constraints apply at nodes.
+
+### Objective and parameters
+
+$$
+J=-m(t_f)/m(0).
+$$
+
+| Parameter | Value |
+| --- | --- |
+| $R_e$ | 6371 km |
+| $g_0$ | 9.80665 m/s² |
+| $\mu$ | $3.986\times10^{14}$ m³/s² |
+| Initial / dry mass | 100 t / 1 t |
+| $C_D,A$ | 0.6, 4 m² |
+| $I_{sp}$ | 300 s |
+| Thrust-to-weight ratio | 1.5 |
+| Acceleration limit | 8 G |
+
+Scale radius by $R_e$, speed by $\sqrt{\mu/R_e}$, and mass by initial mass
+([scaling](../../guide/usage/#scaling)).
+
+### Initial guess
+
+Use time 0 to 200 s. Radius rises cubically to the target, angle rises cubically to 25°, radial velocity is zero,
+and tangential velocity grows linearly to target speed.
+Mass decreases cubically from 100 t to 1 t. Both thrust components decrease cubically from $T_{\max}/2$ to zero.
+
+## Results
+
+<SolverNote id="rocket_ascent_polar_ssto" />
+
+Final altitude is <Value id="rocket_ascent_polar_ssto" k="final_altitude_km" d={1} /> km (target <Value id="rocket_ascent_polar_ssto" k="target_altitude_km" d={1} /> km),
+and speed is <Value id="rocket_ascent_polar_ssto" k="final_speed" d={1} /> m/s (target <Value id="rocket_ascent_polar_ssto" k="target_speed" d={1} /> m/s).
+
+<ExampleFigure id="rocket_ascent_polar_ssto" kind="scene" caption="Altitude versus downrange distance, with altitude exaggerated. Dots are nodes; orange arrows show thrust direction and relative magnitude at selected powered nodes." />
+
+<ExampleFigure id="rocket_ascent_polar_ssto" kind="history" caption="Altitude, tangential and radial velocity, mass, thrust magnitude, thrust elevation, and non-gravitational acceleration. Elevation is hidden when the engine is off; red lines mark thrust and acceleration limits." />
+
+<ExampleFigure id="rocket_ascent_polar_ssto" kind="animation" caption="Ascent beside velocity, thrust magnitude, and elevation histories. Coasting is played faster." />
+
+- The first burn ends around <Value id="rocket_ascent_polar_ssto" k="burn_spans.0.1" d={0} /> s.
+- After coasting upward, a second burn from about <Value id="rocket_ascent_polar_ssto" k="burn_spans.1.0" d={0} /> to <Value id="rocket_ascent_polar_ssto" k="final_time" d={0} /> s circularizes the orbit.
+- Final mass is <Value id="rocket_ascent_polar_ssto" k="final_mass_kg" d={0} /> kg, about 4% of initial mass: 1 t of structure plus remaining propellant.
+- Insertion occurs <Value id="rocket_ascent_polar_ssto" k="downrange_km" d={0} /> km downrange.
+- Maximum node acceleration is <Value id="rocket_ascent_polar_ssto" k="max_accel_G" d={2} /> G, below the inactive 8 G limit.
+
+## Explanation
+
+### Rise, then turn
+
+Thrust starts nearly upward, around 80°, then turns toward horizontal.
+Early climbing escapes dense air and drag. Turning too late wastes propellant against gravity.
+The optimum balances these effects, resembling a gravity turn.
+
+### Burn, coast, and circularize
+
+The first burn creates a trajectory with apogee near 400 km. Coasting raises altitude without consuming propellant.
+A final horizontal burn at apogee creates the circular orbit, similar to a **Hohmann transfer**.
+Tangential speed decreases during the outward coast because angular momentum is conserved.
+
+### Interpreting the plots
+
+Constraints hold at nodes; interpolating curves may exceed limits between them.
+A single polynomial spans both engine switches, so fine details depend on the node count
+([multiple phases](../../theory/pseudospectral/#multiple-phases), [checking results](../../guide/troubleshooting/#check-the-result-first)).
+
+## Try it
+
+- Change the 30 nodes or the 200 s time guess and compare convergence and final mass.
+- Lower `MaxG` from 8 to 4 and inspect throttling when the acceleration constraint becomes active.
+- Change `Htarget` to 300 or 600 km and compare coast duration and final mass.
+
+## Run
+
+<RunCommand id="rocket_ascent_polar_ssto" />
+
+[View the Python source on GitHub](https://github.com/istellartech/OpenGoddard/blob/master/examples/12_rocket_ascent_polar_ssto.py).

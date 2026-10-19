@@ -1,0 +1,140 @@
+---
+title: 08. Goddard problem with a knot
+description: Split the Goddard trajectory near burnout to represent a discontinuous thrust switch with separate polynomials.
+sidebar:
+  order: 8
+---
+
+import ExampleFigure from '../../../../components/ExampleFigure.astro';
+import RunCommand from '../../../../components/RunCommand.astro';
+import SolverNote from '../../../../components/SolverNote.astro';
+import Value from '../../../../components/Value.astro';
+
+<p class="lead">
+  Example 07 used one polynomial across the thrust switch at burnout, causing oscillations.
+  Splitting time near that switch lets each phase use its own polynomial. The physical model is unchanged.
+</p>
+
+<div class="og-facts">
+
+| Item | Definition |
+| --- | --- |
+| States | Radial height $h$, velocity $v$, mass $m$ |
+| Control | Thrust $T$ |
+| Objective | Maximize final height |
+| Phases | Two phases, 25 nodes each; knot fixed at 0.075, final time free |
+| New concepts | Knots and discontinuous controls |
+
+</div>
+
+## Situation
+
+The rocket and objective are the same as [Example 07](../07-goddard-0knot/).
+Its thrust changes from maximum through an intermediate singular arc to zero.
+The one-phase solution burns out around 0.077, so we place a **knot** at 0.075:
+
+- Phase 1: $0\le t\le0.075$, primarily powered ascent.
+- Phase 2: $0.075\le t\le t_f$, primarily coasting.
+
+These roles are encouraged by the initial guess; the thrust constraints themselves are the same in both phases.
+All quantities remain dimensionless.
+
+## Formulation
+
+### Dynamics
+
+Both phases use
+
+$$
+\dot h=v,\qquad\dot v=\frac{T-D(h,v)}m-g(h),\qquad\dot m=-\frac Tc,
+$$
+
+$$
+D=D_cv^2\exp\!\left(-H_c\frac{h-h_0}{h_0}\right),\qquad g=g_0\left(\frac{h_0}h\right)^2.
+$$
+
+See [Example 07](../07-goddard-0knot/#dynamics) for the meaning of each term.
+
+### Phases and linkage
+
+$$
+t_1=0.075,\qquad
+h^{(1)}(t_1)=h^{(2)}(t_1),\quad
+v^{(1)}(t_1)=v^{(2)}(t_1),\quad
+m^{(1)}(t_1)=m^{(2)}(t_1).
+$$
+
+States are continuous, but no thrust continuity condition is imposed. Thrust may jump at the knot.
+
+### Boundary conditions
+
+$$
+h(0)=1,\quad v(0)=0,\quad m(0)=1,\qquad v(t_f)=0,\quad m(t_f)=0.6.
+$$
+
+### Constraints and objective
+
+$$
+0\le T\le3.5,\quad h\ge1,\quad v\ge0,\quad0.6\le m\le1,
+$$
+
+$$
+t_1\ge0.05,\qquad t_f\ge0.1,\qquad J=-h(t_f).
+$$
+
+The knot lower bound is inactive because the equality already fixes $t_1$.
+
+### Parameters
+
+The parameters match Example 07: $h_0=g_0=m_0=1$, $D_c=310$, $H_c=500$, $c=0.5$,
+$T_{\max}=3.5$, and $m_f=0.6$, with the additional knot time 0.075.
+
+### Initial guess
+
+Start with phase times $0\to0.1\to0.3$; optimization moves the knot to 0.075.
+Height is cubic from 1 to 1.01 and velocity is zero.
+Mass decreases linearly from 1 to 0.6 in phase 1, then remains 0.6.
+Thrust starts at maximum throughout phase 1 and zero throughout phase 2.
+
+## Results
+
+<SolverNote id="goddard_1knot" />
+
+<ExampleFigure id="goddard_1knot" kind="history" caption="Height, velocity, mass, and thrust. Blue and orange are the two phases with 25 nodes each. The vertical dashed line marks t = 0.075; red dotted lines mark dry mass and maximum thrust." />
+
+<ExampleFigure id="goddard_1knot" kind="animation" caption="The ascent trail is colored by phase. Velocity and thrust histories show the knot and the current time." />
+
+- Final height: <Value id="goddard_1knot" k="final_height" d={4} />, close to Example 07's <Value id="goddard_0knot" k="final_height" d={4} />.
+- Thrust drops discontinuously at the knot and remains nearly zero throughout phase 2.
+- Mass at the end of phase 1: <Value id="goddard_1knot" k="phases.0.final.m" d={4} />, so almost all propellant is consumed in that phase.
+- Final time: <Value id="goddard_1knot" k="final_time" d={3} />.
+
+## Explanation
+
+### Why oscillations decrease
+
+The discontinuity now lies **between** the final node of phase 1 and the first node of phase 2.
+Within each phase, thrust is smooth enough for a polynomial. Phase 2 can represent zero thrust directly.
+Phase 1 also has fewer demands on its polynomial, reducing oscillation around the maximum-to-intermediate transition.
+
+### Choosing the knot time
+
+This example **fixes** the knot based on the previous solution.
+It is slightly earlier than the one-phase burnout estimate <Value id="goddard_0knot" k="burnout_time" d={3} />,
+which makes the rocket consume propellant earlier and slightly reduces final height, around the fifth decimal place.
+The late rise in phase-1 thrust is consistent with burning the remaining propellant before the fixed knot.
+
+Removing $t_1=0.075$ allows the optimizer to choose the knot.
+Additional conditions, such as consuming propellant by the end of phase 1, may be needed to keep it aligned with burnout.
+
+## Try it
+
+- Change `result.equal(ts0, 0.075)` to 0.06 or 0.09. An earlier knot may reduce height; a later one may put the thrust jump inside phase 1 and restore oscillations.
+- Reduce `[25, 25]` to `[15, 10]` and compare accuracy with the 50-node one-phase solution.
+- Remove the knot-time equality and inspect the optimized knot and thrust history.
+
+## Run
+
+<RunCommand id="goddard_1knot" />
+
+[View the Python source on GitHub](https://github.com/istellartech/OpenGoddard/blob/master/examples/08_goddard_1knot.py).

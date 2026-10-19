@@ -1,0 +1,46 @@
+---
+title: Examples
+description: Fifteen examples in learning order, from motion on a line to two-stage orbital insertion.
+sidebar:
+  order: 0
+  label: All examples
+---
+
+import ExampleCards from '../../../../components/ExampleCards.astro';
+
+<p class="lead">
+  Examples are ordered from simple to advanced. Each covers one physical model and one objective,
+  with parameters, problem construction, solving, and plotting in a single Python file.
+</p>
+
+Each page explains the situation and equations before showing the computed figures and videos.
+Dots are optimized node values; curves are interpolating polynomials. Black dashed curves show analytic solutions where available.
+
+## Basics: motion on a line and fastest descent
+
+Small problems with few states and controls, suitable for learning the formulation and comparing with hand calculations.
+
+<ExampleCards numbers={['01', '02', '03', '04', '05', '06']} />
+
+## Rocket ascent and landing
+
+Introduce changing mass, drag, phase splitting, and stage separation.
+
+<ExampleCards numbers={['07', '08', '09', '10', '11']} />
+
+## Orbital insertion and transfer
+
+Two-dimensional flight into and between Earth orbits, with scaling and more constraints.
+
+<ExampleCards numbers={['12', '13', '14', '15']} />
+
+## Running the examples
+
+Run from the repository root after [installing the environment](../#installation):
+
+```sh
+uv run python examples/07_goddard_0knot.py
+```
+
+Change the values in each script's `PARAMETERS` dictionary or `Rocket` class to solve with different conditions.
+The scripts retain their original Japanese comments; these pages explain the models in English.

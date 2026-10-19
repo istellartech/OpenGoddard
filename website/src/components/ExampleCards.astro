@@ -2,6 +2,7 @@
 // Cards for the examples, grouped by level, with the generated scene as image.
 import { getCollection } from 'astro:content';
 import { exampleHref, examples, hasMedia, mediaUrl } from '../lib/catalog';
+import { isEnglish, localePrefix } from '../lib/i18n';
 
 interface Props {
   /** Two-digit numbers to show, e.g. ["01", "02"]. */
@@ -9,16 +10,19 @@ interface Props {
 }
 
 const docs = await getCollection('docs');
+const locale = Astro.currentLocale;
+const prefix = localePrefix(locale);
 const cards = examples()
   .filter((example) => Astro.props.numbers.includes(example.number))
   .map((example) => {
-    const doc = docs.find((entry) => entry.id.startsWith(`examples/${example.number}-`));
-    const image = ['animation.png', 'scene.png', 'history.png'].find((name) => hasMedia(example.id, name));
+    const doc = docs.find((entry) => entry.id.startsWith(`${prefix}examples/${example.number}-`));
+    const image = ['animation.png', 'scene.png', 'history.png'].find((name) => hasMedia(prefix + example.id, name));
     return {
       ...example,
-      href: exampleHref(example.id),
+      title: doc?.data.title.replace(/^\d+\.\s*/, '') ?? example.title,
+      href: exampleHref(example.id, locale),
       description: doc?.data.description ?? '',
-      image: image ? mediaUrl(example.id, image) : undefined,
+      image: image ? mediaUrl(prefix + example.id, image) : undefined,
     };
   });
 ---
@@ -29,7 +33,7 @@ const cards = examples()
       <a class="og-card" href={card.href}>
         <div class="og-card-image">{card.image && <img src={card.image} alt="" loading="lazy" />}</div>
         <div class="og-card-body">
-          <span class="og-card-number">例題 {card.number}</span>
+          <span class="og-card-number">{isEnglish(locale) ? 'Example' : '例題'} {card.number}</span>
           <span class="og-card-title">{card.title}</span>
           <span class="og-card-text">{card.description}</span>
         </div>

@@ -1,0 +1,77 @@
+---
+title: Introduction
+description: OpenGoddard is a Python library for computing optimal controls and trajectories with pseudospectral methods.
+---
+
+import { LinkCard, CardGrid } from '@astrojs/starlight/components';
+import Figure from '../../../components/Figure.astro';
+
+<p class="lead">
+  OpenGoddard is a Python library for finding the best way to choose inputs that change over time,
+  such as the thrust and flight direction of a launch vehicle. These are <strong>optimal control problems</strong>.
+</p>
+
+## What problems does it solve?
+
+Imagine releasing a ball from rest at point A and letting gravity carry it along a frictionless track to B.
+If you can choose the shape of the track, which shape gets the ball to B fastest?
+
+<Figure src="concepts/candidate_curves.png" caption="Travel time from A to B along different tracks. The straight line is shortest, but the cycloid is fastest: it descends steeply at first to gain speed." />
+
+A straight track gives the shortest distance but accelerates the ball slowly. A track that goes too deep adds too much distance.
+The fastest curve balances these effects: a steep initial descent builds speed, which then carries the ball horizontally.
+
+The unknown is **a function describing the track**, rather than a single number. For a rocket, the unknowns are thrust magnitude and direction at each instant;
+for a car, they are throttle and brake inputs over time. OpenGoddard solves these problems from:
+
+- **Dynamics:** how inputs change the state, such as position, velocity, and mass.
+- **Conditions:** the initial and final states, and limits that must hold along the way.
+- **Objective:** what to minimize, such as time, fuel use, or negative final altitude.
+
+The result is a time history of states and controls. The following solution maximizes the mass delivered by a two-stage rocket to a 500 km circular orbit ([Example 13](examples/13-rocket-ascent-polar-tsto/)).
+
+<Figure src="rocket_ascent_polar_tsto/scene.png" caption="Example 13. Blue and red show the first and second stages; orange arrows show thrust direction. White dots are the optimized nodes, joined by polynomial interpolation." />
+
+## Features
+
+- **LGL pseudospectral discretization** gives high accuracy with relatively few nodes ([pseudospectral methods](theory/pseudospectral/)).
+- **Write the equations directly** as ordinary Python functions. The library assembles the discretization and optimization problem ([writing a problem](guide/usage/)).
+- **Multiple phases** support changes such as stage separation, with separate dynamics in each phase.
+- **NumPy, SciPy, and Matplotlib** are the only required dependencies. The default optimizer is SciPy's SLSQP (sequential quadratic programming).
+
+## Installation
+
+Python 3.11 or later is required.
+
+```sh
+pip install OpenGoddard
+```
+
+To run the examples, clone the repository and prepare the environment with [uv](https://docs.astral.sh/uv/):
+
+```sh
+git clone https://github.com/istellartech/OpenGoddard.git
+cd OpenGoddard
+uv sync
+uv run python examples/02_move_stop.py
+```
+
+## Reading this site
+
+If you are learning optimal control and numerical optimization, follow these pages in order.
+
+<CardGrid>
+  <LinkCard title="1. What is optimal control?" description="States, controls, dynamics, constraints, and objectives." href="theory/optimal-control/" />
+  <LinkCard title="2. Numerical approaches" description="Indirect and direct methods; shooting and collocation." href="theory/methods/" />
+  <LinkCard title="3. Pseudospectral methods" description="LGL nodes, differentiation matrices, and quadrature." href="theory/pseudospectral/" />
+  <LinkCard title="4. Writing a problem" description="Translate equations into OpenGoddard code." href="guide/usage/" />
+  <LinkCard title="5. Examples" description="15 problems, from motion on a line to two-stage orbital insertion." href="examples/" />
+  <LinkCard title="API reference" description="Class and function specifications generated from docstrings." href="api/OpenGoddard/" />
+</CardGrid>
+
+## The name
+
+The library is named after Robert H. Goddard. His 1919 question of how to vary thrust to reach the greatest altitude with a fixed amount of propellant
+is a classic optimal control problem ([Example 07](examples/07-goddard-0knot/)).
+
+OpenGoddard is released by [Interstellar Technologies Inc.](https://www.istellartech.com/) under the MIT license.

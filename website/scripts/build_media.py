@@ -6,7 +6,8 @@ interpolation of each phase's polynomial. ``specs.py`` describes what to draw,
 ``figures.py`` draws it, and ``concepts.py`` draws the figures of the theory
 pages.
 
-Outputs go to ``website/public/media/<example id>/``:
+Outputs go to ``website/public/media/<example id>/`` (Japanese) and
+``website/public/media/en/<example id>/`` (English), using the same solution:
 
 * ``history.png``: states and controls against time;
 * ``scene.png``: the motion (path, altitude column, launch or orbit);
@@ -44,6 +45,7 @@ sys.path.insert(0, str(SCRIPTS))
 
 import style  # noqa: E402, F401  (sets the Matplotlib style)
 from figures import Solution, animation, history_figure, scene_figure  # noqa: E402
+from i18n import LANGUAGES, language  # noqa: E402
 from specs import POST, SPECS  # noqa: E402
 
 from examples.catalog import EXAMPLES, find_example, load_example  # noqa: E402
@@ -131,14 +133,14 @@ def source_hash(example) -> str:
 
 def build_example(identifier: str, force: bool = False) -> str:
     example = find_example(identifier)
-    out = OUTPUT / example.id
+    outputs = [OUTPUT / example.id, OUTPUT / "en" / example.id]
     digest = source_hash(example)
-    summary_path = out / "summary.json"
-    if not force and summary_path.exists():
-        if json.loads(summary_path.read_text()).get("hash") == digest:
-            return f"{example.id}: up to date"
-    shutil.rmtree(out, ignore_errors=True)
-    out.mkdir(parents=True)
+    if not force and all(
+        (out / "summary.json").exists()
+        and json.loads((out / "summary.json").read_text()).get("hash") == digest
+        for out in outputs
+    ):
+        return f"{example.id}: up to date (ja, en)"
     module = load_example(example.id)
     spec = SPECS[example.id]
     with contextlib.redirect_stdout(open(os.devnull, "w")):
@@ -149,15 +151,22 @@ def build_example(identifier: str, force: bool = False) -> str:
     sol = sample(problem, spec, module)
     if example.id in POST:
         POST[example.id](sol)
-    history_figure(sol, spec, out / "history.png")
-    if spec.scene is not None:
-        scene_figure(sol, spec, out / "scene.png")
-        animation(sol, spec, out / "animation")
     summary = summarize(problem, sol, spec, module, example)
     summary["title"] = example.title
     summary["hash"] = digest
-    summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n")
-    return f"{example.id}: built"
+    # Solve once, then render the same trajectory in both languages.
+    for locale, out in zip(LANGUAGES, outputs):
+        shutil.rmtree(out, ignore_errors=True)
+        out.mkdir(parents=True)
+        with language(locale):
+            history_figure(sol, spec, out / "history.png")
+            if spec.scene is not None:
+                scene_figure(sol, spec, out / "scene.png")
+                animation(sol, spec, out / "animation")
+        (out / "summary.json").write_text(
+            json.dumps(summary, ensure_ascii=False, indent=2) + "\n"
+        )
+    return f"{example.id}: built (ja, en)"
 
 
 def main(argv=None):

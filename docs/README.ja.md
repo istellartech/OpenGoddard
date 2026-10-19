@@ -4,7 +4,7 @@ OpenGoddardは、軌道最適化・非線形最適制御問題を解くPythonラ
 Legendre–Gauss–Lobattoの擬スペクトル法で、運動方程式・制約・目的関数を
 数値最適化問題に変換し、SciPyで解きます。
 
-[English](../README.md) · [解説サイト](https://istellartech.github.io/OpenGoddard/)
+[English README](../README.md) · [解説サイト（日本語）](https://istellartech.github.io/OpenGoddard/) · [Documentation (English)](https://istellartech.github.io/OpenGoddard/en/)
 
 ## できること
 
@@ -66,6 +66,9 @@ uv run python examples/01_minimum_energy_transfer.py
 具体的なコードと各設定の意味は、以下の解説サイトとAPIリファレンスで説明しています。
 
 ## 学ぶ・使う
+
+解説サイトは日本語と英語で読めます。言語選択から、同じページの別言語版に切り替えられます。
+スマートフォンではメニュー内に言語選択があります。
 
 - [はじめに](https://istellartech.github.io/OpenGoddard/)：最適制御問題とは何か、間接法と直接法、擬スペクトル法の仕組み。
 - [問題の書き方](https://istellartech.github.io/OpenGoddard/guide/usage/)：数式をコードに書き下す手順。

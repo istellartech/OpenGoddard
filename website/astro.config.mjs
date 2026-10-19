@@ -30,33 +30,38 @@ export default defineConfig({
         },
       ],
       defaultLocale: 'root',
-      locales: { root: { label: '日本語', lang: 'ja' } },
+      locales: {
+        root: { label: '日本語', lang: 'ja' },
+        en: { label: 'English', lang: 'en' },
+      },
       social: [
         { icon: 'github', label: 'GitHub', href: 'https://github.com/istellartech/OpenGoddard' },
       ],
       customCss: ['katex/dist/katex.min.css', './src/styles/custom.css'],
+      routeMiddleware: ['./src/route-data.ts'],
       plugins: [
         starlightPydocs({
-          packages: [
-            {
-              name: 'OpenGoddard',
-              search: ['../src'],
-              docstringStyle: 'google',
-              sourceLink: { host: 'github', repo: 'istellartech/OpenGoddard', ref: 'master', root: '..' },
-            },
-          ],
+          components: { ModuleDoc: './src/components/ApiModule.astro' },
+          packages: ['', 'en/'].map((locale) => ({
+            name: 'OpenGoddard',
+            base: `${locale}api/OpenGoddard`,
+            search: ['../src'],
+            docstringStyle: 'google',
+            sourceLink: { host: 'github', repo: 'istellartech/OpenGoddard', ref: 'master', root: '..' },
+          })),
           inventories: ['python'],
         }),
       ],
       sidebar: [
-        { label: 'はじめに', link: '/' },
+        { label: 'はじめに', translations: { en: 'Introduction' }, link: '/' },
         {
           label: '基礎',
+          translations: { en: 'Fundamentals' },
           items: ['theory/optimal-control', 'theory/methods', 'theory/pseudospectral'],
         },
-        { label: '使い方', items: ['guide/usage', 'guide/troubleshooting'] },
-        { label: '例題', items: [{ autogenerate: { directory: 'examples' } }] },
-        { label: 'APIリファレンス', items: [pydocsSidebarGroup] },
+        { label: '使い方', translations: { en: 'User guide' }, items: ['guide/usage', 'guide/troubleshooting'] },
+        { label: '例題', translations: { en: 'Examples' }, items: [{ autogenerate: { directory: 'examples' } }] },
+        { label: 'APIリファレンス', translations: { en: 'API reference' }, items: [pydocsSidebarGroup] },
       ],
     }),
   ],

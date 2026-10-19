@@ -1,0 +1,156 @@
+---
+title: 15. Low-thrust orbit transfer
+description: Minimize a componentwise thrust-acceleration integral while transferring from a unit circular orbit to radius 4 within a time limit.
+sidebar:
+  order: 15
+---
+
+import ExampleFigure from '../../../../components/ExampleFigure.astro';
+import RunCommand from '../../../../components/RunCommand.astro';
+import SolverNote from '../../../../components/SolverNote.astro';
+import Value from '../../../../components/Value.astro';
+
+<p class="lead">
+  Electric propulsion uses propellant efficiently but produces very little thrust compared with gravity.
+  A spacecraft must gradually expand its orbit over several revolutions. When and in which direction should it thrust to save fuel?
+</p>
+
+<div class="og-facts">
+
+| Item | Definition |
+| --- | --- |
+| States | Radius $r$, radial velocity $v_r$, tangential velocity $v_t$ |
+| Controls | Nonnegative components $u_r^+,u_r^-,u_t^+,u_t^-$ |
+| Objective | Minimize $\int(\lvert u_r\rvert+\lvert u_t\rvert)\,dt$ |
+| Phases | One phase, 60 nodes, free final time up to 55 |
+| New concepts | Dimensionless orbital dynamics, split controls for absolute values, a long trajectory |
+
+</div>
+
+## Situation
+
+Transfer from a circular orbit of radius 1 to one of radius 4.
+Each thrust-acceleration component is limited to 0.01, only 1% of gravity at the initial orbit.
+Length and velocity units are the initial radius and circular speed, so the gravitational parameter is $\mu=1$.
+Initial and final orbital periods are $2\pi\approx6.28$ and $16\pi\approx50.3$.
+The time limit 55 equals about 8.8 initial orbital periods.
+
+Thrust is expressed as **acceleration**, and spacecraft mass change is neglected.
+The objective is a componentwise accumulated velocity change, used as a propellant-use measure.
+
+## Formulation
+
+### Coordinates
+
+Radius $r$ is distance from the central body, $v_r$ is outward velocity, and $v_t$ is velocity along the orbital direction.
+The thrust accelerations are $u_r$ and $u_t$.
+Angle does not enter the dynamics, so it is omitted from the states and recovered for plotting by integrating $\dot\theta=v_t/r$.
+
+### Split positive and negative controls
+
+$$
+u_r=u_r^+-u_r^-,\qquad u_t=u_t^+-u_t^-,\qquad u_r^\pm,u_t^\pm\ge0.
+$$
+
+The positive radial component points outward; the negative one inward.
+Tangential components point along or against the direction of travel.
+
+### Dynamics
+
+$$
+\dot r=v_r,\qquad
+\dot v_r=\frac{v_t^2}r-\frac1{r^2}+u_r^+-u_r^-,\qquad
+\dot v_t=-\frac{v_rv_t}r+u_t^+-u_t^-.
+$$
+
+Gravity and centrifugal acceleration balance for $v_t=1/\sqrt r$.
+Without tangential thrust, angular momentum $rv_t$ is conserved, so outward motion reduces tangential speed.
+
+### Boundary conditions
+
+$$
+r(0)=1,\quad v_r(0)=0,\quad v_t(0)=1,\qquad
+r(t_f)=4,\quad v_r(t_f)=0,\quad v_t(t_f)=0.5.
+$$
+
+Both endpoints are circular orbits. Terminal angle is free.
+
+### Constraints
+
+$$
+0\le u_r^+,u_r^-,u_t^+,u_t^-\le0.01,\qquad1\le r\le4,\qquad1\le t_f\le55.
+$$
+
+Limits apply to **components**, so simultaneous radial and tangential thrust can have magnitude $0.01\sqrt2$.
+Radius bounds apply at interior nodes; endpoints are fixed by equalities.
+
+### Objective
+
+$$
+J=\int_0^{t_f}(u_r^++u_r^-+u_t^++u_t^-)\,dt.
+$$
+
+Absolute value is not differentiable at zero. Splitting $u=u^+-u^-$ replaces $|u|$ by the smooth linear sum $u^++u^-$.
+At the optimum, simultaneous opposing thrust only wastes cost, so one component is zero and the sum equals $|u|$.
+
+The objective adds magnitudes **by direction**. It is an L1 measure, which exceeds the Euclidean thrust magnitude
+$\sqrt{u_r^2+u_t^2}$ when both directions are active. It can represent separate thrusters for the two directions.
+
+### Parameters and initial guess
+
+Use $\mu=1$, $u_{\max}=0.01$, initial state $(1,0,1)$, target state $(4,0,0.5)$, and maximum time 55.
+Guess final time 50, radius linear from 1 to 4, zero radial velocity, and tangential velocity $1/\sqrt r$.
+Set $u_t^+=0.005$ and the other controls to zero.
+The guess approximates a slow outward spiral. Sixty nodes resolve the long trajectory.
+
+## Results
+
+<SolverNote id="low_thrust_orbit_transfer" />
+
+<ExampleFigure id="low_thrust_orbit_transfer" kind="scene" caption="Path in the orbital plane. The central dot is the attracting body; gray dashed circles mark r = 1 and r = 4. Dots are node positions and orange arrows show thrust direction and relative magnitude." />
+
+<ExampleFigure id="low_thrust_orbit_transfer" kind="history" caption="Radius, tangential and radial velocities, and signed radial and tangential thrust accelerations. Red dotted lines mark component limits ±0.01." />
+
+<ExampleFigure id="low_thrust_orbit_transfer" kind="animation" caption="Transfer motion beside radius and tangential thrust histories. The vertical cursor marks the current time." />
+
+- The spacecraft makes about <Value id="low_thrust_orbit_transfer" k="revolutions" d={1} /> revolutions and arrives at <Value id="low_thrust_orbit_transfer" k="final_time" d={1} />, reaching the time upper bound 55.
+- Objective: <Value id="low_thrust_orbit_transfer" k="objective_delta_v" d={3} />.
+- Tangential thrust stays near 0.01 for most of the transfer. Outward thrust appears around time 36–41, followed by a coast around 43–48.
+- The final burn combines forward and inward thrust to bring radial velocity back to zero.
+- Despite forward thrust, tangential velocity decreases from 1 to 0.5.
+
+## Explanation
+
+### Why forward thrust can accompany decreasing speed
+
+Forward thrust raises orbital energy, expanding the orbit.
+Circular speed is lower at larger radius, $v_t=1/\sqrt r$.
+The reduction from outward motion, $-v_rv_t/r$, can exceed the acceleration from $u_t$.
+Energy rises even as tangential speed falls.
+
+### Time and fuel
+
+A slow, nearly circular spiral has an ideal velocity-change requirement of $1-0.5=0.5$.
+A two-impulse **Hohmann transfer** needs about 0.449.
+The computed objective <Value id="low_thrust_orbit_transfer" k="objective_delta_v" d={3} /> is larger than both.
+
+The active time limit forces near-continuous thrust to reach radius 4 by time 55, leaving little opportunity to coast.
+A looser limit allows thrust to concentrate at more efficient orbital locations.
+
+### Node resolution
+
+The path covers roughly four revolutions. The angle is reconstructed for the scene, while one polynomial represents each state and control over the full interval.
+Around thrust switches, interpolation can oscillate or exceed 0.01 between nodes because constraints apply only at nodes
+([multiple phases](../../theory/pseudospectral/#multiple-phases)).
+
+## Try it
+
+- Raise `tf_max` from 55 to 70. A representative solve finishes around 65 with objective near 0.50 and several coast intervals.
+- Change `rf` and `vtf` together to preserve a circular target: for `rf = 2`, use `vtf = 1/sqrt(2)` (about 0.707).
+- Raise `u_max` to 0.02 and compare revolutions and the objective with the Hohmann value about 0.449.
+
+## Run
+
+<RunCommand id="low_thrust_orbit_transfer" />
+
+[View the Python source on GitHub](https://github.com/istellartech/OpenGoddard/blob/master/examples/15_low_thrust_orbit_transfer.py).
